@@ -22,9 +22,9 @@ export const AboutView: React.FC<AboutViewProps> = ({ onOpenContact }) => {
           <div className="lg:col-span-5 xl:col-span-5">
             <div className="relative overflow-hidden border border-neutral-900/80 bg-neutral-100 shadow-sm">
               <img
-                src="/assets/gideon-boadi.jpg"
+                src="/src/assets/images/gideon_boadi_portrait.png"
                 alt="Gideon Boadi — Photographer & Creative Director"
-                className="w-full h-auto aspect-[3/4] object-cover grayscale contrast-105 block"
+                className="w-full h-auto aspect-3/4 object-cover grayscale contrast-105 block"
                 referrerPolicy="no-referrer"
               />
             </div>

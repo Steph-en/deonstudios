@@ -1,21 +1,21 @@
 import { Project } from '../types';
 
-export const HERO_VIDEO_DESKTOP = '/videos/hero-desktop.mp4';
-export const HERO_VIDEO_MOBILE = '/videos/hero-mobile.mp4';
+export const HERO_VIDEO_DESKTOP = '/src/assets/videos/hero-desktop.mp4';
+export const HERO_VIDEO_MOBILE = '/src/assets/videos/hero-mobile.mp4';
 
 export const HERO_VIDEOS = [
   {
-    url: '/videos/hero-desktop.mp4',
+    url: '/src/assets/videos/hero-desktop.mp4',
     title: 'Deon Studios Reel — Desktop Split-Screen',
   },
   {
-    url: '/videos/hero-mobile.mp4',
+    url: '/src/assets/videos/hero-mobile.mp4',
     title: 'Deon Studios Reel — Mobile Portrait',
   },
-  {
-    url: '/videos/reel-1.mp4',
-    title: 'Monolith & Silhouette',
-  }
+  // {
+  //   url: 'src/assets/videos/reel-1.mp4',
+  //   title: 'Monolith & Silhouette',
+  // }
 ];
 
 export const FALLBACK_HERO_POSTER = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=2000&q=85';
