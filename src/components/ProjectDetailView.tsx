@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Maximize2, Camera, Calendar, MapPin, User, ArrowRight } from 'lucide-react';
 import { Project, ThemeMode } from '../types';
 import { LightboxModal } from './LightboxModal';
+import { ResilientImage } from './ResilientImage';
 
 interface ProjectDetailViewProps {
   project: Project;
@@ -154,8 +155,9 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                   onClick={() => openLightbox(index)}
                   className="masonry-break group relative overflow-hidden rounded-xl cursor-pointer bg-neutral-900/10 shadow-sm transition-all duration-300 hover:shadow-2xl"
                 >
-                  <img
+                  <ResilientImage
                     src={image.url}
+                    fallbackSrc={image.fallbackUrl}
                     alt={image.caption || `${project.title} image ${index + 1}`}
                     loading="lazy"
                     className="w-full h-auto object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"

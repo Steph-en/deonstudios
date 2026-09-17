@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Project, ThemeMode } from '../types';
+import { ResilientImage } from './ResilientImage';
 
 interface ProjectsListProps {
   projects: Project[];
@@ -85,8 +86,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
                           key={imgIdx}
                           className="relative w-full h-full overflow-hidden bg-neutral-900/20"
                         >
-                          <img
+                          <ResilientImage
                             src={imgUrl}
+                            fallbackSrc={project.fallbackGridImages?.[imgIdx] || project.images[imgIdx % project.images.length]?.url}
                             alt={`${project.title} frame ${imgIdx + 1}`}
                             loading="lazy"
                             className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
@@ -96,8 +98,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
                     </div>
                   ) : (
                     /* Single Full-Height Editorial Photograph */
-                    <img
+                    <ResilientImage
                       src={project.previewImages[0]}
+                      fallbackSrc={project.fallbackPreviewImages?.[0] || project.images[0]?.fallbackUrl}
                       alt={project.title}
                       loading="lazy"
                       className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.02]"

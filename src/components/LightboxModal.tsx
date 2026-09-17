@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Camera, Maximize2 } from 'lucide-react';
 import { ProjectImage, ThemeMode } from '../types';
+import { ResilientImage } from './ResilientImage';
 
 interface LightboxModalProps {
   images: ProjectImage[];
@@ -121,9 +122,10 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
 
         {/* Active Image */}
         <div className="relative max-w-full max-h-full flex items-center justify-center">
-          <img
+          <ResilientImage
             key={currentImage.id}
             src={currentImage.url}
+            fallbackSrc={currentImage.fallbackUrl}
             alt={currentImage.caption || `${projectTitle} plate ${currentIndex + 1}`}
             className="max-h-[75vh] md:max-h-[80vh] max-w-[90vw] md:max-w-[78vw] object-contain rounded-lg shadow-2xl transition-all duration-300"
           />

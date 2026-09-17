@@ -47,33 +47,76 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
 
   const activeVideoUrl = isMobileOrPortrait ? HERO_VIDEO_MOBILE : HERO_VIDEO_DESKTOP;
 
-  // Whenever the active video changes (e.g. resizing between mobile & desktop), load and play
+  // Whenever the active video changes or mounts, ensure muted and start playback
   useEffect(() => {
-    setHasVideoError(false);
-    setVideoLoaded(false);
+    const video = videoRef.current;
+    if (!video) return;
 
-    if (videoRef.current) {
-      videoRef.current.load();
-      const playPromise = videoRef.current.play();
+    // Enforce muted property directly on DOM element for browser autoplay compliance
+    video.defaultMuted = true;
+    video.muted = true;
+    setHasVideoError(false);
+
+    const attemptPlay = () => {
+      if (!video) return;
+      video.defaultMuted = true;
+      video.muted = true;
+      const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise
-          .then(() => setVideoLoaded(true))
-          .catch(() => {
+          .then(() => {
+            setVideoLoaded(true);
+            setHasVideoError(false);
+          })
+          .catch((err) => {
+            console.warn('Hero video autoplay notice:', err);
             if (videoRef.current) {
+              videoRef.current.defaultMuted = true;
               videoRef.current.muted = true;
-              videoRef.current.play().catch(() => {
-                // Ignore background policy issues
-              });
+              videoRef.current
+                .play()
+                .then(() => {
+                  setVideoLoaded(true);
+                  setHasVideoError(false);
+                })
+                .catch(() => {
+                  // Browser policy may require first user interaction
+                });
             }
           });
       }
+    };
+
+    if (video.readyState >= 2) {
+      setVideoLoaded(true);
+      attemptPlay();
+    } else {
+      video.load();
+      attemptPlay();
     }
+
+    // Fallback: resume playback on first user gesture if browser blocked initial autoplay
+    const handleGesture = () => {
+      if (video && video.paused) {
+        attemptPlay();
+      }
+    };
+
+    window.addEventListener('click', handleGesture, { once: true, passive: true });
+    window.addEventListener('scroll', handleGesture, { once: true, passive: true });
+    window.addEventListener('touchstart', handleGesture, { once: true, passive: true });
+
+    return () => {
+      window.removeEventListener('click', handleGesture);
+      window.removeEventListener('scroll', handleGesture);
+      window.removeEventListener('touchstart', handleGesture);
+    };
   }, [activeVideoUrl]);
 
   return (
     <section
       id="hero-section"
-      className="relative w-full h-[100vh] min-h-[600px] flex items-end justify-between overflow-hidden select-none bg-neutral-950"
+      className="relative w-full h-[100vh] min-h-[600px] flex items-center justify-center overflow-hidden select-none bg-neutral-950"
     >
       {/* 
         RESPONSIVE HERO VIDEO (foliobyjake.com inspired):
@@ -91,61 +134,76 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
           referrerPolicy="no-referrer"
         />
 
-        {!hasVideoError && (
-          <video
-            ref={videoRef}
-            key={activeVideoUrl}
-            poster={FALLBACK_HERO_POSTER}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            onLoadedData={() => setVideoLoaded(true)}
-            onCanPlay={() => setVideoLoaded(true)}
-            onError={() => {
-              // Try fallback or poster if active video fails
-              setHasVideoError(true);
-              setVideoLoaded(false);
-            }}
-            className={`w-full h-full object-cover object-center transition-all duration-1000 ease-out ${
-              videoLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            {/* Conditional sources matching viewport */}
-            <source
-              media="(max-width: 767px), (orientation: portrait)"
-              src={HERO_VIDEO_MOBILE}
-              type="video/mp4"
-            />
-            <source
-              media="(min-width: 768px) and (orientation: landscape)"
-              src={HERO_VIDEO_DESKTOP}
-              type="video/mp4"
-            />
-            {/* Fallback source */}
-            <source src={activeVideoUrl} type="video/mp4" />
-          </video>
-        )}
+        <video
+          ref={videoRef}
+          key={activeVideoUrl}
+          poster={FALLBACK_HERO_POSTER}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          onLoadedData={() => setVideoLoaded(true)}
+          onCanPlay={() => setVideoLoaded(true)}
+          onPlay={() => setVideoLoaded(true)}
+          onPlaying={() => setVideoLoaded(true)}
+          onTimeUpdate={() => {
+            if (videoRef.current && videoRef.current.currentTime > 0) {
+              setVideoLoaded(true);
+            }
+          }}
+          onError={() => {
+            // Keep element mounted so user interactions or secondary sources can load
+            console.warn('Hero video encountered error loading active source');
+          }}
+          className={`w-full h-full object-cover object-center transition-all duration-1000 ease-out ${
+            videoLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          {/* Conditional sources matching viewport */}
+          <source
+            media="(max-width: 767px), (orientation: portrait)"
+            src={HERO_VIDEO_MOBILE}
+            type="video/mp4"
+          />
+          {/* Desktop primary source from public /videos */}
+          <source
+            media="(min-width: 768px) and (orientation: landscape)"
+            src="/videos/hero-desktop.mp4"
+            type="video/mp4"
+          />
+          {/* Desktop source from src/assets */}
+          <source
+            media="(min-width: 768px) and (orientation: landscape)"
+            src={HERO_VIDEO_DESKTOP}
+            type="video/mp4"
+          />
+          {/* Fallback sources */}
+          <source src={activeVideoUrl} type="video/mp4" />
+          <source src="/videos/hero-desktop.mp4" type="video/mp4" />
+          <source src="/src/assets/videos/hero-desktop.mp4" type="video/mp4" />
+        </video>
 
-        {/* Subtle Ambient Darkened Gradient Overlay */}
+        {/* Ambient Darkened Overlay for Text Legibility */}
         <div
-          className="absolute inset-0 pointer-events-none bg-gradient-to-t from-neutral-950/80 via-black/30 to-black/20 transition-colors duration-500"
+          className="absolute inset-0 pointer-events-none bg-black/35 backdrop-brightness-[0.92] transition-colors duration-500"
         />
       </div>
 
-      {/* Editorial Studio Statement at Bottom-Left (Mathematically aligned with Projects Grid & Footer) */}
-      <div className="relative z-20 w-full px-4 sm:px-6 md:px-8 pb-16 sm:pb-20 md:pb-20 pointer-events-none">
-        <div className="max-w-7xl mx-auto">
-          <div className="max-w-xl sm:max-w-2xl lg:max-w-3xl text-left pointer-events-auto">
-            <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.28em] font-medium text-white/70 mb-2 sm:mb-2.5">
-              Deon Studios
-            </p>
-            <h1 className="font-editorial text-lg sm:text-xl md:text-2xl lg:text-3xl font-light text-white tracking-normal leading-snug sm:leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)]">
-              Creating stories through stunning visuals<br className="hidden sm:inline" />{' '}
+      {/* Centered Editorial Studio Statement (Triangular Typographic Form) */}
+      <div className="relative z-20 w-full px-5 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col items-center justify-center text-center pointer-events-none">
+        <div className="flex flex-col items-center pointer-events-auto">
+          {/* Apex of triangle: Studio name */}
+          <p className="text-[10px] sm:text-[11px] md:text-[12px] uppercase tracking-[0.36em] font-medium text-white/80 mb-3 sm:mb-4 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+            Deon Studios
+          </p>
+          {/* Base of triangle: Core creative statement */}
+          <h1 className="font-editorial text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light text-white tracking-tight leading-snug sm:leading-tight text-center max-w-2xl drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]">
+            Creating stories through stunning visuals
+            <span className="block text-lg sm:text-xl md:text-2xl lg:text-3xl text-white/90 font-light mt-2 sm:mt-2.5">
               and immersive experiences.
-            </h1>
-          </div>
+            </span>
+          </h1>
         </div>
       </div>
 

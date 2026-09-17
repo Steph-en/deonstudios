@@ -3,6 +3,7 @@ export type Category = 'All' | 'Fashion' | 'Editorial' | 'Campaign' | 'Portraitu
 export interface ProjectImage {
   id: string;
   url: string;
+  fallbackUrl?: string;
   caption: string;
   aspectRatio: 'portrait' | 'landscape' | 'tall' | 'square';
   tag?: string;
@@ -27,8 +28,10 @@ export interface Project {
   stylist?: string;
   model?: string;
   previewImages: string[];
+  fallbackPreviewImages?: string[];
   layout?: 'single' | 'grid3x3' | 'grid2x2';
   gridImages?: string[];
+  fallbackGridImages?: string[];
   images: ProjectImage[];
 }
 

@@ -121,7 +121,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-white/80 hover:text-white drop-shadow-sm'
               }`}
             >
-              Works
+              Projects
             </button>
 
             <button
@@ -218,7 +218,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'bg-white/95 border-neutral-200 text-neutral-900 shadow-neutral-500/20'
                 }`}
               >
-                {/* Menu Items: Works, About, Contact (No indexing, No numbering) */}
+                {/* Menu Items: Projects, About, Contact (No indexing, No numbering) */}
                 <div className="flex flex-col gap-1">
                   <button
                     type="button"
@@ -230,7 +230,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'
                     }`}
                   >
-                    Works
+                    Projects
                   </button>
 
                   <button
