@@ -38,3 +38,21 @@ export interface Project {
 export type ThemeMode = 'dark' | 'light';
 
 export type PageView = 'home' | 'project' | 'about';
+
+export interface SingleShot {
+  id: string;
+  title: string;
+  category?: string;
+  url: string;
+  fallbackUrl?: string;
+  aspectRatio: 'portrait' | 'landscape' | 'tall' | 'square' | 'wide';
+  caption: string;
+  clientOrBrand?: string;
+  tag?: string;
+  exif?: {
+    camera?: string;
+    lens?: string;
+    iso?: string;
+    shutter?: string;
+  };
+}

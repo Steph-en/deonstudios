@@ -85,3 +85,14 @@
 .animate-scroll-indicator {
   animation: scrollIndicatorDown 2.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
+
+/* Hover Hand Cursor for Gallery Plates */
+.cursor-hover-hand {
+  cursor: grab;
+  cursor: -webkit-grab;
+}
+
+.cursor-hover-hand:active {
+  cursor: grabbing;
+  cursor: -webkit-grabbing;
+}

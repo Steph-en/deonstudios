@@ -6,13 +6,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroVideo } from './components/HeroVideo';
+import { PortfolioSection } from './components/PortfolioSection';
 import { ProjectsList } from './components/ProjectsList';
+import { ProductsSection } from './components/ProductsSection';
 import { ProjectDetailView } from './components/ProjectDetailView';
 import { AboutView } from './components/AboutView';
 import { ContactModal } from './components/ContactModal';
 import { Footer } from './components/Footer';
 import { GsapIntro } from './components/GsapIntro';
-import { PROJECTS } from './data/portfolioData';
+import { PROJECTS, PORTFOLIO_SHOTS, PRODUCT_SHOTS } from './data/portfolioData';
 import { Project, ThemeMode, PageView } from './types';
 
 export default function App() {
@@ -55,6 +57,20 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleScrollToPortfolio = () => {
+    if (activePage !== 'home') {
+      setActivePage('home');
+      setSelectedProject(null);
+      setTimeout(() => {
+        const el = document.getElementById('portfolio-section');
+        el?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } else {
+      const el = document.getElementById('portfolio-section');
+      el?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const handleScrollToProjects = () => {
     if (activePage !== 'home') {
       setActivePage('home');
@@ -65,6 +81,20 @@ export default function App() {
       }, 100);
     } else {
       const el = document.getElementById('projects-archive-section');
+      el?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleScrollToProducts = () => {
+    if (activePage !== 'home') {
+      setActivePage('home');
+      setSelectedProject(null);
+      setTimeout(() => {
+        const el = document.getElementById('products-section');
+        el?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } else {
+      const el = document.getElementById('products-section');
       el?.scrollIntoView({ behavior: 'smooth' });
     }
   };
@@ -98,6 +128,7 @@ export default function App() {
         FEATURE 4 (oghalealex.com inspired):
         Navbar where the logo tracks with scroll down the entire page,
         leaving other navigation links behind.
+        Updated Links: Portfolio, Projects, Products, About, Contact
       */}
       <Navbar
         theme={theme}
@@ -106,7 +137,9 @@ export default function App() {
         onNavigateHome={handleNavigateHome}
         onOpenAbout={handleNavigateAbout}
         onOpenContact={() => setIsContactOpen(true)}
+        onScrollToPortfolio={handleScrollToPortfolio}
         onScrollToProjects={handleScrollToProjects}
+        onScrollToProducts={handleScrollToProducts}
         onReplayIntro={handleReplayIntro}
       />
 
@@ -120,18 +153,37 @@ export default function App() {
             */}
             <HeroVideo
               theme={theme}
-              onExploreClick={handleScrollToProjects}
+              onExploreClick={handleScrollToPortfolio}
             />
 
             {/* 
-              FEATURE 2 (garrettnaccarato.com inspired):
-              Grouped projects presentation indicating which images belong to each project/client.
-              Clicking navigates to the dedicated project gallery page.
+              PORTFOLIO SECTION:
+              Single shots, random photos/assets in dynamic masonry brick wall style
+              with hover hand cursor and lightbox view
+            */}
+            <PortfolioSection
+              shots={PORTFOLIO_SHOTS}
+              theme={theme}
+            />
+
+            {/* 
+              PROJECTS SECTION:
+              Grand full-scale dynamic project showcase (Garrett Naccarato inspired)
             */}
             <ProjectsList
               projects={PROJECTS}
               theme={theme}
               onSelectProject={handleSelectProject}
+            />
+
+            {/* 
+              PRODUCTS SECTION:
+              Commercial product photography, still life & objects in masonry brick wall style
+              with hover hand cursor and lightbox view
+            */}
+            <ProductsSection
+              products={PRODUCT_SHOTS}
+              theme={theme}
             />
           </>
         ) : activePage === 'about' ? (
@@ -170,3 +222,4 @@ export default function App() {
     </div>
   );
 }
+

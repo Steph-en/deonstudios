@@ -190,20 +190,30 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
         />
       </div>
 
-      {/* Centered Editorial Studio Statement (Triangular Typographic Form) */}
-      <div className="relative z-20 w-full px-5 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col items-center justify-center text-center pointer-events-none">
-        <div className="flex flex-col items-center pointer-events-auto">
-          {/* Apex of triangle: Studio name */}
-          <p className="text-[10px] sm:text-[11px] md:text-[12px] uppercase tracking-[0.36em] font-medium text-white/80 mb-3 sm:mb-4 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
-            Deon Studios
-          </p>
-          {/* Base of triangle: Core creative statement */}
-          <h1 className="font-editorial text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light text-white tracking-tight leading-snug sm:leading-tight text-center max-w-2xl drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]">
-            Creating stories through stunning visuals
-            <span className="block text-lg sm:text-xl md:text-2xl lg:text-3xl text-white/90 font-light mt-2 sm:mt-2.5">
-              and immersive experiences.
-            </span>
+      {/* Left-Aligned Editorial Studio Statement */}
+      <div className="relative z-20 w-full px-6 sm:px-10 md:px-16 lg:px-24 max-w-[1880px] mx-auto flex flex-col items-start justify-center text-left pointer-events-none">
+        <div className="flex flex-col items-start text-left pointer-events-auto max-w-4xl">
+          {/* Photographer & Artist Name in Refined Editorial Font Size */}
+          <h1
+            className="font-editorial font-light text-white tracking-tight text-left drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)]"
+            style={{ fontSize: '48.12px', lineHeight: '48.12px' }}
+          >
+            Gideon Boadi
           </h1>
+
+          {/* Role & Studio Discipline */}
+          <p
+            className="uppercase font-medium text-white/80 text-left drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]"
+            style={{
+              fontSize: '10.54px',
+              lineHeight: '16.81px',
+              fontFamily: 'Times New Roman, serif',
+              marginTop: '8px',
+              letterSpacing: '0.32em',
+            }}
+          >
+            Creative Director
+          </p>
         </div>
       </div>
 

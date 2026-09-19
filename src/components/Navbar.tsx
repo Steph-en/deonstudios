@@ -9,7 +9,9 @@ interface NavbarProps {
   onNavigateHome: () => void;
   onOpenAbout: () => void;
   onOpenContact: () => void;
+  onScrollToPortfolio: () => void;
   onScrollToProjects: () => void;
+  onScrollToProducts: () => void;
   onReplayIntro?: () => void;
 }
 
@@ -20,19 +22,27 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateHome,
   onOpenAbout,
   onOpenContact,
+  onScrollToPortfolio,
   onScrollToProjects,
+  onScrollToProducts,
 }) => {
   const [isBreadcrumbOpen, setIsBreadcrumbOpen] = useState(false);
   const breadcrumbRef = useRef<HTMLDivElement>(null);
   const isLightHeader = activePage !== 'home';
 
-  const handleWorksClick = () => {
+  const handlePortfolioClick = () => {
     setIsBreadcrumbOpen(false);
-    if (activePage !== 'home') {
-      onNavigateHome();
-    } else {
-      onScrollToProjects();
-    }
+    onScrollToPortfolio();
+  };
+
+  const handleProjectsClick = () => {
+    setIsBreadcrumbOpen(false);
+    onScrollToProjects();
+  };
+
+  const handleProductsClick = () => {
+    setIsBreadcrumbOpen(false);
+    onScrollToProducts();
   };
 
   const handleAboutClick = () => {
@@ -105,17 +115,29 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="w-full px-5 sm:px-6 md:px-10 py-5 sm:py-6 md:py-8 flex items-center justify-end">
           {/* 
             1. Desktop Nav Links (hidden on smaller displays, visible on md+):
-            - Works, About, Contact on the far right corner with refined, small font
+            - Portfolio, Projects, Products, About, Contact on the far right corner
           */}
           <nav
             id="desktop-nav-links"
-            className="hidden md:flex pointer-events-auto items-center gap-7"
+            className="hidden md:flex pointer-events-auto items-center gap-6 lg:gap-7"
             aria-label="Primary navigation"
           >
             <button
               type="button"
-              onClick={handleWorksClick}
-              className={`text-[10px] sm:text-[11px] uppercase tracking-[0.24em] font-medium transition-colors cursor-pointer ${
+              onClick={handlePortfolioClick}
+              className={`text-[8px] sm:text-[9px] uppercase tracking-[0.24em] font-medium transition-colors cursor-pointer ${
+                isLightHeader
+                  ? 'text-neutral-800 hover:text-black'
+                  : 'text-white/80 hover:text-white drop-shadow-sm'
+              }`}
+            >
+              Portfolio
+            </button>
+
+            <button
+              type="button"
+              onClick={handleProjectsClick}
+              className={`text-[8px] sm:text-[9px] uppercase tracking-[0.24em] font-medium transition-colors cursor-pointer ${
                 isLightHeader
                   ? 'text-neutral-800 hover:text-black'
                   : 'text-white/80 hover:text-white drop-shadow-sm'
@@ -126,8 +148,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               type="button"
+              onClick={handleProductsClick}
+              className={`text-[8px] sm:text-[9px] uppercase tracking-[0.24em] font-medium transition-colors cursor-pointer ${
+                isLightHeader
+                  ? 'text-neutral-800 hover:text-black'
+                  : 'text-white/80 hover:text-white drop-shadow-sm'
+              }`}
+            >
+              Products
+            </button>
+
+            <button
+              type="button"
               onClick={handleAboutClick}
-              className={`text-[10px] sm:text-[11px] uppercase tracking-[0.24em] font-medium transition-colors cursor-pointer ${
+              className={`text-[8px] sm:text-[9px] uppercase tracking-[0.24em] font-medium transition-colors cursor-pointer ${
                 isLightHeader
                   ? activePage === 'about'
                     ? 'text-black underline underline-offset-8 decoration-1 font-semibold'
@@ -141,7 +175,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={handleContactClick}
-              className={`text-[10px] sm:text-[11px] uppercase tracking-[0.24em] font-medium transition-colors cursor-pointer ${
+              className={`text-[8px] sm:text-[9px] uppercase tracking-[0.24em] font-medium transition-colors cursor-pointer ${
                 isLightHeader
                   ? 'text-neutral-800 hover:text-black'
                   : 'text-white/80 hover:text-white drop-shadow-sm'
@@ -218,13 +252,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                     : 'bg-white/95 border-neutral-200 text-neutral-900 shadow-neutral-500/20'
                 }`}
               >
-                {/* Menu Items: Projects, About, Contact (No indexing, No numbering) */}
+                {/* Menu Items: Portfolio, Projects, Products, About, Contact */}
                 <div className="flex flex-col gap-1">
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={handleWorksClick}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[11px] uppercase tracking-[0.22em] font-medium transition-colors ${
+                    onClick={handlePortfolioClick}
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
+                      theme === 'dark'
+                        ? 'hover:bg-white/10 text-neutral-200 hover:text-white'
+                        : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'
+                    }`}
+                  >
+                    Portfolio
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleProjectsClick}
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
                       theme === 'dark'
                         ? 'hover:bg-white/10 text-neutral-200 hover:text-white'
                         : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'
@@ -236,8 +283,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     type="button"
                     role="menuitem"
+                    onClick={handleProductsClick}
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
+                      theme === 'dark'
+                        ? 'hover:bg-white/10 text-neutral-200 hover:text-white'
+                        : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'
+                    }`}
+                  >
+                    Products
+                  </button>
+
+                  <button
+                    type="button"
+                    role="menuitem"
                     onClick={handleAboutClick}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[11px] uppercase tracking-[0.22em] font-medium transition-colors ${
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
                       theme === 'dark'
                         ? 'hover:bg-white/10 text-neutral-200 hover:text-white'
                         : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'
@@ -250,7 +310,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     role="menuitem"
                     onClick={handleContactClick}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[11px] uppercase tracking-[0.22em] font-medium transition-colors ${
+                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
                       theme === 'dark'
                         ? 'hover:bg-white/10 text-neutral-200 hover:text-white'
                         : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'

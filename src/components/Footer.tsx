@@ -17,9 +17,9 @@ export const Footer: React.FC<FooterProps> = ({ onScrollToTop }) => {
   return (
     <footer
       id="studio-footer"
-      className="relative w-full border-t border-neutral-200 bg-neutral-50 text-neutral-500 py-8 sm:py-10 px-4 sm:px-6 md:px-8 select-none"
+      className="relative w-full border-t border-neutral-200 bg-neutral-50 text-neutral-500 py-8 sm:py-10 px-4 sm:px-6 md:px-10 lg:px-14 select-none"
     >
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <div className="w-full max-w-[1880px] mx-auto flex items-center justify-between gap-4">
         {/* Left Side: Subtle, classic copyright fine print */}
         <p className="text-[8px] uppercase tracking-[0.16em] font-normal text-neutral-400 hover:text-neutral-500 transition-colors leading-none">
           © 2026 Deon Studios. All Rights Reserved.
