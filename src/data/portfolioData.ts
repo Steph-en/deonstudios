@@ -1,7 +1,7 @@
 import { Project, SingleShot } from '../types';
 
 export const HERO_VIDEO_DESKTOP = '/videos/hero-desktop.mp4';
-export const HERO_VIDEO_MOBILE = '/src/assets/videos/hero-mobile.mp4';
+export const HERO_VIDEO_MOBILE = '/videos/hero-mobile.mp4';
 
 export const HERO_VIDEOS = [
   {
@@ -9,12 +9,12 @@ export const HERO_VIDEOS = [
     title: 'Deon Studios Reel — Desktop Split-Screen',
   },
   {
-    url: '/src/assets/videos/hero-mobile.mp4',
+    url: '/videos/hero-mobile.mp4',
     title: 'Deon Studios Reel — Mobile Portrait',
   },
 ];
 
-export const FALLBACK_HERO_POSTER = '/src/assets/images/gideon_boadi_portrait.png';
+export const FALLBACK_HERO_POSTER = '/assets/gideon_boadi_portrait.png';
 
 export const PROJECTS: Project[] = [
   {

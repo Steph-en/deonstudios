@@ -181,7 +181,6 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
           {/* Fallback sources */}
           <source src={activeVideoUrl} type="video/mp4" />
           <source src="/videos/hero-desktop.mp4" type="video/mp4" />
-          <source src="/src/assets/videos/hero-desktop.mp4" type="video/mp4" />
         </video>
 
         {/* Ambient Darkened Overlay for Text Legibility */}

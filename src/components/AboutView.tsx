@@ -1,4 +1,5 @@
 import React from 'react';
+import gideonPortrait from '../assets/images/gideon_boadi_portrait.png';
 import { STUDIO_INFO, CLIENT_LIST, SOCIAL_LINKS } from '../data/portfolioData';
 
 interface AboutViewProps {
@@ -22,10 +23,20 @@ export const AboutView: React.FC<AboutViewProps> = ({ onOpenContact }) => {
           <div className="lg:col-span-5 xl:col-span-5">
             <div className="relative overflow-hidden border border-neutral-900/80 bg-neutral-100 shadow-sm">
               <img
-                src="/src/assets/images/gideon_boadi_portrait.png"
+                src={gideonPortrait}
                 alt="Gideon Boadi — Photographer & Creative Director"
                 className="w-full h-auto aspect-3/4 object-cover grayscale contrast-105 block"
                 referrerPolicy="no-referrer"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.dataset.tried) {
+                    target.dataset.tried = '1';
+                    target.src = '/assets/gideon_boadi_portrait.png';
+                  } else if (target.dataset.tried === '1') {
+                    target.dataset.tried = '2';
+                    target.src = '/assets/gideon-boadi.jpg';
+                  }
+                }}
               />
             </div>
             <p className="mt-2 text-[9px] text-neutral-500 font-sans-clean tracking-wider">
