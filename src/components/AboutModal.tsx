@@ -44,10 +44,10 @@ export const AboutModal: React.FC<AboutModalProps> = ({
           <DeonLogo size={42} fillColor="#FFFFFF" />
           <div>
             <h2 className="font-display text-xl font-bold uppercase tracking-[0.2em]">
-              {STUDIO_INFO.name}
+              {STUDIO_INFO.artist}
             </h2>
             <p className="text-xs uppercase tracking-[0.18em] opacity-60">
-              {STUDIO_INFO.location}
+              Founder of {STUDIO_INFO.name} · {STUDIO_INFO.location}
             </p>
           </div>
         </div>

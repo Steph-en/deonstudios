@@ -38,36 +38,36 @@ export const AboutView: React.FC<AboutViewProps> = ({ onOpenContact }) => {
             {/* Header & Disciplines Tagline */}
             <div className="border-b border-neutral-200 pb-5 mb-2">
               <h1 className="font-display text-[22px] sm:text-[28px] uppercase tracking-tight text-neutral-950 font-normal">
-                Deon Studios
+                Gideon Boadi
               </h1>
               <p className="mt-1 text-[10px] sm:text-[12px] uppercase tracking-[0.2em] text-neutral-500 font-medium">
-                Creative Direction · Visual Storytelling · Image Making
+                Photographer · Visual Storyteller · Founder of Deon Studios
               </p>
             </div>
 
-            {/* Opening Studio Statement */}
+            {/* Opening Statement */}
             <p className="text-neutral-900 text-[14px] sm:text-[16px] font-light leading-relaxed">
-              Deon Studios is a creative image studio focused on transforming ideas, identities, and emotions into distinctive visual stories.
+              Gideon Boadi is an image creative, photographer, and visual storyteller based in Accra, Ghana. Working at the intersection of fashion, culture, and contemporary art, he crafts distinctive visual narratives that transform ideas, identities, and emotions into evocative, enduring imagery.
             </p>
 
-            {/* Studio Philosophy & Approach */}
+            {/* Studio Philosophy & Deon Studios Reference */}
             <p className="text-neutral-700 font-light leading-relaxed">
-              We work with brands across fashion, beauty, lifestyle, and culture to develop visual concepts, direct imagery, and create compelling content that goes beyond aesthetics. Every project is approached with intention — from the initial idea and visual language to the mood, composition, and final image. Our work sits at the intersection of fashion, culture, creativity, and visual communication, creating imagery that feels considered, authentic, and memorable.
+              Through his creative practice and studio banner, Deon Studios, Gideon collaborates with brands and cultural institutions across fashion, beauty, lifestyle, and editorial publishing. Every project is approached with disciplined intentionality—from initial conceptualization and narrative architecture to cinematographic lighting, mood, composition, and final execution. His work sits at the confluence of African heritage and global contemporary aesthetics, creating imagery that feels considered, authentic, and unforgettable.
             </p>
 
-            {/* Leadership & Creative Direction */}
+            {/* Creative Process & Vision */}
             <p className="text-neutral-700 font-light leading-relaxed">
-              Led by Gideon Boadi, an Image Creative and Visual Storyteller based in Accra, the studio brings a disciplined and holistic visual approach to every commission. Gideon plays an active role throughout the entire creative process — from conceptualization, pre-production, and cinematographic lighting to post-production, art direction, and print design. Chasing resonance, he draws upon architectural form to bring timeless stillness to dynamic contemporary environments.
+              Gideon plays an active, hands-on role throughout the entire creative continuum—directing pre-production, set atmosphere, and cinematographic lighting through to post-production color grading and art direction. Drawing inspiration from architectural form, natural textures, and human vulnerability, he pursues visual resonance by introducing a timeless stillness into dynamic modern settings.
             </p>
 
             {/* Collaborations & Core Belief */}
             <p className="text-neutral-700 font-light leading-relaxed">
-              The studio has collaborated with notable names including Vogue, Vlisco, Dazed, and Guzangs Magazine, among others. Whether developing an expansive campaign concept, shaping a brand’s visual identity, directing a fashion story, or producing editorial imagery, Deon Studios is driven by a singular belief: to cultivate deep emotional connections through unique and relevant visual storytelling.
+              His work has been commissioned and featured by prominent international titles and brands, including Vogue, Vlisco, Dazed, and Guzangs Magazine, among others. Whether developing an expansive commercial campaign, defining a brand’s visual identity, or capturing intimate editorial portraits, Gideon is driven by a singular belief: cultivating genuine emotional connections through unique, relevant, and resonant visual storytelling.
             </p>
 
             {/* Global Availability */}
             <p className="text-neutral-700 font-light leading-relaxed">
-              Available worldwide for editorial commissions, runway documentation, commercial campaigns, and creative consultation.
+              Available worldwide for editorial commissions, runway documentation, commercial campaigns, and creative direction.
             </p>
 
             {/* Social Links */}

@@ -634,8 +634,8 @@ export const SOCIAL_LINKS = [
 export const STUDIO_INFO = {
   name: 'Deon Studios',
   artist: 'Gideon Boadi',
-  disciplines: 'Creative Direction · Visual Storytelling · Image Making',
-  tagline: 'Creative Direction · Visual Storytelling · Image Making',
+  disciplines: 'Photographer · Visual Storyteller · Founder of Deon Studios',
+  tagline: 'Photographer & Visual Storyteller · Founder of Deon Studios',
   instagram: 'https://www.instagram.com/deonnboadi?utm_source=qr',
   handle: '@deonnboadi',
   telegram: 'https://t.me/gideonboadi',
@@ -647,7 +647,7 @@ export const STUDIO_INFO = {
   booking: 'https://deon-studios.easyweek.de/',
   bookingUrl: 'https://deon-studios.easyweek.de/',
   location: 'Accra • Available Worldwide',
-  bio: 'Deon Studios is a creative image studio focused on transforming ideas, identities, and emotions into distinctive visual stories. Led by Gideon Boadi, an Image Creative and Visual Storyteller, the studio collaborates with notable names across fashion, beauty, lifestyle, and culture.',
+  bio: 'Gideon Boadi is an image creative, photographer, and visual storyteller based in Accra, Ghana. Through his creative practice and studio banner Deon Studios, he collaborates with brands across fashion, beauty, lifestyle, and culture to craft distinctive, enduring visual narratives.',
   services: [
     'Fashion & Commercial Campaigns',
     'Magazine Editorial & Cover Stories',

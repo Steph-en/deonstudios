@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { DeonLogo } from './DeonLogo';
+import { AnimatedNavbarLogo } from './AnimatedNavbarLogo';
 import { ThemeMode, PageView } from '../types';
 
 interface NavbarProps {
@@ -93,13 +93,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') onNavigateHome();
         }}
-        className="fixed top-6 md:top-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto cursor-pointer select-none transition-opacity duration-300 hover:opacity-75"
+        className="fixed top-6 md:top-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto cursor-pointer select-none transition-all duration-300 hover:opacity-90 active:scale-95"
         title="Deon Studios"
         aria-label="Deon Studios Home"
       >
-        <DeonLogo
-          size={32}
-          fillColor={isLightHeader ? '#171717' : '#FFFFFF'}
+        <AnimatedNavbarLogo
+          size={44}
+          isLightHeader={isLightHeader}
         />
       </div>
 
