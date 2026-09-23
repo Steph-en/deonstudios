@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Maximize2, Camera, Calendar, MapPin, User, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Maximize2, Camera, Calendar, MapPin, User, ArrowRight, BookOpen } from 'lucide-react';
 import { Project, ThemeMode } from '../types';
 import { LightboxModal } from './LightboxModal';
 import { ResilientImage } from './ResilientImage';
+import { useProjectSections } from '../hooks/usePortfolioQueries';
+import { SEOHead } from './SEOHead';
 
 interface ProjectDetailViewProps {
   project: Project;
@@ -22,6 +24,9 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
+  // Dynamic Case Study sections from Supabase
+  const { data: caseStudySections } = useProjectSections(project.id);
+
   const openLightbox = (index: number) => {
     setActiveImageIndex(index);
     setLightboxOpen(true);
@@ -31,6 +36,18 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
   const currentProjectIndex = allProjects.findIndex((p) => p.id === project.id);
   const nextProject = allProjects[(currentProjectIndex + 1) % allProjects.length];
 
+  const primaryImage =
+    project.images?.[0]?.url ||
+    project.previewImages?.[0] ||
+    '/assets/gideon_boadi_portrait.png';
+
+  const projectTitle = `${project.title} — ${project.client || project.category} | Deon Studios`;
+  const projectSnippet = project.description
+    ? project.description.length > 155
+      ? `${project.description.slice(0, 152)}...`
+      : project.description
+    : `${project.title} — Photographic editorial campaign created by Gideon Boadi for ${project.client || 'editorial release'}.`;
+
   return (
     <div
       id={`project-detail-${project.slug}`}
@@ -38,6 +55,48 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
         theme === 'dark' ? 'bg-neutral-950 text-white' : 'bg-neutral-50 text-neutral-950'
       }`}
     >
+      <SEOHead
+        title={projectTitle}
+        description={projectSnippet}
+        canonicalUrl={`/#project-${project.slug}`}
+        ogType="article"
+        ogImage={primaryImage}
+        imageAlt={`${project.title} - ${project.category}`}
+        author="Gideon Boadi"
+        publishedTime={project.year ? `${project.year}-01-01` : undefined}
+        articleSection={project.category}
+        keywords={[
+          project.title,
+          project.client || '',
+          project.category,
+          'Gideon Boadi',
+          'Deon Studios',
+          'Fashion Editorial',
+          'Accra Photography',
+        ].filter(Boolean)}
+        schema={{
+          '@context': 'https://schema.org',
+          '@type': 'VisualArtwork',
+          name: project.title,
+          creator: {
+            '@type': 'Person',
+            name: 'Gideon Boadi',
+            jobTitle: 'Photographer & Founder of Deon Studios',
+          },
+          artform: 'Photography',
+          artMedium: 'Editorial & Fashion Photography',
+          description: projectSnippet,
+          dateCreated: project.year,
+          genre: project.category,
+          sponsor: project.client
+            ? {
+                '@type': 'Organization',
+                name: project.client,
+              }
+            : undefined,
+        }}
+      />
+
       <div className="max-w-7xl mx-auto">
         {/* Back Navigation */}
         <div className="mb-10">
@@ -130,6 +189,56 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
             </div>
           </div>
         </header>
+
+        {/* Dynamic Case Study Narrative Sections from Supabase CMS */}
+        {caseStudySections && caseStudySections.length > 0 && (
+          <section className="mt-16 pb-16 border-b border-neutral-300">
+            <div className="flex items-center gap-2 mb-8">
+              <BookOpen className="w-4 h-4 text-amber-600" />
+              <h2 className="text-xs uppercase tracking-[0.25em] font-sans-clean font-semibold opacity-70">
+                Editorial Case Study Narrative
+              </h2>
+            </div>
+
+            <div className="space-y-12">
+              {caseStudySections.map((sec, idx) => (
+                <div key={sec.id} className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+                  <div className="md:col-span-4">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-amber-600 block mb-1">
+                      Phase 0{idx + 1} • {sec.section_type}
+                    </span>
+                    <h3 className="font-display text-xl sm:text-2xl font-bold uppercase tracking-tight text-neutral-950">
+                      {sec.title || sec.section_type}
+                    </h3>
+                  </div>
+
+                  <div className="md:col-span-8 space-y-4">
+                    {sec.content && (
+                      <p className="font-sans text-sm sm:text-base leading-relaxed text-neutral-700 whitespace-pre-line">
+                        {sec.content}
+                      </p>
+                    )}
+
+                    {sec.media_url && (
+                      <div className="rounded-xl overflow-hidden shadow-md mt-4 border border-neutral-200">
+                        {sec.media_url.endsWith('.mp4') || sec.media_url.endsWith('.webm') ? (
+                          <video src={sec.media_url} controls className="w-full h-auto max-h-[500px] object-cover" />
+                        ) : (
+                          <img
+                            src={sec.media_url}
+                            alt={sec.title || 'Case study plate'}
+                            className="w-full h-auto max-h-[500px] object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* 
           FEATURE 3 (chantellekemkemian.com/quick-portfolio inspired):

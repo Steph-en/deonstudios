@@ -64,9 +64,6 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
             <h2 className="font-display text-[16px] sm:text-[20px] md:text-[26px] font-normal tracking-tight uppercase text-neutral-950">
               Portfolio
             </h2>
-            <span className="text-[11px] font-mono tracking-widest text-neutral-400">
-              {filteredShots.length.toString().padStart(2, '0')} Plates
-            </span>
           </div>
 
           {/* Breadcrumb-Style Category Filter Dropdown with Rotating Active Option */}

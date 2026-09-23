@@ -64,9 +64,6 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, them
             <h2 className="font-display text-[16px] sm:text-[20px] md:text-[26px] font-normal tracking-tight uppercase text-neutral-950">
               Products
             </h2>
-            <span className="text-[11px] font-mono tracking-widest text-neutral-400">
-              Commercial Still Life & Objects
-            </span>
           </div>
 
           {/* Breadcrumb-Style Category Filter Dropdown with Rotating Active Option */}

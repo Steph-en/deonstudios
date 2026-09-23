@@ -1,0 +1,27 @@
+-- Migration 003: Projects Table
+create table if not exists public.projects (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text unique not null,
+  category_id uuid references public.categories(id) on delete set null,
+  client text,
+  year text,
+  role text,
+  description text not null,
+  long_description text,
+  status text not null default 'draft' check (status in ('draft', 'published', 'archived')),
+  featured boolean not null default false,
+  preview_image text,
+  preview_video text,
+  hero_image text,
+  hero_video text,
+  og_image text,
+  seo_title text,
+  seo_description text,
+  seo_keywords text,
+  published_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  constraint slug_valid check (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$')
+);

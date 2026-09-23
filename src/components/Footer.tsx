@@ -21,9 +21,11 @@ export const Footer: React.FC<FooterProps> = ({ onScrollToTop }) => {
     >
       <div className="w-full max-w-[1880px] mx-auto flex items-center justify-between gap-4">
         {/* Left Side: Subtle, classic copyright fine print */}
-        <p className="text-[8px] uppercase tracking-[0.16em] font-normal text-neutral-400 hover:text-neutral-500 transition-colors leading-none">
-          © 2026 Deon Studios. All Rights Reserved.
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-[8px] uppercase tracking-[0.16em] font-normal text-neutral-400 leading-none">
+            © 2026. All Rights Reserved.
+          </p>
+        </div>
 
         {/* Right Side: Logo ALONE */}
         <div

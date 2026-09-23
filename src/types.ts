@@ -37,7 +37,7 @@ export interface Project {
 
 export type ThemeMode = 'dark' | 'light';
 
-export type PageView = 'home' | 'project' | 'about';
+export type PageView = 'home' | 'project' | 'about' | 'contact' | 'admin';
 
 export interface SingleShot {
   id: string;
@@ -49,10 +49,20 @@ export interface SingleShot {
   caption: string;
   clientOrBrand?: string;
   tag?: string;
+  camera?: string;
+  lens?: string;
+  iso?: string;
+  shutter?: string;
   exif?: {
     camera?: string;
     lens?: string;
     iso?: string;
     shutter?: string;
   };
+  status?: 'draft' | 'published' | 'archived';
+  featured?: boolean;
+  display_order?: number;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string | null;
 }

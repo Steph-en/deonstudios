@@ -281,9 +281,83 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
     return map;
   }, [projects]);
 
+  // Dynamic editorial rows strictly based on projects actually present in database
+  const activeRows = React.useMemo<EditorialRowConfig[]>(() => {
+    if (!projects || projects.length === 0) return [];
+
+    const activeSlugs = new Set(projects.map((p) => p.slug));
+    const resultRows: EditorialRowConfig[] = [];
+
+    // 1. Filter curated rows for matching active projects
+    EDITORIAL_ROWS.forEach((row) => {
+      const validItems = row.items.filter((item) => activeSlugs.has(item.projectSlug));
+      if (validItems.length > 0) {
+        let type = row.type;
+        if (type === 'two-col-equal' || type === 'two-col-1-to-2' || type === 'two-col-2-to-1') {
+          if (validItems.length === 1) type = 'full-width-landscape';
+        } else if (type === 'three-col') {
+          if (validItems.length === 1) type = 'full-width-landscape';
+          else if (validItems.length === 2) type = 'two-col-equal';
+        }
+        resultRows.push({
+          ...row,
+          type,
+          items: validItems,
+        });
+      }
+    });
+
+    // 2. Identify newly created projects that are not in curated layout and add them dynamically
+    const curatedCoveredSlugs = new Set(resultRows.flatMap((r) => r.items.map((i) => i.projectSlug)));
+    const unplacedProjects = projects.filter((p) => !curatedCoveredSlugs.has(p.slug));
+
+    let idx = 0;
+    while (idx < unplacedProjects.length) {
+      const remaining = unplacedProjects.length - idx;
+      if (remaining >= 3) {
+        resultRows.push({
+          id: `dyn-three-${idx}`,
+          type: 'three-col',
+          items: unplacedProjects.slice(idx, idx + 3).map((cp) => ({
+            projectSlug: cp.slug,
+            imageIndex: 0,
+            customTitle: cp.title,
+          })),
+        });
+        idx += 3;
+      } else if (remaining === 2) {
+        resultRows.push({
+          id: `dyn-two-${idx}`,
+          type: 'two-col-equal',
+          items: unplacedProjects.slice(idx, idx + 2).map((cp) => ({
+            projectSlug: cp.slug,
+            imageIndex: 0,
+            customTitle: cp.title,
+          })),
+        });
+        idx += 2;
+      } else {
+        resultRows.push({
+          id: `dyn-one-${idx}`,
+          type: 'full-width-landscape',
+          items: [
+            {
+              projectSlug: unplacedProjects[idx].slug,
+              imageIndex: 0,
+              customTitle: unplacedProjects[idx].title,
+            },
+          ],
+        });
+        idx += 1;
+      }
+    }
+
+    return resultRows;
+  }, [projects]);
+
   const displayedRows = showAll
-    ? EDITORIAL_ROWS
-    : EDITORIAL_ROWS.slice(0, INITIAL_ROWS_COUNT);
+    ? activeRows
+    : activeRows.slice(0, INITIAL_ROWS_COUNT);
 
   const handleToggleView = () => {
     if (showAll) {
@@ -303,8 +377,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
   const resolveItemData = (itemConfig: RowItemConfig) => {
     const project =
       projectMap.get(itemConfig.projectSlug) ||
-      projects.find((p) => p.slug === itemConfig.projectSlug) ||
-      projects[0];
+      projects.find((p) => p.slug === itemConfig.projectSlug);
 
     if (!project) return null;
 
@@ -561,23 +634,29 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
             Projects
           </h2>
 
-          <button
-            type="button"
-            onClick={handleToggleView}
-            className="text-[11px] sm:text-[13px] uppercase tracking-[0.2em] font-medium underline underline-offset-6 text-neutral-800 hover:text-black transition-opacity duration-200 cursor-pointer"
-          >
-            {showAll ? 'Show Less' : 'View All'}
-          </button>
+          {projects.length > INITIAL_ROWS_COUNT && (
+            <button
+              type="button"
+              onClick={handleToggleView}
+              className="text-[11px] sm:text-[13px] uppercase tracking-[0.2em] font-medium underline underline-offset-6 text-neutral-800 hover:text-black transition-opacity duration-200 cursor-pointer"
+            >
+              {showAll ? 'Show Less' : 'View All'}
+            </button>
+          )}
         </div>
 
-        {/* 
-          Garrett Naccarato Inspired Dynamic Layout:
-          Alternating between full-width single landscape canvases, 2-column balanced,
-          asymmetric (1:2 and 2:1) layouts, 3-column matrices, and 4-column strips with 10px margin.
-        */}
-        <div className="flex flex-col gap-y-[10px]">
-          {displayedRows.map((row) => renderRow(row))}
-        </div>
+        {/* Dynamic Project Display or Clean Empty State */}
+        {projects.length === 0 ? (
+          <div className="py-24 sm:py-32 text-center border border-dashed border-neutral-300/80 rounded-lg my-4">
+            <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-neutral-400 font-mono">
+              No published projects in gallery
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-y-[10px]">
+            {displayedRows.map((row) => renderRow(row))}
+          </div>
+        )}
 
         {/* Bottom Toggle Button if Expanded */}
         {showAll && (

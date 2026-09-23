@@ -1,6 +1,7 @@
 import React from 'react';
 import gideonPortrait from '../assets/images/gideon_boadi_portrait.png';
 import { STUDIO_INFO, CLIENT_LIST, SOCIAL_LINKS } from '../data/portfolioData';
+import { SEOHead } from './SEOHead';
 
 interface AboutViewProps {
   onOpenContact: () => void;
@@ -12,6 +13,37 @@ export const AboutView: React.FC<AboutViewProps> = ({ onOpenContact }) => {
       id="about-studio-page"
       className="min-h-screen pt-24 sm:pt-28 md:pt-36 pb-20 md:pb-28 px-4 sm:px-6 md:px-8 bg-neutral-50 text-neutral-900 transition-colors duration-300"
     >
+      <SEOHead
+        title="About Gideon Boadi — Founder & Creative Director | Deon Studios"
+        description="Learn about Gideon Boadi, Ghanaian fashion photographer, visual storyteller, and founder of Deon Studios. Studio philosophy, client roster, awards, and representation in Accra."
+        canonicalUrl="/#about"
+        ogType="profile"
+        ogImage="/assets/gideon_boadi_portrait.png"
+        imageAlt="Gideon Boadi - Photographer & Creative Director"
+        author="Gideon Boadi"
+        schema={{
+          '@context': 'https://schema.org',
+          '@type': 'AboutPage',
+          name: 'About Gideon Boadi — Deon Studios',
+          description:
+            'Learn about Gideon Boadi, Ghanaian fashion photographer, visual storyteller, and founder of Deon Studios. Studio philosophy, client roster, awards, and representation in Accra.',
+          mainEntity: {
+            '@type': 'Person',
+            name: 'Gideon Boadi',
+            jobTitle: 'Photographer & Creative Director',
+            worksFor: {
+              '@type': 'Organization',
+              name: 'Deon Studios',
+            },
+            nationality: 'Ghanaian',
+            address: {
+              '@type': 'PostalAddress',
+              addressLocality: 'Accra',
+              addressCountry: 'Ghana',
+            },
+          },
+        }}
+      />
       <div className="max-w-7xl mx-auto">
         {/* 
           Two-column editorial layout matching garrettnaccarato.com/info:

@@ -177,7 +177,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={handleContactClick}
               className={`text-[8px] sm:text-[9px] uppercase tracking-[0.24em] font-medium transition-colors cursor-pointer ${
                 isLightHeader
-                  ? 'text-neutral-800 hover:text-black'
+                  ? activePage === 'contact'
+                    ? 'text-black underline underline-offset-8 decoration-1 font-semibold'
+                    : 'text-neutral-800 hover:text-black'
                   : 'text-white/80 hover:text-white drop-shadow-sm'
               }`}
             >
@@ -298,7 +300,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     role="menuitem"
                     onClick={handleAboutClick}
                     className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
-                      theme === 'dark'
+                      activePage === 'about'
+                        ? 'font-semibold underline underline-offset-4 decoration-1 text-black bg-neutral-100'
+                        : theme === 'dark'
                         ? 'hover:bg-white/10 text-neutral-200 hover:text-white'
                         : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'
                     }`}
@@ -311,7 +315,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     role="menuitem"
                     onClick={handleContactClick}
                     className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
-                      theme === 'dark'
+                      activePage === 'contact'
+                        ? 'font-semibold underline underline-offset-4 decoration-1 text-black bg-neutral-100'
+                        : theme === 'dark'
                         ? 'hover:bg-white/10 text-neutral-200 hover:text-white'
                         : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'
                     }`}
