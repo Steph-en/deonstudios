@@ -20,7 +20,7 @@ export type SectionType =
   | 'results'
   | 'gallery'
   | 'video';
-export type UserRole = 'admin' | 'editor';
+export type UserRole = 'admin' | 'manager' | 'editor';
 export type DeviceType = 'mobile' | 'tablet' | 'desktop';
 
 export interface Database {

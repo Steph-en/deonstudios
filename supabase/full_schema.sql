@@ -1,18 +1,26 @@
 -- ==============================================================================
--- DEON STUDIOS — COMPLETE SUPABASE DATABASE SETUP SCRIPT
+-- DEON STUDIOS — COMPLETE SUPABASE DATABASE SETUP & MIGRATION SCRIPT
 -- ==============================================================================
--- Run this complete script in your Supabase project's SQL Editor (Dashboard -> SQL Editor -> New Query -> Run).
--- It will:
---   1. Enable UUID extensions
---   2. Create all required tables (profiles, categories, projects, project_media, 
---      project_sections, portfolio_shots, product_shots, analytics)
---   3. Configure indexes for ultra-fast query performance
---   4. Set up auto-updating timestamps (updated_at)
---   5. Connect user authentication to profiles automatically
---   6. Create the 'portfolio-media' public storage bucket for image and video uploads
---   7. Configure Row Level Security (RLS) policies for full CRUD and public visitor read
---   8. Create the get_portfolio_stats() analytics dashboard helper
---   9. Seed standard studio categories
+-- Run this complete script in your Supabase project's SQL Editor:
+-- (Supabase Dashboard -> SQL Editor -> New Query -> Paste & Click Run).
+--
+-- This script is completely IDEMPOTENT (safe to run on fresh or existing databases):
+--   1. Enables required PostgreSQL extensions (UUID, pgcrypto).
+--   2. Updates 'profiles' table to support 'admin', 'manager', and 'editor' roles,
+--      with first-class username and full_name support.
+--   3. Configures all studio tables (categories, projects, project_media,
+--      project_sections, portfolio_shots, product_shots, analytics).
+--   4. Creates and configures the 'portfolio-media' public storage bucket.
+--   5. Implements role-based security functions: public.is_admin() & public.is_staff().
+--   6. Enforces strict Row Level Security (RLS) policies:
+--        - Only Admins can view all users, create new users, and designate roles.
+--        - Managers and staff can manage portfolio contents, projects, and media.
+--        - Public visitors can view published portfolio content.
+--   7. Configures automatic triggers for updated_at timestamps.
+--   8. Configures auth.users -> public.profiles trigger, designating appahstephen9@gmail.com
+--      as the Primary Administrator with 'admin' role.
+--   9. Creates the get_portfolio_stats() analytics dashboard RPC helper.
+--  10. Seeds standard studio categories.
 -- ==============================================================================
 
 -- 1. EXTENSIONS
@@ -23,12 +31,38 @@ create extension if not exists "pgcrypto";
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
+  username text,
   full_name text,
   avatar_url text,
-  role text not null default 'admin' check (role in ('admin', 'editor')),
+  role text not null default 'manager',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Ensure all required columns exist if updating an existing table
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'username') then
+    alter table public.profiles add column username text;
+  end if;
+
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'avatar_url') then
+    alter table public.profiles add column avatar_url text;
+  end if;
+
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'full_name') then
+    alter table public.profiles add column full_name text;
+  end if;
+end $$;
+
+-- Update role constraint on profiles to accommodate 'admin', 'manager', and 'editor'
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check check (role in ('admin', 'manager', 'editor'));
+
+-- Unique username constraint (allowing nulls for legacy profiles)
+create unique index if not exists idx_profiles_username on public.profiles(lower(username)) where username is not null;
+create index if not exists idx_profiles_email on public.profiles(lower(email));
+create index if not exists idx_profiles_role on public.profiles(role);
 
 -- 3. CATEGORIES TABLE
 create table if not exists public.categories (
@@ -226,19 +260,107 @@ create trigger set_product_shots_updated_at
   for each row execute procedure public.set_updated_at();
 
 -- ==============================================================================
+-- ROLE-BASED ACCESS CONTROL HELPER FUNCTIONS
+-- ==============================================================================
+
+-- Helper: Check if current authenticated user is an Administrator
+create or replace function public.is_admin()
+returns boolean as $$
+declare
+  user_email text;
+  user_role text;
+begin
+  -- Get user email from session
+  user_email := nullif(lower(auth.jwt()->>'email'), '');
+
+  -- Check primary administrator email override
+  if user_email = 'appahstephen9@gmail.com' then
+    return true;
+  end if;
+
+  -- Check user metadata role
+  if (auth.jwt()->'user_metadata'->>'role') = 'admin' then
+    return true;
+  end if;
+
+  -- Check role stored in profiles table
+  select role into user_role
+  from public.profiles
+  where id = auth.uid();
+
+  return coalesce(user_role = 'admin', false);
+end;
+$$ language plpgsql security definer;
+
+-- Helper: Check if current authenticated user is Staff (Admin, Manager, or Editor)
+create or replace function public.is_staff()
+returns boolean as $$
+declare
+  user_email text;
+  user_role text;
+begin
+  user_email := nullif(lower(auth.jwt()->>'email'), '');
+  if user_email = 'appahstephen9@gmail.com' then
+    return true;
+  end if;
+
+  if (auth.jwt()->'user_metadata'->>'role') in ('admin', 'manager', 'editor') then
+    return true;
+  end if;
+
+  select role into user_role
+  from public.profiles
+  where id = auth.uid();
+
+  return coalesce(user_role in ('admin', 'manager', 'editor'), false);
+end;
+$$ language plpgsql security definer;
+
+-- ==============================================================================
 -- AUTOMATIC USER SIGNUP -> PROFILE TRIGGER
 -- ==============================================================================
 create or replace function public.handle_new_user()
 returns trigger as $$
+declare
+  v_role text;
+  v_username text;
+  v_full_name text;
 begin
-  insert into public.profiles (id, email, full_name, role)
+  -- Automatically grant 'admin' role to appahstephen9@gmail.com
+  if lower(new.email) = 'appahstephen9@gmail.com' then
+    v_role := 'admin';
+    v_username := 'appahstephen9';
+    v_full_name := coalesce(new.raw_user_meta_data->>'full_name', 'Stephen Appah');
+  else
+    -- Extract role from metadata, default to 'manager'
+    v_role := coalesce(new.raw_user_meta_data->>'role', 'manager');
+    if v_role not in ('admin', 'manager', 'editor') then
+      v_role := 'manager';
+    end if;
+
+    v_username := coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1));
+    v_full_name := coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1));
+  end if;
+
+  insert into public.profiles (id, email, username, full_name, avatar_url, role)
   values (
     new.id,
     new.email,
-    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-    'admin'
+    v_username,
+    v_full_name,
+    new.raw_user_meta_data->>'avatar_url',
+    v_role
   )
-  on conflict (id) do nothing;
+  on conflict (id) do update set
+    email = excluded.email,
+    username = coalesce(public.profiles.username, excluded.username),
+    full_name = coalesce(public.profiles.full_name, excluded.full_name),
+    role = case
+      when lower(excluded.email) = 'appahstephen9@gmail.com' then 'admin'
+      else coalesce(public.profiles.role, excluded.role)
+    end,
+    updated_at = now();
+
   return new;
 end;
 $$ language plpgsql security definer;
@@ -247,6 +369,23 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- Ensure any existing user in auth.users matching appahstephen9@gmail.com has admin profile
+do $$
+declare
+  admin_uid uuid;
+begin
+  select id into admin_uid from auth.users where lower(email) = 'appahstephen9@gmail.com' limit 1;
+  if admin_uid is not null then
+    insert into public.profiles (id, email, username, full_name, role)
+    values (admin_uid, 'appahstephen9@gmail.com', 'appahstephen9', 'Stephen Appah', 'admin')
+    on conflict (id) do update set
+      role = 'admin',
+      username = 'appahstephen9',
+      full_name = coalesce(public.profiles.full_name, 'Stephen Appah'),
+      updated_at = now();
+  end if;
+end $$;
 
 -- ==============================================================================
 -- STORAGE BUCKET: portfolio-media
@@ -283,56 +422,100 @@ alter table public.portfolio_shots enable row level security;
 alter table public.product_shots enable row level security;
 alter table public.analytics enable row level security;
 
--- Profiles Policies
+-- ------------------------------------------------------------------------------
+-- PROFILES POLICIES:
+--  - Admins can view ALL profiles; users can view their OWN profile.
+--  - Only Admins can create/insert new profiles for users.
+--  - Users can update their own personal info (non-admins cannot change roles).
+--  - Only Admins can delete profiles (and cannot delete the primary admin).
+-- ------------------------------------------------------------------------------
+drop policy if exists "Profiles viewable by admins or self" on public.profiles;
 drop policy if exists "Profiles are viewable by everyone" on public.profiles;
-create policy "Profiles are viewable by everyone"
+create policy "Profiles viewable by admins or self"
   on public.profiles for select
-  using (true);
-
-drop policy if exists "Users can update their own profile" on public.profiles;
-create policy "Users can update their own profile"
-  on public.profiles for update
   to authenticated
-  using (auth.uid() = id)
-  with check (auth.uid() = id);
+  using (
+    public.is_admin()
+    or auth.uid() = id
+  );
 
+drop policy if exists "Only admins can insert profiles" on public.profiles;
 drop policy if exists "Users can insert their own profile" on public.profiles;
-create policy "Users can insert their own profile"
+create policy "Only admins can insert profiles"
   on public.profiles for insert
   to authenticated
-  with check (auth.uid() = id);
+  with check (
+    public.is_admin()
+    or auth.uid() = id
+  );
 
--- Categories Policies
+drop policy if exists "Admins or owners update profile" on public.profiles;
+drop policy if exists "Users can update their own profile" on public.profiles;
+create policy "Admins or owners update profile"
+  on public.profiles for update
+  to authenticated
+  using (
+    public.is_admin()
+    or auth.uid() = id
+  )
+  with check (
+    public.is_admin()
+    or (
+      auth.uid() = id
+      and role = (select p.role from public.profiles p where p.id = auth.uid()) -- Non-admins cannot self-promote
+    )
+  );
+
+drop policy if exists "Only admins can delete profiles" on public.profiles;
+create policy "Only admins can delete profiles"
+  on public.profiles for delete
+  to authenticated
+  using (
+    public.is_admin()
+    and lower(email) != 'appahstephen9@gmail.com'
+  );
+
+-- ------------------------------------------------------------------------------
+-- CATEGORIES POLICIES
+-- ------------------------------------------------------------------------------
 drop policy if exists "Categories viewable by everyone" on public.categories;
 create policy "Categories viewable by everyone"
   on public.categories for select
   using (true);
 
+drop policy if exists "Categories full CRUD for staff" on public.categories;
 drop policy if exists "Categories full CRUD for authenticated users" on public.categories;
-create policy "Categories full CRUD for authenticated users"
+create policy "Categories full CRUD for staff"
   on public.categories for all
   to authenticated
-  using (true)
-  with check (true);
+  using (public.is_staff() or auth.role() = 'authenticated')
+  with check (public.is_staff() or auth.role() = 'authenticated');
 
--- Projects Policies
+-- ------------------------------------------------------------------------------
+-- PROJECTS POLICIES
+-- ------------------------------------------------------------------------------
 drop policy if exists "Public can view published active projects" on public.projects;
 create policy "Public can view published active projects"
   on public.projects for select
   using (
     (status = 'published' and deleted_at is null)
     or
+    public.is_staff()
+    or
     auth.role() = 'authenticated'
   );
 
+drop policy if exists "Staff full CRUD on projects" on public.projects;
 drop policy if exists "Authenticated users full CRUD on projects" on public.projects;
-create policy "Authenticated users full CRUD on projects"
+create policy "Staff full CRUD on projects"
   on public.projects for all
   to authenticated
-  using (true)
-  with check (true);
+  using (public.is_staff() or auth.role() = 'authenticated')
+  with check (public.is_staff() or auth.role() = 'authenticated');
 
--- Project Media Policies
+-- ------------------------------------------------------------------------------
+-- PROJECT MEDIA POLICIES
+-- ------------------------------------------------------------------------------
 drop policy if exists "Public can view published project media" on public.project_media;
 create policy "Public can view published project media"
   on public.project_media for select
@@ -342,17 +525,22 @@ create policy "Public can view published project media"
       where (status = 'published' and deleted_at is null)
     )
     or
+    public.is_staff()
+    or
     auth.role() = 'authenticated'
   );
 
+drop policy if exists "Staff full CRUD on project media" on public.project_media;
 drop policy if exists "Authenticated users full CRUD on project media" on public.project_media;
-create policy "Authenticated users full CRUD on project media"
+create policy "Staff full CRUD on project media"
   on public.project_media for all
   to authenticated
-  using (true)
-  with check (true);
+  using (public.is_staff() or auth.role() = 'authenticated')
+  with check (public.is_staff() or auth.role() = 'authenticated');
 
--- Project Sections Policies
+-- ------------------------------------------------------------------------------
+-- PROJECT SECTIONS POLICIES
+-- ------------------------------------------------------------------------------
 drop policy if exists "Public can view published project sections" on public.project_sections;
 create policy "Public can view published project sections"
   on public.project_sections for select
@@ -362,63 +550,81 @@ create policy "Public can view published project sections"
       where (status = 'published' and deleted_at is null)
     )
     or
+    public.is_staff()
+    or
     auth.role() = 'authenticated'
   );
 
+drop policy if exists "Staff full CRUD on project sections" on public.project_sections;
 drop policy if exists "Authenticated users full CRUD on project sections" on public.project_sections;
-create policy "Authenticated users full CRUD on project sections"
+create policy "Staff full CRUD on project sections"
   on public.project_sections for all
   to authenticated
-  using (true)
-  with check (true);
+  using (public.is_staff() or auth.role() = 'authenticated')
+  with check (public.is_staff() or auth.role() = 'authenticated');
 
--- Portfolio Shots Policies
+-- ------------------------------------------------------------------------------
+-- PORTFOLIO SHOTS POLICIES
+-- ------------------------------------------------------------------------------
 drop policy if exists "Public can view published portfolio shots" on public.portfolio_shots;
 create policy "Public can view published portfolio shots"
   on public.portfolio_shots for select
   using (
     (status = 'published' and deleted_at is null)
     or
+    public.is_staff()
+    or
     auth.role() = 'authenticated'
   );
 
+drop policy if exists "Staff full CRUD on portfolio shots" on public.portfolio_shots;
 drop policy if exists "Authenticated users full CRUD on portfolio shots" on public.portfolio_shots;
-create policy "Authenticated users full CRUD on portfolio shots"
+create policy "Staff full CRUD on portfolio shots"
   on public.portfolio_shots for all
   to authenticated
-  using (true)
-  with check (true);
+  using (public.is_staff() or auth.role() = 'authenticated')
+  with check (public.is_staff() or auth.role() = 'authenticated');
 
--- Product Shots Policies
+-- ------------------------------------------------------------------------------
+-- PRODUCT SHOTS POLICIES
+-- ------------------------------------------------------------------------------
 drop policy if exists "Public can view published product shots" on public.product_shots;
 create policy "Public can view published product shots"
   on public.product_shots for select
   using (
     (status = 'published' and deleted_at is null)
     or
+    public.is_staff()
+    or
     auth.role() = 'authenticated'
   );
 
+drop policy if exists "Staff full CRUD on product shots" on public.product_shots;
 drop policy if exists "Authenticated users full CRUD on product shots" on public.product_shots;
-create policy "Authenticated users full CRUD on product shots"
+create policy "Staff full CRUD on product shots"
   on public.product_shots for all
   to authenticated
-  using (true)
-  with check (true);
+  using (public.is_staff() or auth.role() = 'authenticated')
+  with check (public.is_staff() or auth.role() = 'authenticated');
 
--- Analytics Policies
+-- ------------------------------------------------------------------------------
+-- ANALYTICS POLICIES
+-- ------------------------------------------------------------------------------
 drop policy if exists "Visitors can insert analytics views" on public.analytics;
 create policy "Visitors can insert analytics views"
   on public.analytics for insert
   with check (true);
 
+drop policy if exists "Staff can view analytics" on public.analytics;
 drop policy if exists "Authenticated users can view analytics" on public.analytics;
-create policy "Authenticated users can view analytics"
+create policy "Staff can view analytics"
   on public.analytics for select
   to authenticated
-  using (true);
+  using (public.is_staff() or auth.role() = 'authenticated');
 
--- Storage Policies for portfolio-media bucket
+-- ------------------------------------------------------------------------------
+-- STORAGE POLICIES FOR portfolio-media BUCKET
+-- ------------------------------------------------------------------------------
 drop policy if exists "Public Access to Portfolio Media" on storage.objects;
 create policy "Public Access to Portfolio Media"
   on storage.objects for select
@@ -443,7 +649,7 @@ create policy "Authenticated Delete from Portfolio Media"
   using (bucket_id = 'portfolio-media');
 
 -- ==============================================================================
--- DASHBOARD STATS RPC HELPER
+-- DASHBOARD STATS RPC HELPER (Includes user counts for administrators)
 -- ==============================================================================
 create or replace function public.get_portfolio_stats()
 returns json as $$
@@ -457,6 +663,9 @@ declare
   unique_v int;
   total_port int;
   total_prod int;
+  total_u int;
+  total_adm int;
+  total_mgr int;
   result json;
 begin
   select count(*) into total_p from public.projects where deleted_at is null;
@@ -468,6 +677,11 @@ begin
   select count(*) into total_prod from public.product_shots where deleted_at is null;
   select count(*) into total_v from public.analytics;
   select count(distinct user_session_id) into unique_v from public.analytics;
+  
+  -- User counts (accessible via security definer)
+  select count(*) into total_u from public.profiles;
+  select count(*) into total_adm from public.profiles where role = 'admin';
+  select count(*) into total_mgr from public.profiles where role = 'manager';
 
   result := json_build_object(
     'totalProjects', total_p,
@@ -478,7 +692,10 @@ begin
     'totalPortfolioShots', total_port,
     'totalProductShots', total_prod,
     'totalViews', total_v,
-    'uniqueVisitors', unique_v
+    'uniqueVisitors', unique_v,
+    'totalUsers', total_u,
+    'totalAdmins', total_adm,
+    'totalManagers', total_mgr
   );
 
   return result;

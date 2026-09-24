@@ -48,9 +48,21 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   onExitAdmin,
   children,
 }) => {
-  const { logout } = useAuth();
+  const { logout, user, profile, role } = useAuth();
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const isAdmin =
+    role === 'admin' ||
+    profile?.role === 'admin' ||
+    user?.email?.toLowerCase() === 'appahstephen9@gmail.com' ||
+    user?.user_metadata?.role === 'admin';
+
+  const userDisplayName =
+    user?.user_metadata?.username ||
+    (user?.email?.toLowerCase() === 'appahstephen9@gmail.com'
+      ? 'appahstephen9'
+      : profile?.full_name || user?.email?.split('@')[0] || 'User');
 
   const navItems: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -60,7 +72,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'categories', label: 'Categories', icon: <Tag className="w-4 h-4" /> },
     { id: 'media', label: 'Media', icon: <ImageIcon className="w-4 h-4" /> },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
-    { id: 'profile', label: 'Profile & Team', icon: <User className="w-4 h-4" /> },
+    { id: 'profile', label: isAdmin ? 'Profile & Team' : 'My Profile', icon: <User className="w-4 h-4" /> },
   ];
 
   const handlePrimaryNew = () => {
@@ -205,13 +217,26 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 </div>
               </div>
 
-              {/* Right Side: Quick Add, Public View, Human Icon, Logout */}
+              {/* Right Side: User Badge, Profile Button, Logout */}
               <div className="flex items-center gap-2.5">
+                {/* User Role & Identity Badge */}
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('profile')}
+                  className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 transition text-xs font-mono text-neutral-700 cursor-pointer"
+                  title="View Profile Settings"
+                >
+                  <span className="font-semibold text-neutral-900 truncate max-w-[130px]">{userDisplayName}</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-neutral-200 text-neutral-800 font-sans uppercase font-medium">
+                    {isAdmin ? 'Admin' : 'Manager'}
+                  </span>
+                </button>
+
                 {/* Human Icon (Profile & Password update) */}
                 <button
                   type="button"
                   onClick={() => onNavigateTab('profile')}
-                  className={`p-2 rounded-full border transition flex items-center justify-center ${
+                  className={`p-2 rounded-full border transition flex items-center justify-center cursor-pointer ${
                     currentTab === 'profile'
                       ? 'bg-neutral-900 text-white border-neutral-900'
                       : 'border-neutral-200 bg-white text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 hover:border-neutral-300 shadow-2xs'
@@ -226,7 +251,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 <button
                   type="button"
                   onClick={logout}
-                  className="p-2 rounded-full border border-neutral-200 bg-white text-neutral-500 hover:text-neutral-950 hover:bg-neutral-100 hover:border-neutral-300 transition shadow-2xs"
+                  className="p-2 rounded-full border border-neutral-200 bg-white text-neutral-500 hover:text-neutral-950 hover:bg-neutral-100 hover:border-neutral-300 transition shadow-2xs cursor-pointer"
                   title="Sign Out"
                   aria-label="Sign Out"
                 >

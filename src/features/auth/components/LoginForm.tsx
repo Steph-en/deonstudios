@@ -80,7 +80,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onCancel }) => 
                 type="text"
                 autoComplete="username"
                 {...register('email')}
-                placeholder="e.g. admin"
+                placeholder="e.g. appahstephen9"
                 className="w-full text-sm pl-10 pr-3.5 py-3 bg-neutral-50/80 border border-neutral-200/90 rounded-xl text-neutral-900 placeholder:text-neutral-400 placeholder:font-mono text-xs focus:outline-hidden focus:border-neutral-900 focus:bg-white focus:ring-1 focus:ring-neutral-900/10 transition-all"
               />
             </div>

@@ -9,22 +9,21 @@ import {
   AlertCircle,
   Lock,
   Mail,
-  Calendar,
   UserPlus,
   Trash2,
   Users,
   Shield,
   Loader2,
-  Sparkles,
   Info,
+  ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { AuthService } from '../../features/auth/services/authService';
-import { DbProfile } from '../../types/database';
+import { DbProfile, UserRole } from '../../types/database';
 import { isSupabaseConfigured, supabaseUrl } from '../../lib/supabase';
 
 export const ProfilePage: React.FC = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, role } = useAuth();
   const supabaseConnected = isSupabaseConfigured();
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -37,22 +36,38 @@ export const ProfilePage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Team & user account management state
+  // Team & user account management state (admin only)
   const [teamMembers, setTeamMembers] = useState<DbProfile[]>([]);
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [showNewUserModal, setShowNewUserModal] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [newMemberUsername, setNewMemberUsername] = useState('');
   const [newMemberFullName, setNewMemberFullName] = useState('');
   const [newMemberPassword, setNewMemberPassword] = useState('');
-  const [newMemberRole, setNewMemberRole] = useState<'admin' | 'editor'>('admin');
+  const [newMemberRole, setNewMemberRole] = useState<UserRole>('manager');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [userActionSuccess, setUserActionSuccess] = useState<string | null>(null);
   const [userActionError, setUserActionError] = useState<string | null>(null);
 
-  const email = profile?.email || user?.email || 'admin@deonstudios.com';
-  const username = profile?.full_name || email.split('@')[0];
+  const currentEmail = profile?.email || user?.email || 'appahstephen9@gmail.com';
+  const isPrimaryAdminEmail = currentEmail.toLowerCase() === 'appahstephen9@gmail.com';
+  const isAdmin =
+    role === 'admin' ||
+    profile?.role === 'admin' ||
+    user?.user_metadata?.role === 'admin' ||
+    isPrimaryAdminEmail;
+
+  const currentUsername =
+    user?.user_metadata?.username ||
+    profile?.full_name ||
+    (isPrimaryAdminEmail ? 'appahstephen9' : currentEmail.split('@')[0]);
 
   const loadTeamMembers = async () => {
+    if (!isAdmin) {
+      setLoadingTeam(false);
+      return;
+    }
+
     try {
       setLoadingTeam(true);
       const members = await AuthService.getTeamMembers();
@@ -66,15 +81,20 @@ export const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     loadTeamMembers();
-  }, []);
+  }, [isAdmin]);
 
   const handleCreateNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setUserActionError(null);
     setUserActionSuccess(null);
 
+    if (!isAdmin) {
+      setUserActionError('Only administrators are permitted to create new users.');
+      return;
+    }
+
     if (!newMemberEmail || !newMemberPassword || !newMemberFullName) {
-      setUserActionError('Please fill out all fields (name, email, and password).');
+      setUserActionError('Please fill out all required fields (name, email, and password).');
       return;
     }
 
@@ -87,6 +107,7 @@ export const ProfilePage: React.FC = () => {
     try {
       const result = await AuthService.createTeamMember({
         email: newMemberEmail,
+        username: newMemberUsername.trim() || newMemberEmail.split('@')[0],
         password: newMemberPassword,
         full_name: newMemberFullName,
         role: newMemberRole,
@@ -94,9 +115,10 @@ export const ProfilePage: React.FC = () => {
 
       setUserActionSuccess(result.message);
       setNewMemberEmail('');
+      setNewMemberUsername('');
       setNewMemberFullName('');
       setNewMemberPassword('');
-      setNewMemberRole('admin');
+      setNewMemberRole('manager');
       setShowNewUserModal(false);
       await loadTeamMembers();
     } catch (err: any) {
@@ -107,10 +129,15 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleDeleteUser = async (id: string, name: string) => {
+    if (!isAdmin) {
+      setUserActionError('Only administrators are permitted to remove user accounts.');
+      return;
+    }
+
     if (confirm(`Are you sure you want to remove account access for ${name}?`)) {
       try {
         await AuthService.removeTeamMember(id);
-        setUserActionSuccess(`Removed access for ${name}.`);
+        setUserActionSuccess(`Successfully removed access for ${name}.`);
         await loadTeamMembers();
       } catch (err: any) {
         setUserActionError(err.message || 'Failed to delete user.');
@@ -147,16 +174,38 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
+  const adminCount = teamMembers.filter((m) => m.role === 'admin').length;
+  const managerCount = teamMembers.filter((m) => m.role === 'manager').length;
+  const otherCount = teamMembers.length - adminCount - managerCount;
+
   return (
     <div className="max-w-4xl space-y-8">
       {/* Header */}
-      <div className="pb-6 border-b border-neutral-200">
-        <h1 className="text-2xl sm:text-3xl font-serif text-neutral-950 font-normal">
-          Admin Profile
-        </h1>
-        <p className="text-xs sm:text-sm text-neutral-500 mt-1">
-          Review your administrator account identity and manage authentication credentials.
-        </p>
+      <div className="pb-6 border-b border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-serif text-neutral-950 font-normal">
+            {isAdmin ? 'Admin Profile & Team Control' : 'User Account Profile'}
+          </h1>
+          <p className="text-xs sm:text-sm text-neutral-500 mt-1">
+            {isAdmin
+              ? 'Manage administrator credentials, user accounts, and platform access roles.'
+              : 'Review your account credentials and update your portal password.'}
+          </p>
+        </div>
+
+        {/* User Role Badge */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium font-mono uppercase tracking-wider ${
+              isAdmin
+                ? 'bg-neutral-900 text-white'
+                : 'bg-neutral-100 text-neutral-800 border border-neutral-200'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            {isAdmin ? 'Administrator' : 'Manager'}
+          </span>
+        </div>
       </div>
 
       {/* Supabase Status Banner */}
@@ -164,28 +213,29 @@ export const ProfilePage: React.FC = () => {
         className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
           supabaseConnected
             ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
-            : 'bg-amber-50/80 border-amber-200 text-amber-950'
+            : 'bg-neutral-50 border-neutral-200 text-neutral-900'
         }`}
       >
         <div className="flex items-start gap-3">
           <div
             className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
-              supabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+              supabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-500'
             }`}
           />
           <div>
             <p className="font-semibold">
-              Database & Auth Backend:{' '}
-              {supabaseConnected ? 'Supabase Live Connected' : 'Local Storage Mode (Standby)'}
+              Database & Centralized Auth:{' '}
+              {supabaseConnected ? 'Supabase Live Connected' : 'Centralized Database Synced'}
             </p>
             <p className="text-[11px] text-neutral-600 mt-0.5 leading-relaxed">
               {supabaseConnected
                 ? `Connected to Supabase endpoint: ${supabaseUrl}. User authentications and mutations are synced directly to PostgreSQL.`
-                : 'Running in self-contained mode with built-in admin credentials. User accounts and portfolio edits are saved in browser storage.'}
+                : 'Accounts and portfolio permissions are synced through the centralized server database across all browsers and devices.'}
             </p>
           </div>
         </div>
       </div>
+
       {successMessage && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-3">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
@@ -218,9 +268,9 @@ export const ProfilePage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1">
             <label className="text-xs font-mono uppercase text-neutral-400">Username</label>
-            <div className="flex items-center gap-2 p-3 bg-neutral-50 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-800">
+            <div className="flex items-center gap-2 p-3 bg-neutral-50 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-800 font-mono">
               <User className="w-3.5 h-3.5 text-neutral-400" />
-              <span>{username}</span>
+              <span>{currentUsername}</span>
             </div>
           </div>
 
@@ -228,7 +278,7 @@ export const ProfilePage: React.FC = () => {
             <label className="text-xs font-mono uppercase text-neutral-400">Email Address</label>
             <div className="flex items-center gap-2 p-3 bg-neutral-50 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-800 font-mono">
               <Mail className="w-3.5 h-3.5 text-neutral-400" />
-              <span>{email}</span>
+              <span>{currentEmail}</span>
             </div>
           </div>
 
@@ -236,18 +286,22 @@ export const ProfilePage: React.FC = () => {
             <label className="text-xs font-mono uppercase text-neutral-400">Role & Privileges</label>
             <div className="flex items-center gap-2 p-3 bg-neutral-50 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-800">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Studio Administrator (Full Access)</span>
+              <span>
+                {isAdmin
+                  ? 'Administrator (Full Access & User Management)'
+                  : 'Manager (Portfolio & Content Access)'}
+              </span>
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-mono uppercase text-neutral-400">Current Password</label>
+            <label className="text-xs font-mono uppercase text-neutral-400">Account Status</label>
             <div className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-800 font-mono">
               <div className="flex items-center gap-2">
                 <Lock className="w-3.5 h-3.5 text-neutral-400" />
                 <span>••••••••••••</span>
               </div>
-              <span className="text-[10px] text-neutral-400 font-sans">Active</span>
+              <span className="text-[10px] text-emerald-700 font-sans font-medium">Active</span>
             </div>
           </div>
         </div>
@@ -293,7 +347,7 @@ export const ProfilePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowNewPassword(!showNewPassword)}
-                className="absolute right-3 top-2.5 text-neutral-400 hover:text-neutral-600"
+                className="absolute right-3 top-2.5 text-neutral-400 hover:text-neutral-600 cursor-pointer"
                 tabIndex={-1}
               >
                 {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -318,7 +372,7 @@ export const ProfilePage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-2.5 text-neutral-400 hover:text-neutral-600"
+                className="absolute right-3 top-2.5 text-neutral-400 hover:text-neutral-600 cursor-pointer"
                 tabIndex={-1}
               >
                 {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -330,7 +384,7 @@ export const ProfilePage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="px-5 py-2.5 rounded-lg bg-neutral-950 text-white text-xs font-semibold hover:bg-neutral-800 transition shadow-xs disabled:opacity-50"
+              className="px-5 py-2.5 rounded-lg bg-neutral-950 text-white text-xs font-semibold hover:bg-neutral-800 transition shadow-xs disabled:opacity-50 cursor-pointer"
             >
               {isLoading ? 'Updating Password...' : 'Save New Password'}
             </button>
@@ -338,159 +392,201 @@ export const ProfilePage: React.FC = () => {
         </form>
       </div>
 
-      {/* Team & User Account Management Section */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-100">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-neutral-600" />
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-900">
-                Admin Team & User Accounts
-              </h2>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Grant access to other team members, photographers, or studio editors.
-              </p>
+      {/* TEAM & USER ACCOUNT MANAGEMENT SECTION (ADMINISTRATOR ONLY) */}
+      {isAdmin ? (
+        <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-neutral-100 text-neutral-900">
+                <Users className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-900">
+                    Platform Users & Team Management
+                  </h2>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 font-medium">
+                    {teamMembers.length} {teamMembers.length === 1 ? 'User' : 'Users'}
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Only administrators can create user accounts and designate access roles.
+                </p>
+              </div>
+            </div>
+
+            {/* User creation trigger - ONLY visible to Admin */}
+            <button
+              type="button"
+              onClick={() => {
+                setUserActionError(null);
+                setUserActionSuccess(null);
+                setShowNewUserModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-neutral-950 text-white text-xs font-medium hover:bg-neutral-800 transition cursor-pointer self-start sm:self-auto shadow-xs"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Add New User</span>
+            </button>
+          </div>
+
+          {/* Quick Metrics of Users created */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="p-3 bg-neutral-50 border border-neutral-100 rounded-lg">
+              <span className="text-[10px] font-mono uppercase text-neutral-400 block">Total Users</span>
+              <span className="text-lg font-serif font-medium text-neutral-950">{teamMembers.length}</span>
+            </div>
+            <div className="p-3 bg-neutral-50 border border-neutral-100 rounded-lg">
+              <span className="text-[10px] font-mono uppercase text-neutral-400 block">Administrators</span>
+              <span className="text-lg font-serif font-medium text-neutral-950">{adminCount}</span>
+            </div>
+            <div className="p-3 bg-neutral-50 border border-neutral-100 rounded-lg">
+              <span className="text-[10px] font-mono uppercase text-neutral-400 block">Managers / Editors</span>
+              <span className="text-lg font-serif font-medium text-neutral-950">{managerCount + otherCount}</span>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setUserActionError(null);
-              setUserActionSuccess(null);
-              setShowNewUserModal(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-neutral-950 text-white text-xs font-medium hover:bg-neutral-800 transition cursor-pointer self-start sm:self-auto shadow-xs"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Add New User</span>
-          </button>
-        </div>
+          {/* Action alerts inside team card */}
+          {userActionSuccess && (
+            <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-2.5 text-xs">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <span>{userActionSuccess}</span>
+            </div>
+          )}
 
-        {/* Action alerts inside team card */}
-        {userActionSuccess && (
-          <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-2.5 text-xs">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-            <span>{userActionSuccess}</span>
-          </div>
-        )}
+          {userActionError && (
+            <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-900 flex items-start gap-2.5 text-xs">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <span>{userActionError}</span>
+            </div>
+          )}
 
-        {userActionError && (
-          <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-900 flex items-start gap-2.5 text-xs">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-            <span>{userActionError}</span>
-          </div>
-        )}
+          {/* User list - ONLY visible to Admin */}
+          {loadingTeam ? (
+            <div className="py-8 flex items-center justify-center gap-2 text-xs text-neutral-400">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Loading registered user accounts...</span>
+            </div>
+          ) : teamMembers.length === 0 ? (
+            <div className="py-8 text-center text-xs text-neutral-400">
+              No accounts registered yet.
+            </div>
+          ) : (
+            <div className="divide-y divide-neutral-100 border border-neutral-200 rounded-xl overflow-hidden">
+              {teamMembers.map((member) => {
+                const isCurrent = member.email.toLowerCase() === currentEmail.toLowerCase();
+                const isPrimary =
+                  member.email.toLowerCase() === 'appahstephen9@gmail.com' ||
+                  member.id === 'admin-appahstephen9';
 
-        {/* User list */}
-        {loadingTeam ? (
-          <div className="py-8 flex items-center justify-center gap-2 text-xs text-neutral-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Loading administrator accounts...</span>
-          </div>
-        ) : teamMembers.length === 0 ? (
-          <div className="py-8 text-center text-xs text-neutral-400">
-            No accounts registered yet.
-          </div>
-        ) : (
-          <div className="divide-y divide-neutral-100 border border-neutral-100 rounded-lg overflow-hidden">
-            {teamMembers.map((member) => {
-              const isCurrent = member.email === email;
-              const isPrimaryOwner = member.id === 'demo-admin-id' || member.email === 'admin@deonstudios.com';
-
-              return (
-                <div
-                  key={member.id}
-                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-neutral-50/70 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-700 font-serif text-sm shrink-0">
-                      {member.full_name?.charAt(0) || member.email.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-semibold text-neutral-900">
-                          {member.full_name || 'Studio Member'}
-                        </span>
-                        {isCurrent && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200 text-neutral-800 font-medium">
-                            You
-                          </span>
-                        )}
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                            member.role === 'admin'
-                              ? 'bg-neutral-950 text-white'
-                              : 'bg-neutral-100 text-neutral-700 border border-neutral-200'
-                          }`}
-                        >
-                          {member.role === 'admin' ? 'Administrator' : 'Editor'}
-                        </span>
+                return (
+                  <div
+                    key={member.id}
+                    className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-neutral-50/70 transition"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-800 font-serif text-sm shrink-0">
+                        {member.full_name?.charAt(0) || member.email.charAt(0).toUpperCase()}
                       </div>
-                      <p className="text-[11px] text-neutral-500 font-mono mt-0.5">
-                        {member.email}
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-neutral-900">
+                            {member.full_name || 'Studio Member'}
+                          </span>
+                          {isCurrent && (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-neutral-200 text-neutral-800 font-medium">
+                              You
+                            </span>
+                          )}
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                              member.role === 'admin'
+                                ? 'bg-neutral-950 text-white'
+                                : member.role === 'manager'
+                                ? 'bg-neutral-100 text-neutral-900 border border-neutral-300 font-mono'
+                                : 'bg-neutral-100 text-neutral-600 border border-neutral-200 font-mono'
+                            }`}
+                          >
+                            {member.role === 'admin'
+                              ? 'Administrator'
+                              : member.role === 'manager'
+                              ? 'Manager'
+                              : 'Editor'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-neutral-500 font-mono mt-0.5">
+                          {member.email}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      {isPrimary ? (
+                        <span className="text-[11px] text-neutral-400 font-mono text-xs">
+                          Primary Admin
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(member.id, member.full_name || member.email)}
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+                          title="Revoke access"
+                          aria-label="Revoke user access"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
 
-                  <div className="flex items-center gap-2 self-end sm:self-auto">
-                    {isPrimaryOwner ? (
-                      <span className="text-[11px] text-neutral-400 italic">
-                        Primary Owner
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteUser(member.id, member.full_name || member.email)}
-                        className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
-                        title="Revoke access"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          {/* Admin security info */}
+          <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200/80 flex items-start gap-3 text-xs text-neutral-600">
+            <Info className="w-4 h-4 text-neutral-500 shrink-0 mt-0.5" />
+            <div className="space-y-1 leading-relaxed">
+              <p className="font-semibold text-neutral-900">Administrator Role Management</p>
+              <p className="text-[11px] text-neutral-600">
+                As the administrator, only you have access to this user creation and management panel.
+                Managers have access to manage projects, portfolio items, and media, but cannot view this
+                panel or create accounts.
+              </p>
+            </div>
           </div>
-        )}
-
-        {/* Quick instructions hint */}
-        <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200/80 flex items-start gap-3 text-xs text-neutral-600">
-          <Info className="w-4 h-4 text-neutral-500 shrink-0 mt-0.5" />
-          <div className="space-y-1.5 leading-relaxed">
-            <p className="font-semibold text-neutral-900">How User Accounts & Supabase Work</p>
-            <p className="text-[11px] text-neutral-600">
-              {supabaseConnected ? (
-                <>
-                  Your app is connected to Supabase. When creating a user here, Supabase creates their Auth account and sets up their admin profile in the database. Alternatively, you can invite administrators directly from your{' '}
-                  <span className="font-medium text-neutral-900">Supabase Dashboard → Authentication → Users</span>.
-                </>
-              ) : (
-                <>
-                  In demo / local storage mode, any accounts you create here are immediately stored in the browser session. They can log into the CMS right away using their email and the password you set.
-                </>
-              )}
+        </div>
+      ) : (
+        /* Notification for Managers & non-admins: user creation and list are strictly hidden */
+        <div className="p-5 rounded-xl bg-neutral-50 border border-neutral-200 flex items-start gap-3 text-xs text-neutral-600">
+          <ShieldAlert className="w-4 h-4 text-neutral-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-neutral-800">User Account & Role Management</p>
+            <p className="text-[11px] text-neutral-500 mt-1 leading-relaxed">
+              Account provisioning and team role assignment are reserved exclusively for the studio
+              administrator (<span className="font-mono text-neutral-700">appahstephen9@gmail.com</span>).
+              As a manager, you have full privileges to curate and publish projects, portraits, and product
+              assets.
             </p>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Modal: Add New User */}
-      {showNewUserModal && (
+      {/* Modal: Add New User (Admin Only) */}
+      {isAdmin && showNewUserModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-neutral-200 shadow-xl max-w-md w-full p-6 sm:p-7 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div className="flex items-center gap-2">
                 <UserPlus className="w-4 h-4 text-neutral-900" />
                 <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider">
-                  Create New Account
+                  Create Platform User
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowNewUserModal(false)}
-                className="text-neutral-400 hover:text-neutral-600 text-xs px-2 py-1 rounded"
+                className="text-neutral-400 hover:text-neutral-600 text-xs px-2 py-1 rounded cursor-pointer"
               >
                 ✕
               </button>
@@ -506,8 +602,21 @@ export const ProfilePage: React.FC = () => {
                   required
                   value={newMemberFullName}
                   onChange={(e) => setNewMemberFullName(e.target.value)}
-                  placeholder="e.g. Ama Mensah or Assistant Photographer"
+                  placeholder="e.g. John Doe or Studio Manager"
                   className="w-full text-xs px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900 focus:bg-white transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">
+                  Username <span className="text-neutral-400 font-normal">(optional login alias)</span>
+                </label>
+                <input
+                  type="text"
+                  value={newMemberUsername}
+                  onChange={(e) => setNewMemberUsername(e.target.value)}
+                  placeholder="e.g. manager1"
+                  className="w-full text-xs px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900 focus:bg-white transition font-mono"
                 />
               </div>
 
@@ -520,14 +629,14 @@ export const ProfilePage: React.FC = () => {
                   required
                   value={newMemberEmail}
                   onChange={(e) => setNewMemberEmail(e.target.value)}
-                  placeholder="e.g. colleague@deonstudios.com"
+                  placeholder="e.g. manager@deonstudios.com"
                   className="w-full text-xs px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900 focus:bg-white transition font-mono"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-neutral-700 mb-1">
-                  Temporary / Initial Password <span className="text-neutral-400 font-normal">(min. 6 chars)</span>
+                  Password <span className="text-neutral-400 font-normal">(min. 6 chars)</span>
                 </label>
                 <input
                   type="password"
@@ -535,23 +644,27 @@ export const ProfilePage: React.FC = () => {
                   minLength={6}
                   value={newMemberPassword}
                   onChange={(e) => setNewMemberPassword(e.target.value)}
-                  placeholder="Set a password for their first sign-in"
+                  placeholder="Set initial password for login"
                   className="w-full text-xs px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900 focus:bg-white transition"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-neutral-700 mb-1">
-                  Role & Privileges
+                  Designate Role & Privileges
                 </label>
                 <select
                   value={newMemberRole}
-                  onChange={(e) => setNewMemberRole(e.target.value as 'admin' | 'editor')}
+                  onChange={(e) => setNewMemberRole(e.target.value as UserRole)}
                   className="w-full text-xs px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900 focus:bg-white transition"
                 >
-                  <option value="admin">Administrator (Full Access to Projects, Portfolio, Products & Settings)</option>
-                  <option value="editor">Editor (Upload and manage projects & portfolio shots)</option>
+                  <option value="admin">Admin (Full Access: Content + Create Users + Designate Roles)</option>
+                  <option value="manager">Manager (Manage Portfolio, Projects, Products, Categories & Media)</option>
+                  <option value="editor">Editor (Upload and Edit Content Only)</option>
                 </select>
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  Admins can create users and view all platform accounts. Managers manage content without user creation access.
+                </p>
               </div>
 
               <div className="pt-3 flex items-center justify-end gap-2 border-t border-neutral-100">

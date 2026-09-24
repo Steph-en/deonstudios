@@ -431,9 +431,10 @@ function getInitialDatabase(): DatabaseSchema {
     deleted_keys: [],
     users: [
       {
-        id: 'demo-admin-id',
-        email: 'admin@deonstudios.com',
-        full_name: 'Gideon Boadi',
+        id: 'admin-appahstephen9',
+        email: 'appahstephen9@gmail.com',
+        username: 'appahstephen9',
+        full_name: 'Stephen Appah',
         role: 'admin',
         created_at: new Date().toISOString(),
       },
@@ -913,7 +914,7 @@ async function startServer() {
 
   api.delete('/auth/users/:id', (req: Request, res: Response) => {
     const { id } = req.params;
-    if (id === 'demo-admin-id') {
+    if (id === 'admin-appahstephen9' || id === 'demo-admin-id') {
       return res.status(400).json({ error: 'Cannot delete primary owner' });
     }
     db.users = (db.users || []).filter((u) => u.id !== id);
