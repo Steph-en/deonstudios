@@ -131,7 +131,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
               ) : (
                 <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
               )}
-              Seed Sample Products
+              Seed 3 Sample Products
             </button>
           )}
 
@@ -226,7 +226,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
                 ) : (
                   <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
                 )}
-                Seed Sample Products
+                Seed 3 Sample Products
               </button>
               <button
                 type="button"

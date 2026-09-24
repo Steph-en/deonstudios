@@ -126,7 +126,7 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
               ) : (
                 <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
               )}
-              Seed Sample Works
+              Seed 3 Sample Works
             </button>
           )}
 
@@ -213,7 +213,7 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
                 ) : (
                   <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
                 )}
-                Seed Sample Studio Works
+                Seed 3 Sample Projects
               </button>
               <button
                 type="button"

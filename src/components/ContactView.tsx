@@ -157,7 +157,7 @@ export const ContactView: React.FC = () => {
                     rel="noopener noreferrer"
                     className="text-[11px] text-neutral-500 hover:text-neutral-900 underline underline-offset-4 decoration-neutral-300 hover:decoration-black transition-colors"
                   >
-                    Online Booking System ↗
+                    Bookings & General Inquiries ↗
                   </a>
                 )}
               </div>

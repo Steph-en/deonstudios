@@ -77,6 +77,7 @@ function getLocalShots(): DbPortfolioShot[] {
   }
 
   const initial: DbPortfolioShot[] = STATIC_PORTFOLIO_SHOTS
+    .slice(0, 3)
     .map(singleShotToDb)
     .filter((s) => !isMediaDeleted(s.id, s.url, s.title));
   try {
@@ -320,10 +321,11 @@ export class PortfolioService {
   }
 
   /**
-   * Seeds sample portfolio portrait shots into Supabase and local storage
+   * Seeds exactly 3 sample portfolio portrait shots into Supabase and local storage
    */
   static async seedShotsToDatabase(): Promise<DbPortfolioShot[]> {
-    const initial: DbPortfolioShot[] = STATIC_PORTFOLIO_SHOTS.map(singleShotToDb);
+    // Exactly 3 sample shots showing portrait, editorial, and creative lighting structures
+    const initial: DbPortfolioShot[] = STATIC_PORTFOLIO_SHOTS.slice(0, 3).map(singleShotToDb);
 
     if (isSupabaseConfigured()) {
       for (const shot of initial) {

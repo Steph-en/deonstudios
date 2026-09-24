@@ -77,6 +77,7 @@ function getLocalProducts(): DbProductShot[] {
   }
 
   const initial: DbProductShot[] = STATIC_PRODUCT_SHOTS
+    .slice(0, 3)
     .map(singleProductToDb)
     .filter((p) => !isMediaDeleted(p.id, p.url, p.title));
   try {
@@ -320,10 +321,11 @@ export class ProductService {
   }
 
   /**
-   * Seeds sample product still life shots into Supabase and local storage
+   * Seeds exactly 3 sample product still life shots into Supabase and local storage
    */
   static async seedProductsToDatabase(): Promise<DbProductShot[]> {
-    const initial: DbProductShot[] = STATIC_PRODUCT_SHOTS.map(singleProductToDb);
+    // Exactly 3 sample shots showing cosmetics, skincare, and set design structures
+    const initial: DbProductShot[] = STATIC_PRODUCT_SHOTS.slice(0, 3).map(singleProductToDb);
 
     if (isSupabaseConfigured()) {
       for (const shot of initial) {

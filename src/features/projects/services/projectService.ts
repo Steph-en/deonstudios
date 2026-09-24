@@ -32,8 +32,8 @@ function getLocalProjects(): ProjectWithDetails[] {
     // fallback
   }
 
-  // Convert static portfolio data into Supabase format as initial seed ONLY on first visit
-  const initial: ProjectWithDetails[] = STATIC_PROJECTS.map((sp, idx) => ({
+  // Convert static portfolio data into Supabase format as initial seed ONLY on first visit (3 representative samples)
+  const initial: ProjectWithDetails[] = STATIC_PROJECTS.slice(0, 3).map((sp, idx) => ({
     id: sp.id || `proj-${idx + 1}`,
     title: sp.title,
     slug: sp.slug,
@@ -440,11 +440,14 @@ export class ProjectService {
   }
 
   /**
-   * Seeds sample studio portfolio projects into Supabase (and local storage)
-   * This ensures initial projects are real database records with full CRUD support.
+   * Seeds 3 sample studio portfolio projects into Supabase (and local storage)
+   * This provides a clean template structure showing how projects are organized.
    */
   static async seedProjectsToDatabase(): Promise<ProjectWithDetails[]> {
-    const sampleProjects = STATIC_PROJECTS.map((sp, idx) => ({
+    // Exactly 3 sample projects representing different creative categories
+    const selectedSamples = STATIC_PROJECTS.slice(0, 3);
+
+    const sampleProjects = selectedSamples.map((sp, idx) => ({
       title: sp.title,
       slug: sp.slug,
       client: sp.client,
@@ -453,7 +456,7 @@ export class ProjectService {
       description: sp.description,
       long_description: sp.description,
       status: 'published' as ProjectStatus,
-      featured: idx < 3,
+      featured: idx < 2,
       preview_image: sp.images?.[0]?.url || '/assets/gideon_boadi_portrait.png',
       preview_video: sp.slug === 'helmet-of-heritage' ? '/videos/hero-desktop.mp4' : null,
       hero_image: sp.images?.[0]?.url || '/assets/gideon_boadi_portrait.png',
@@ -473,8 +476,8 @@ export class ProjectService {
       }
     }
 
-    // Also populate local cache
-    const initial = STATIC_PROJECTS.map((sp, idx) => ({
+    // Also populate local cache with exactly these 3 sample projects
+    const initial = selectedSamples.map((sp, idx) => ({
       id: sp.id || `proj-${idx + 1}`,
       title: sp.title,
       slug: sp.slug,
@@ -485,7 +488,7 @@ export class ProjectService {
       description: sp.description,
       long_description: sp.description,
       status: 'published' as ProjectStatus,
-      featured: idx < 3,
+      featured: idx < 2,
       preview_image: sp.images?.[0]?.url || '/assets/gideon_boadi_portrait.png',
       preview_video: sp.slug === 'helmet-of-heritage' ? '/videos/hero-desktop.mp4' : null,
       hero_image: sp.images?.[0]?.url || '/assets/gideon_boadi_portrait.png',

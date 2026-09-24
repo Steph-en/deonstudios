@@ -124,7 +124,7 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
               ) : (
                 <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
               )}
-              Seed Sample Portraits
+              Seed 3 Sample Portraits
             </button>
           )}
 
@@ -219,7 +219,7 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
                 ) : (
                   <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
                 )}
-                Seed Sample Portraits
+                Seed 3 Sample Portraits
               </button>
               <button
                 type="button"
