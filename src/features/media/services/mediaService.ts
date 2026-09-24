@@ -10,6 +10,7 @@ import {
   isMediaDeleted,
   clearAllStoredMedia,
 } from '../../../services/indexedDbStorage';
+import { ApiClient } from '../../../lib/api';
 
 export interface LibraryMediaAsset {
   id: string;
@@ -194,7 +195,19 @@ export class MediaService {
   static async getAllLibraryAssets(): Promise<LibraryMediaAsset[]> {
     const assetsMap = new Map<string, LibraryMediaAsset>();
 
-    // 1. Load stored items from persistent IndexedDB / localStorage
+    // 1. Load authoritative active media from centralized server API
+    try {
+      const serverMedia = await ApiClient.get<LibraryMediaAsset[]>('/media');
+      for (const sm of serverMedia) {
+        if (!isMediaDeleted(sm.id, sm.url, sm.name)) {
+          assetsMap.set(sm.url, sm);
+        }
+      }
+    } catch (err) {
+      // offline fallback
+    }
+
+    // 2. Load stored items from persistent IndexedDB / localStorage
     const storedItems = await getStoredMediaItems<LibraryMediaAsset>();
     for (const item of storedItems) {
       if (!isMediaDeleted(item.id, item.url, item.name)) {
@@ -202,7 +215,7 @@ export class MediaService {
       }
     }
 
-    // 2. If Supabase is configured, pull from project_media table
+    // 3. If Supabase is configured, pull from project_media table
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
@@ -233,7 +246,7 @@ export class MediaService {
       }
     }
 
-    // 3. Harvest media from CMS projects, portfolio, and products
+    // 4. Harvest media from CMS projects, portfolio, and products (strictly filtering deleted)
     const cmsAssets = harvestCmsMedia();
     for (const ca of cmsAssets) {
       if (!assetsMap.has(ca.url) && !isMediaDeleted(ca.id, ca.url, ca.name)) {
@@ -241,20 +254,12 @@ export class MediaService {
       }
     }
 
-    // 4. If library is empty and not explicitly cleared by user, add default samples that are not deleted
-    const hasInitialized = typeof window !== 'undefined' && localStorage.getItem(MEDIA_INITIALIZED_KEY) === 'true';
-    if (assetsMap.size === 0 && !hasInitialized) {
-      for (const sample of DEFAULT_SAMPLE_MEDIA) {
-        if (!isMediaDeleted(sample.id, sample.url, sample.name)) {
-          assetsMap.set(sample.url, sample);
-        }
-      }
-    } else {
-      // Also include any active default samples that haven't been deleted
-      for (const sample of DEFAULT_SAMPLE_MEDIA) {
-        if (!assetsMap.has(sample.url) && !isMediaDeleted(sample.id, sample.url, sample.name)) {
-          assetsMap.set(sample.url, sample);
-        }
+    // Mark initialized so placeholders are NEVER resurrected
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(MEDIA_INITIALIZED_KEY, 'true');
+      } catch {
+        // ignore
       }
     }
 
@@ -267,7 +272,7 @@ export class MediaService {
 
   /**
    * Add a new media asset to the library.
-   * Saves to persistent storage (IndexedDB + localStorage) and Supabase if active.
+   * Saves to persistent storage (IndexedDB + localStorage) and server/Supabase.
    */
   static async addLibraryAsset(asset: {
     name: string;
@@ -287,6 +292,13 @@ export class MediaService {
       date: new Date().toISOString().split('T')[0],
       projectId: asset.projectId || null,
     };
+
+    // Save to centralized server database
+    try {
+      await ApiClient.post<LibraryMediaAsset>('/media', newAsset);
+    } catch {
+      // offline
+    }
 
     // Save permanently in IndexedDB and localStorage
     await saveStoredMediaItem(newAsset);
@@ -361,6 +373,14 @@ export class MediaService {
    * Also purges the asset from any projects, portfolio shots, or product shots that reference it.
    */
   static async deleteLibraryAsset(id: string, storagePath?: string, url?: string): Promise<boolean> {
+    // 0. Delete permanently from centralized server database
+    try {
+      const q = url ? `?url=${encodeURIComponent(url)}` : '';
+      await ApiClient.delete(`/media/${encodeURIComponent(id)}${q}`);
+    } catch {
+      // offline fallback
+    }
+
     // 1. Mark permanently deleted in both IndexedDB and LocalStorage
     await markMediaAsDeleted([id, storagePath, url]);
 

@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { DbCategory } from '../../../types/database';
+import { ApiClient } from '../../../lib/api';
 
 const LOCAL_CATEGORIES_KEY = 'deon_cms_local_categories';
 const CATEGORIES_INITIALIZED_KEY = 'deon_cms_categories_initialized';
@@ -81,7 +82,13 @@ export class CategoryService {
    */
   static async getCategories(): Promise<DbCategory[]> {
     if (!isSupabaseConfigured()) {
-      return getLocalCategories().sort((a, b) => a.display_order - b.display_order);
+      try {
+        const list = await ApiClient.get<DbCategory[]>('/categories');
+        saveLocalCategories(list);
+        return list.sort((a, b) => a.display_order - b.display_order);
+      } catch {
+        return getLocalCategories().sort((a, b) => a.display_order - b.display_order);
+      }
     }
 
     const { data, error } = await supabase

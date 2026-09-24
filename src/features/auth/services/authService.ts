@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey } from '../../../lib/supabase';
 import { SignInCredentials } from '../types/auth';
 import { DbProfile } from '../../../types/database';
+import { ApiClient } from '../../../lib/api';
 
 export class AuthService {
   /**
@@ -23,8 +24,14 @@ export class AuthService {
         return { data: { user: mockUser, session: { user: mockUser } }, error: null };
       }
 
-      // Check stored custom team members
-      const customUsers = this.getLocalTeamUsers();
+      // Check stored custom team members from centralized server first
+      let customUsers: any[] = [];
+      try {
+        customUsers = await ApiClient.get<any[]>('/auth/users');
+      } catch {
+        customUsers = this.getLocalTeamUsers();
+      }
+
       const match = customUsers.find(
         (u) => u.email.toLowerCase() === cleanEmail && u.password === password
       );
@@ -84,7 +91,7 @@ export class AuthService {
   }
 
   /**
-   * Get all admin/editor users from Supabase profiles or local storage
+   * Get all admin/editor users from Supabase profiles or local/server database
    */
   static async getTeamMembers(): Promise<DbProfile[]> {
     if (!isSupabaseConfigured()) {
@@ -97,7 +104,16 @@ export class AuthService {
         created_at: '2025-01-01T00:00:00.000Z',
         updated_at: new Date().toISOString(),
       };
-      const custom = this.getLocalTeamUsers().map((u) => ({
+
+      let customUsers: any[] = [];
+      try {
+        customUsers = await ApiClient.get<any[]>('/auth/users');
+        this.saveLocalTeamUsers(customUsers);
+      } catch {
+        customUsers = this.getLocalTeamUsers();
+      }
+
+      const custom = customUsers.map((u) => ({
         id: u.id,
         email: u.email,
         full_name: u.full_name,
@@ -132,7 +148,13 @@ export class AuthService {
     const cleanEmail = payload.email.trim().toLowerCase();
 
     if (!isSupabaseConfigured()) {
-      const existing = this.getLocalTeamUsers();
+      let existing: any[] = [];
+      try {
+        existing = await ApiClient.get<any[]>('/auth/users');
+      } catch {
+        existing = this.getLocalTeamUsers();
+      }
+
       if (
         cleanEmail === 'admin@deonstudios.com' ||
         existing.some((u) => u.email.toLowerCase() === cleanEmail)
@@ -148,6 +170,13 @@ export class AuthService {
         password: payload.password,
         created_at: new Date().toISOString(),
       };
+
+      try {
+        await ApiClient.post('/auth/users', newUser);
+      } catch {
+        // fallback
+      }
+
       existing.push(newUser);
       this.saveLocalTeamUsers(existing);
 
@@ -238,6 +267,11 @@ export class AuthService {
     }
 
     if (!isSupabaseConfigured()) {
+      try {
+        await ApiClient.delete(`/auth/users/${id}`);
+      } catch {
+        // offline
+      }
       const existing = this.getLocalTeamUsers().filter((u) => u.id !== id);
       this.saveLocalTeamUsers(existing);
       return;
@@ -310,7 +344,7 @@ export class AuthService {
   }
 
   /**
-   * Fetch user profile from public.profiles
+   * Fetch user profile from public.profiles with safe fallback
    */
   static async getProfile(userId: string): Promise<DbProfile | null> {
     if (!isSupabaseConfigured()) {
@@ -321,11 +355,20 @@ export class AuthService {
           full_name: 'Gideon Boadi (Studio Owner)',
           avatar_url: '/assets/gideon_boadi_portrait.png',
           role: 'admin',
-          created_at: new Date().toISOString(),
+          created_at: '2025-01-01T00:00:00.000Z',
           updated_at: new Date().toISOString(),
         };
       }
-      const custom = this.getLocalTeamUsers().find((u) => u.id === userId);
+
+      // Check server team users first
+      let customUsers: any[] = [];
+      try {
+        customUsers = await ApiClient.get<any[]>('/auth/users');
+      } catch {
+        customUsers = this.getLocalTeamUsers();
+      }
+
+      const custom = customUsers.find((u) => u.id === userId);
       if (custom) {
         return {
           id: custom.id,
@@ -337,19 +380,63 @@ export class AuthService {
           updated_at: custom.created_at,
         };
       }
+
+      // Fallback check from current session if logged in
+      const sessionRaw = localStorage.getItem('demo_admin_session');
+      if (sessionRaw) {
+        try {
+          const sUser = JSON.parse(sessionRaw);
+          if (sUser && (sUser.id === userId || !userId)) {
+            return {
+              id: sUser.id || userId,
+              email: sUser.email || 'admin@deonstudios.com',
+              full_name: sUser.user_metadata?.full_name || 'Admin User',
+              avatar_url: '/assets/gideon_boadi_portrait.png',
+              role: sUser.user_metadata?.role || 'admin',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       return null;
     }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (error || !data) {
-      return null;
+      if (!error && data) {
+        return data as DbProfile;
+      }
+    } catch {
+      // ignore
     }
 
-    return data as DbProfile;
+    // Supabase fallback: construct profile from auth.getUser() so profile page doesn't crash if profiles row is pending
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user && authData.user.id === userId) {
+        return {
+          id: authData.user.id,
+          email: authData.user.email || '',
+          full_name: authData.user.user_metadata?.full_name || authData.user.email?.split('@')[0] || 'Admin User',
+          avatar_url: authData.user.user_metadata?.avatar_url || null,
+          role: (authData.user.user_metadata?.role as 'admin' | 'editor') || 'admin',
+          created_at: authData.user.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+      }
+    } catch {
+      // ignore
+    }
+
+    return null;
   }
 }

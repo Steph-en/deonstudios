@@ -3,6 +3,7 @@ import { DbProject, ProjectWithDetails, ProjectStatus } from '../../../types/dat
 import { PROJECTS as STATIC_PROJECTS } from '../../../data/portfolioData';
 import { StorageService } from '../../../services/storageService';
 import { isMediaDeleted, markMediaAsDeleted } from '../../../services/indexedDbStorage';
+import { ApiClient } from '../../../lib/api';
 
 // Local storage key for fallback/demo edits when Supabase is not yet populated
 const LOCAL_PROJECTS_KEY = 'deon_cms_local_projects';
@@ -131,7 +132,14 @@ export class ProjectService {
     includeDeleted?: boolean;
   } = {}): Promise<ProjectWithDetails[]> {
     if (!isSupabaseConfigured()) {
-      let list = getLocalProjects();
+      let list: ProjectWithDetails[] = [];
+      try {
+        list = await ApiClient.get<ProjectWithDetails[]>('/projects');
+        saveLocalProjects(list);
+      } catch {
+        list = getLocalProjects();
+      }
+
       if (!options.includeDeleted) {
         list = list.filter((p) => !p.deleted_at);
       }
@@ -203,8 +211,12 @@ export class ProjectService {
    */
   static async getProjectBySlug(slug: string): Promise<ProjectWithDetails | null> {
     if (!isSupabaseConfigured()) {
-      const list = getLocalProjects();
-      return list.find((p) => p.slug === slug && !p.deleted_at) || null;
+      try {
+        return await ApiClient.get<ProjectWithDetails>(`/projects/${slug}`);
+      } catch {
+        const list = getLocalProjects();
+        return list.find((p) => p.slug === slug && !p.deleted_at) || null;
+      }
     }
 
     const { data, error } = await supabase
@@ -242,8 +254,12 @@ export class ProjectService {
    */
   static async getProjectById(id: string): Promise<ProjectWithDetails | null> {
     if (!isSupabaseConfigured()) {
-      const list = getLocalProjects();
-      return list.find((p) => p.id === id) || null;
+      try {
+        return await ApiClient.get<ProjectWithDetails>(`/projects/${id}`);
+      } catch {
+        const list = getLocalProjects();
+        return list.find((p) => p.id === id) || null;
+      }
     }
 
     const { data, error } = await supabase
@@ -273,7 +289,7 @@ export class ProjectService {
   }
 
   /**
-   * Create new project in Supabase
+   * Create new project in Supabase or server database
    */
   static async createProject(project: Partial<DbProject>): Promise<DbProject> {
     const slug = project.slug || project.title?.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'project';
@@ -306,10 +322,19 @@ export class ProjectService {
         media: [],
         sections: [],
       };
-      const list = getLocalProjects();
-      list.unshift(newProject);
-      saveLocalProjects(list);
-      return newProject;
+
+      try {
+        const created = await ApiClient.post<ProjectWithDetails>('/projects', newProject);
+        const list = getLocalProjects();
+        list.unshift(created);
+        saveLocalProjects(list);
+        return created;
+      } catch {
+        const list = getLocalProjects();
+        list.unshift(newProject);
+        saveLocalProjects(list);
+        return newProject;
+      }
     }
 
     const { data, error } = await supabase
@@ -350,20 +375,31 @@ export class ProjectService {
    */
   static async updateProject(id: string, updates: Partial<DbProject>): Promise<DbProject> {
     if (!isSupabaseConfigured()) {
-      const list = getLocalProjects();
-      const idx = list.findIndex((p) => p.id === id);
-      if (idx === -1) throw new Error('Project not found');
-      list[idx] = {
-        ...list[idx],
-        ...updates,
-        updated_at: new Date().toISOString(),
-        published_at:
-          updates.status === 'published' && !list[idx].published_at
-            ? new Date().toISOString()
-            : list[idx].published_at,
-      };
-      saveLocalProjects(list);
-      return list[idx];
+      try {
+        const updated = await ApiClient.put<ProjectWithDetails>(`/projects/${id}`, updates);
+        const list = getLocalProjects();
+        const idx = list.findIndex((p) => p.id === id);
+        if (idx !== -1) {
+          list[idx] = updated;
+          saveLocalProjects(list);
+        }
+        return updated;
+      } catch {
+        const list = getLocalProjects();
+        const idx = list.findIndex((p) => p.id === id);
+        if (idx === -1) throw new Error('Project not found');
+        list[idx] = {
+          ...list[idx],
+          ...updates,
+          updated_at: new Date().toISOString(),
+          published_at:
+            updates.status === 'published' && !list[idx].published_at
+              ? new Date().toISOString()
+              : list[idx].published_at,
+        };
+        saveLocalProjects(list);
+        return list[idx];
+      }
     }
 
     const updatePayload: Record<string, any> = { ...updates };
@@ -389,7 +425,14 @@ export class ProjectService {
    * Delete project permanently or soft-delete, keeping local cache and Supabase in sync
    */
   static async deleteProject(id: string): Promise<boolean> {
-    // 1. Immediately remove from local cache so fallback never resurrects it
+    // 1. Immediately remove from server database
+    try {
+      await ApiClient.delete(`/projects/${id}`);
+    } catch {
+      // offline fallback
+    }
+
+    // 2. Remove from local cache
     const list = getLocalProjects();
     const target = list.find((p) => p.id === id);
     if (target) {
@@ -413,7 +456,7 @@ export class ProjectService {
     }
 
     try {
-      // 2. Try hard delete in Supabase first (CASCADE will remove media/sections)
+      // Try hard delete in Supabase first (CASCADE will remove media/sections)
       const { error: hardDeleteError } = await supabase
         .from('projects')
         .delete()
@@ -432,7 +475,6 @@ export class ProjectService {
       }
     } catch (err: any) {
       console.warn('Supabase delete warning:', err);
-      // Even if Supabase call failed, local state is pruned so UI stays clean
       throw err;
     }
 
@@ -473,6 +515,18 @@ export class ProjectService {
         } catch (e) {
           console.warn('Seeding project error:', e);
         }
+      }
+    }
+
+    if (!isSupabaseConfigured()) {
+      try {
+        const res = await ApiClient.post<{ projects: ProjectWithDetails[] }>('/projects/seed');
+        if (res?.projects) {
+          saveLocalProjects(res.projects);
+          return res.projects;
+        }
+      } catch {
+        // fallback
       }
     }
 

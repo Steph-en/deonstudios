@@ -3,6 +3,7 @@ import { DbPortfolioShot, ProjectStatus } from '../../../types/database';
 import { SingleShot } from '../../../types';
 import { PORTFOLIO_SHOTS as STATIC_PORTFOLIO_SHOTS } from '../../../data/portfolioData';
 import { isMediaDeleted, markMediaAsDeleted } from '../../../services/indexedDbStorage';
+import { ApiClient } from '../../../lib/api';
 
 const LOCAL_PORTFOLIO_KEY = 'deon_cms_local_portfolio_shots';
 const LOCAL_PORTFOLIO_INITIALIZED = 'deon_cms_portfolio_initialized';
@@ -109,7 +110,14 @@ export class PortfolioService {
     includeDeleted?: boolean;
   } = {}): Promise<DbPortfolioShot[]> {
     if (!isSupabaseConfigured()) {
-      let list = getLocalShots();
+      let list: DbPortfolioShot[] = [];
+      try {
+        list = await ApiClient.get<DbPortfolioShot[]>('/portfolio');
+        saveLocalShots(list);
+      } catch {
+        list = getLocalShots();
+      }
+
       if (!options.includeDeleted) {
         list = list.filter((s) => !s.deleted_at);
       }
@@ -176,11 +184,13 @@ export class PortfolioService {
    * Fetch single shot by ID
    */
   static async getShotById(id: string): Promise<DbPortfolioShot | null> {
-    const list = getLocalShots();
-    const foundLocal = list.find((s) => s.id === id && !s.deleted_at);
-
     if (!isSupabaseConfigured()) {
-      return foundLocal || null;
+      try {
+        return await ApiClient.get<DbPortfolioShot>(`/portfolio/${id}`);
+      } catch {
+        const list = getLocalShots();
+        return list.find((s) => s.id === id && !s.deleted_at) || null;
+      }
     }
 
     try {
@@ -192,11 +202,13 @@ export class PortfolioService {
         .maybeSingle();
 
       if (error || !data) {
-        return foundLocal || null;
+        const list = getLocalShots();
+        return list.find((s) => s.id === id && !s.deleted_at) || null;
       }
       return data as DbPortfolioShot;
     } catch {
-      return foundLocal || null;
+      const list = getLocalShots();
+      return list.find((s) => s.id === id && !s.deleted_at) || null;
     }
   }
 
@@ -227,6 +239,21 @@ export class PortfolioService {
       deleted_at: null,
     };
 
+    if (!isSupabaseConfigured()) {
+      try {
+        const created = await ApiClient.post<DbPortfolioShot>('/portfolio', newShot);
+        const list = getLocalShots();
+        list.unshift(created);
+        saveLocalShots(list);
+        return created;
+      } catch {
+        const list = getLocalShots();
+        list.unshift(newShot);
+        saveLocalShots(list);
+        return newShot;
+      }
+    }
+
     // Save to local cache first
     const list = getLocalShots();
     list.unshift(newShot);
@@ -255,6 +282,33 @@ export class PortfolioService {
    * Update an existing portfolio / portrait shot
    */
   static async updateShot(id: string, updates: Partial<DbPortfolioShot>): Promise<DbPortfolioShot> {
+    if (!isSupabaseConfigured()) {
+      try {
+        const updated = await ApiClient.put<DbPortfolioShot>(`/portfolio/${id}`, updates);
+        const list = getLocalShots();
+        const idx = list.findIndex((s) => s.id === id);
+        if (idx !== -1) {
+          list[idx] = updated;
+          saveLocalShots(list);
+        }
+        return updated;
+      } catch {
+        const list = getLocalShots();
+        const idx = list.findIndex((s) => s.id === id);
+        if (idx === -1) {
+          throw new Error(`Portfolio shot with ID "${id}" not found.`);
+        }
+        const updated: DbPortfolioShot = {
+          ...list[idx],
+          ...updates,
+          updated_at: new Date().toISOString(),
+        };
+        list[idx] = updated;
+        saveLocalShots(list);
+        return updated;
+      }
+    }
+
     const list = getLocalShots();
     const idx = list.findIndex((s) => s.id === id);
     if (idx === -1) {
@@ -290,6 +344,12 @@ export class PortfolioService {
    * Delete a shot permanently or soft delete, keeping local cache and Supabase in sync
    */
   static async deleteShot(id: string): Promise<void> {
+    try {
+      await ApiClient.delete(`/portfolio/${id}`);
+    } catch {
+      // offline
+    }
+
     const list = getLocalShots();
     const target = list.find((s) => s.id === id);
     if (target) {
@@ -324,6 +384,18 @@ export class PortfolioService {
    * Seeds exactly 3 sample portfolio portrait shots into Supabase and local storage
    */
   static async seedShotsToDatabase(): Promise<DbPortfolioShot[]> {
+    if (!isSupabaseConfigured()) {
+      try {
+        const res = await ApiClient.post<{ portfolio: DbPortfolioShot[] }>('/portfolio/seed');
+        if (res?.portfolio) {
+          saveLocalShots(res.portfolio);
+          return res.portfolio;
+        }
+      } catch {
+        // fallback
+      }
+    }
+
     // Exactly 3 sample shots showing portrait, editorial, and creative lighting structures
     const initial: DbPortfolioShot[] = STATIC_PORTFOLIO_SHOTS.slice(0, 3).map(singleShotToDb);
 

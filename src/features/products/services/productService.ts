@@ -3,6 +3,7 @@ import { DbProductShot, ProjectStatus } from '../../../types/database';
 import { SingleShot } from '../../../types';
 import { PRODUCT_SHOTS as STATIC_PRODUCT_SHOTS } from '../../../data/portfolioData';
 import { isMediaDeleted, markMediaAsDeleted } from '../../../services/indexedDbStorage';
+import { ApiClient } from '../../../lib/api';
 
 const LOCAL_PRODUCTS_KEY = 'deon_cms_local_product_shots';
 const LOCAL_PRODUCTS_INITIALIZED = 'deon_cms_product_shots_initialized';
@@ -109,7 +110,14 @@ export class ProductService {
     includeDeleted?: boolean;
   } = {}): Promise<DbProductShot[]> {
     if (!isSupabaseConfigured()) {
-      let list = getLocalProducts();
+      let list: DbProductShot[] = [];
+      try {
+        list = await ApiClient.get<DbProductShot[]>('/products');
+        saveLocalProducts(list);
+      } catch {
+        list = getLocalProducts();
+      }
+
       if (!options.includeDeleted) {
         list = list.filter((p) => !p.deleted_at);
       }
@@ -176,11 +184,13 @@ export class ProductService {
    * Fetch single product by ID
    */
   static async getProductById(id: string): Promise<DbProductShot | null> {
-    const list = getLocalProducts();
-    const foundLocal = list.find((p) => p.id === id && !p.deleted_at);
-
     if (!isSupabaseConfigured()) {
-      return foundLocal || null;
+      try {
+        return await ApiClient.get<DbProductShot>(`/products/${id}`);
+      } catch {
+        const list = getLocalProducts();
+        return list.find((p) => p.id === id && !p.deleted_at) || null;
+      }
     }
 
     try {
@@ -192,11 +202,13 @@ export class ProductService {
         .maybeSingle();
 
       if (error || !data) {
-        return foundLocal || null;
+        const list = getLocalProducts();
+        return list.find((p) => p.id === id && !p.deleted_at) || null;
       }
       return data as DbProductShot;
     } catch {
-      return foundLocal || null;
+      const list = getLocalProducts();
+      return list.find((p) => p.id === id && !p.deleted_at) || null;
     }
   }
 
@@ -227,6 +239,21 @@ export class ProductService {
       deleted_at: null,
     };
 
+    if (!isSupabaseConfigured()) {
+      try {
+        const created = await ApiClient.post<DbProductShot>('/products', newProduct);
+        const list = getLocalProducts();
+        list.unshift(created);
+        saveLocalProducts(list);
+        return created;
+      } catch {
+        const list = getLocalProducts();
+        list.unshift(newProduct);
+        saveLocalProducts(list);
+        return newProduct;
+      }
+    }
+
     // Save to local cache first
     const list = getLocalProducts();
     list.unshift(newProduct);
@@ -255,6 +282,33 @@ export class ProductService {
    * Update an existing product shot
    */
   static async updateProduct(id: string, updates: Partial<DbProductShot>): Promise<DbProductShot> {
+    if (!isSupabaseConfigured()) {
+      try {
+        const updated = await ApiClient.put<DbProductShot>(`/products/${id}`, updates);
+        const list = getLocalProducts();
+        const idx = list.findIndex((p) => p.id === id);
+        if (idx !== -1) {
+          list[idx] = updated;
+          saveLocalProducts(list);
+        }
+        return updated;
+      } catch {
+        const list = getLocalProducts();
+        const idx = list.findIndex((p) => p.id === id);
+        if (idx === -1) {
+          throw new Error(`Product shot with ID "${id}" not found.`);
+        }
+        const updated: DbProductShot = {
+          ...list[idx],
+          ...updates,
+          updated_at: new Date().toISOString(),
+        };
+        list[idx] = updated;
+        saveLocalProducts(list);
+        return updated;
+      }
+    }
+
     const list = getLocalProducts();
     const idx = list.findIndex((p) => p.id === id);
     if (idx === -1) {
@@ -290,6 +344,12 @@ export class ProductService {
    * Delete a product shot permanently or soft delete, keeping local cache and Supabase in sync
    */
   static async deleteProduct(id: string): Promise<void> {
+    try {
+      await ApiClient.delete(`/products/${id}`);
+    } catch {
+      // offline
+    }
+
     const list = getLocalProducts();
     const target = list.find((p) => p.id === id);
     if (target) {
@@ -324,6 +384,18 @@ export class ProductService {
    * Seeds exactly 3 sample product still life shots into Supabase and local storage
    */
   static async seedProductsToDatabase(): Promise<DbProductShot[]> {
+    if (!isSupabaseConfigured()) {
+      try {
+        const res = await ApiClient.post<{ products: DbProductShot[] }>('/products/seed');
+        if (res?.products) {
+          saveLocalProducts(res.products);
+          return res.products;
+        }
+      } catch {
+        // fallback
+      }
+    }
+
     // Exactly 3 sample shots showing cosmetics, skincare, and set design structures
     const initial: DbProductShot[] = STATIC_PRODUCT_SHOTS.slice(0, 3).map(singleProductToDb);
 
