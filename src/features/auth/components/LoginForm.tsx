@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Lock, Mail, ArrowRight, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Lock, User, ArrowRight, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { loginSchema, LoginFormData } from '../../../lib/validation';
 import { useAuth } from '../hooks/useAuth';
-import { isSupabaseConfigured } from '../../../lib/supabase';
-import { DeonLogo } from '../../../components/DeonLogo';
 
 interface LoginFormProps {
   onSuccess: () => void;
@@ -19,7 +17,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onCancel }) => 
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -39,82 +36,93 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onCancel }) => 
     }
   };
 
-  const fillDemoCredentials = () => {
-    setValue('email', 'admin@deonstudios.com');
-    setValue('password', 'admin123');
-  };
-
   return (
-    <div className="min-h-screen bg-[#fcfbfa] flex items-center justify-center p-4 sm:p-6 text-neutral-900 font-sans">
-      <div className="w-full max-w-sm bg-white border border-neutral-200/80 rounded-2xl shadow-lg p-8 sm:p-10 relative">
-        {/* Back link */}
+    <div className="min-h-screen bg-[#fcfbfa] flex items-center justify-center p-4 sm:p-6 text-neutral-900 font-sans selection:bg-neutral-900 selection:text-white">
+      <div className="w-full max-w-[420px] bg-white border border-neutral-200/85 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.04)] p-8 sm:p-10 relative">
+        {/* Back Link */}
         <button
           type="button"
           onClick={onCancel}
-          className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-neutral-400 hover:text-neutral-900 mb-8 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-neutral-400 hover:text-neutral-900 mb-6 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back
         </button>
 
+        {/* Centered Brand & Portal Header */}
+        <div className="text-center mb-8">
+          <span className="block text-[11px] font-mono uppercase tracking-[0.24em] text-neutral-400 font-medium mb-2.5">
+            Gideon Boadu
+          </span>
+          <h1 className="text-2xl sm:text-[28px] font-sans font-bold uppercase tracking-tight text-neutral-900 leading-none mb-2.5">
+            Admin Portal
+          </h1>
+          <p className="text-xs font-mono text-neutral-500 tracking-wide">
+            Login to manage portfolio contents
+          </p>
+        </div>
+
         {authError && (
-          <div className="mb-6 p-3 rounded-lg bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700">
+          <div className="mb-6 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <span>{authError}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          {/* Username / Email field */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                Email
-              </label>
-            </div>
+            <label className="block text-[10px] font-mono uppercase tracking-widest text-neutral-500 font-semibold mb-2">
+              Username
+            </label>
             <div className="relative">
+              <User className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
-                type="email"
+                type="text"
+                autoComplete="username"
                 {...register('email')}
-                placeholder="admin@deonstudios.com"
-                className="w-full text-sm pl-9 pr-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-hidden focus:border-neutral-900 focus:bg-white transition"
+                placeholder="e.g. admin"
+                className="w-full text-sm pl-10 pr-3.5 py-3 bg-neutral-50/80 border border-neutral-200/90 rounded-xl text-neutral-900 placeholder:text-neutral-400 placeholder:font-mono text-xs focus:outline-hidden focus:border-neutral-900 focus:bg-white focus:ring-1 focus:ring-neutral-900/10 transition-all"
               />
-              <Mail className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
             </div>
             {errors.email && (
-              <p className="text-xs text-red-600 mt-1">{errors.email.message}</p>
+              <p className="text-xs text-red-600 mt-1.5 font-mono text-[11px]">{errors.email.message}</p>
             )}
           </div>
 
+          {/* Password field */}
           <div>
-            <label className="block text-xs font-medium text-neutral-700 uppercase tracking-wider mb-1.5">
+            <label className="block text-[10px] font-mono uppercase tracking-widest text-neutral-500 font-semibold mb-2">
               Password
             </label>
             <div className="relative">
+              <Lock className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="password"
+                autoComplete="current-password"
                 {...register('password')}
                 placeholder="••••••••"
-                className="w-full text-sm pl-9 pr-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-hidden focus:border-neutral-900 focus:bg-white transition"
+                className="w-full text-sm pl-10 pr-3.5 py-3 bg-neutral-50/80 border border-neutral-200/90 rounded-xl text-neutral-900 placeholder:text-neutral-400 placeholder:tracking-widest focus:outline-hidden focus:border-neutral-900 focus:bg-white focus:ring-1 focus:ring-neutral-900/10 transition-all"
               />
-              <Lock className="w-4 h-4 text-neutral-400 absolute left-3 top-3" />
             </div>
             {errors.password && (
-              <p className="text-xs text-red-600 mt-1">{errors.password.message}</p>
+              <p className="text-xs text-red-600 mt-1.5 font-mono text-[11px]">{errors.password.message}</p>
             )}
           </div>
 
+          {/* Enter Dashboard submit button */}
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full mt-4 flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-neutral-950 text-white font-medium text-xs uppercase tracking-wider hover:bg-neutral-800 active:scale-[0.99] transition disabled:opacity-50"
+            className="w-full mt-6 py-3.5 px-4 rounded-xl bg-neutral-900 text-white font-mono text-xs font-semibold uppercase tracking-[0.18em] hover:bg-neutral-800 active:scale-[0.99] transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Signing In...
+                Entering...
               </>
             ) : (
               <>
-                Sign In <ArrowRight className="w-4 h-4" />
+                Enter Dashboard <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}
           </button>

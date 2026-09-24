@@ -14,7 +14,7 @@ export class AuthService {
       const savedPassword = localStorage.getItem('demo_admin_password') || 'admin123';
       const cleanEmail = email.trim().toLowerCase();
 
-      if (cleanEmail === 'admin@deonstudios.com' && password === savedPassword) {
+      if ((cleanEmail === 'admin@deonstudios.com' || cleanEmail === 'admin') && password === savedPassword) {
         const mockUser = {
           id: 'demo-admin-id',
           email: 'admin@deonstudios.com',
