@@ -53,19 +53,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onCancel }) => 
           onClick={onCancel}
           className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-neutral-400 hover:text-neutral-900 mb-8 transition-colors"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Studio
+          <ArrowLeft className="w-3.5 h-3.5" /> Back
         </button>
-
-        {/* Brand Header with Logo */}
-        <div className="mb-8">
-          <div className="mb-4">
-            <DeonLogo size={28} fillColor="#171717" />
-          </div>
-          <h1 className="text-2xl font-serif text-neutral-900">Sign In</h1>
-          <p className="text-xs text-neutral-500 mt-1">
-            Portfolio administration portal.
-          </p>
-        </div>
 
         {authError && (
           <div className="mb-6 p-3 rounded-lg bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700">
@@ -80,15 +69,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onCancel }) => 
               <label className="block text-xs font-medium text-neutral-700 uppercase tracking-wider">
                 Email
               </label>
-              {!isSupabaseConfigured() && (
-                <button
-                  type="button"
-                  onClick={fillDemoCredentials}
-                  className="text-[10px] text-neutral-400 hover:text-neutral-900 transition-colors uppercase tracking-wider"
-                >
-                  Demo Account
-                </button>
-              )}
             </div>
             <div className="relative">
               <input
