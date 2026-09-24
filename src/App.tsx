@@ -69,18 +69,45 @@ export default function App() {
   // Pure light theme as requested
   const [theme] = useState<ThemeMode>('light');
 
+  // Determine initial route from path or hash (supporting /admin, /about, /contact, #admin, etc.)
+  const initialRoute = useMemo(() => {
+    if (typeof window === 'undefined') return { page: 'home' as PageView, adminTab: 'overview' as AdminTab, intro: true };
+    const hash = window.location.hash || '';
+    const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+    
+    if (hash.startsWith('#admin') || pathname === '/admin' || pathname.startsWith('/admin/')) {
+      const sub = hash.startsWith('#admin') ? hash.replace('#admin', '') : pathname.replace('/admin', '');
+      let tab: AdminTab = 'overview';
+      if (sub.includes('projects') || sub.includes('project')) tab = 'projects';
+      else if (sub.includes('portfolio')) tab = 'portfolio';
+      else if (sub.includes('product')) tab = 'products';
+      else if (sub.includes('categories')) tab = 'categories';
+      else if (sub.includes('media')) tab = 'media';
+      else if (sub.includes('analytics')) tab = 'analytics';
+      else if (sub.includes('profile')) tab = 'profile';
+      return { page: 'admin' as PageView, adminTab: tab, intro: false };
+    }
+    if (hash === '#about' || pathname === '/about') {
+      return { page: 'about' as PageView, adminTab: 'overview' as AdminTab, intro: false };
+    }
+    if (hash === '#contact' || pathname === '/contact') {
+      return { page: 'contact' as PageView, adminTab: 'overview' as AdminTab, intro: false };
+    }
+    return { page: 'home' as PageView, adminTab: 'overview' as AdminTab, intro: true };
+  }, []);
+
   // Navigation state: 'home' | 'project' | 'about' | 'admin'
-  const [activePage, setActivePage] = useState<PageView>('home');
+  const [activePage, setActivePage] = useState<PageView>(initialRoute.page);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Admin routing state
-  const [adminTab, setAdminTab] = useState<AdminTab>('overview');
+  const [adminTab, setAdminTab] = useState<AdminTab>(initialRoute.adminTab);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingPortfolioShotId, setEditingPortfolioShotId] = useState<string | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
 
   // GSAP Intro animation state
-  const [introActive, setIntroActive] = useState(true);
+  const [introActive, setIntroActive] = useState(initialRoute.intro);
   const navbarLogoRef = useRef<HTMLDivElement>(null);
 
   // Auth Hook for CMS Access
@@ -125,99 +152,126 @@ export default function App() {
     }
   }, [activePage, selectedProject]);
 
-  // Synchronize initial URL hash on mount and listen to hashchange
+  // Synchronize initial URL (path or hash) on mount and listen to navigation events
   useEffect(() => {
-    const handleHash = () => {
-      const hash = window.location.hash;
+    const handleNavigation = () => {
+      const hash = window.location.hash || '';
+      const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
 
-      if (hash.startsWith('#admin')) {
+      // Check both path routing (/admin, /admin/projects, etc.) and hash routing (#admin, #admin/projects, etc.)
+      const isAdminRoute =
+        hash.startsWith('#admin') ||
+        pathname === '/admin' ||
+        pathname.startsWith('/admin/');
+
+      if (isAdminRoute) {
         setActivePage('admin');
         setSelectedProject(null);
 
-        if (hash === '#admin' || hash === '#admin/overview') {
+        // Normalize target route from either hash or path
+        const adminRoute = hash.startsWith('#admin')
+          ? hash
+          : `#admin${pathname.slice('/admin'.length)}`;
+
+        if (adminRoute === '#admin' || adminRoute === '#admin/' || adminRoute === '#admin/overview') {
           setAdminTab('overview');
           setEditingProjectId(null);
           setEditingPortfolioShotId(null);
           setEditingProductId(null);
-        } else if (hash === '#admin/projects') {
+        } else if (adminRoute === '#admin/projects') {
           setAdminTab('projects');
           setEditingProjectId(null);
           setEditingPortfolioShotId(null);
           setEditingProductId(null);
-        } else if (hash === '#admin/new-project') {
+        } else if (adminRoute === '#admin/new-project') {
           setAdminTab('projects');
           setEditingProjectId('new');
-        } else if (hash.startsWith('#admin/edit-project-')) {
-          const id = hash.replace('#admin/edit-project-', '');
+        } else if (adminRoute.startsWith('#admin/edit-project-')) {
+          const id = adminRoute.replace('#admin/edit-project-', '');
           setAdminTab('projects');
           setEditingProjectId(id);
-        } else if (hash === '#admin/portfolio') {
+        } else if (adminRoute === '#admin/portfolio') {
           setAdminTab('portfolio');
           setEditingPortfolioShotId(null);
           setEditingProjectId(null);
           setEditingProductId(null);
-        } else if (hash === '#admin/new-portfolio') {
+        } else if (adminRoute === '#admin/new-portfolio') {
           setAdminTab('portfolio');
           setEditingPortfolioShotId('new');
-        } else if (hash.startsWith('#admin/edit-portfolio-')) {
-          const id = hash.replace('#admin/edit-portfolio-', '');
+        } else if (adminRoute.startsWith('#admin/edit-portfolio-')) {
+          const id = adminRoute.replace('#admin/edit-portfolio-', '');
           setAdminTab('portfolio');
           setEditingPortfolioShotId(id);
-        } else if (hash === '#admin/products') {
+        } else if (adminRoute === '#admin/products') {
           setAdminTab('products');
           setEditingProductId(null);
           setEditingProjectId(null);
           setEditingPortfolioShotId(null);
-        } else if (hash === '#admin/new-product') {
+        } else if (adminRoute === '#admin/new-product') {
           setAdminTab('products');
           setEditingProductId('new');
-        } else if (hash.startsWith('#admin/edit-product-')) {
-          const id = hash.replace('#admin/edit-product-', '');
+        } else if (adminRoute.startsWith('#admin/edit-product-')) {
+          const id = adminRoute.replace('#admin/edit-product-', '');
           setAdminTab('products');
           setEditingProductId(id);
-        } else if (hash === '#admin/categories') {
+        } else if (adminRoute === '#admin/categories') {
           setAdminTab('categories');
           setEditingProjectId(null);
           setEditingPortfolioShotId(null);
           setEditingProductId(null);
-        } else if (hash === '#admin/media') {
+        } else if (adminRoute === '#admin/media') {
           setAdminTab('media');
           setEditingProjectId(null);
           setEditingPortfolioShotId(null);
           setEditingProductId(null);
-        } else if (hash === '#admin/analytics') {
+        } else if (adminRoute === '#admin/analytics') {
           setAdminTab('analytics');
           setEditingProjectId(null);
           setEditingPortfolioShotId(null);
           setEditingProductId(null);
-        } else if (hash === '#admin/profile') {
+        } else if (adminRoute === '#admin/profile') {
           setAdminTab('profile');
           setEditingProjectId(null);
           setEditingPortfolioShotId(null);
           setEditingProductId(null);
+        } else {
+          // Default to overview for any other admin subroute
+          setAdminTab('overview');
         }
-      } else if (hash === '#about') {
+      } else if (hash === '#about' || pathname === '/about') {
         setActivePage('about');
         setSelectedProject(null);
-      } else if (hash === '#contact') {
+      } else if (hash === '#contact' || pathname === '/contact') {
         setActivePage('contact');
         setSelectedProject(null);
-      } else if (hash.startsWith('#project-')) {
-        const slug = hash.replace('#project-', '');
+      } else if (hash.startsWith('#project-') || pathname.startsWith('/project/')) {
+        const slug = hash.startsWith('#project-')
+          ? hash.replace('#project-', '')
+          : pathname.replace('/project/', '');
         const found = publishedProjects.find((p) => p.slug === slug);
         if (found) {
           setSelectedProject(found);
           setActivePage('project');
         }
-      } else if (!hash || hash === '#' || hash === '#home') {
+      } else if (
+        !hash ||
+        hash === '#' ||
+        hash === '#home' ||
+        pathname === '/' ||
+        pathname === ''
+      ) {
         setActivePage('home');
         setSelectedProject(null);
       }
     };
 
-    handleHash();
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
+    handleNavigation();
+    window.addEventListener('hashchange', handleNavigation);
+    window.addEventListener('popstate', handleNavigation);
+    return () => {
+      window.removeEventListener('hashchange', handleNavigation);
+      window.removeEventListener('popstate', handleNavigation);
+    };
   }, [publishedProjects]);
 
   // Apply light theme to document root
@@ -240,8 +294,8 @@ export default function App() {
     setActivePage('home');
     setSelectedProject(null);
     setEditingProjectId(null);
-    if (window.location.hash) {
-      window.history.pushState(null, '', window.location.pathname + window.location.search);
+    if (window.location.hash || window.location.pathname !== '/') {
+      window.history.pushState(null, '', '/');
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
