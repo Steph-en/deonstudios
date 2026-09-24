@@ -21,9 +21,11 @@ import {
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { AuthService } from '../../features/auth/services/authService';
 import { DbProfile } from '../../types/database';
+import { isSupabaseConfigured, supabaseUrl } from '../../lib/supabase';
 
 export const ProfilePage: React.FC = () => {
   const { user, profile } = useAuth();
+  const supabaseConnected = isSupabaseConfigured();
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -157,7 +159,33 @@ export const ProfilePage: React.FC = () => {
         </p>
       </div>
 
-      {/* Notifications */}
+      {/* Supabase Status Banner */}
+      <div
+        className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+          supabaseConnected
+            ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+            : 'bg-amber-50/80 border-amber-200 text-amber-950'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
+              supabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+            }`}
+          />
+          <div>
+            <p className="font-semibold">
+              Database & Auth Backend:{' '}
+              {supabaseConnected ? 'Supabase Live Connected' : 'Local Storage Mode (Standby)'}
+            </p>
+            <p className="text-[11px] text-neutral-600 mt-0.5 leading-relaxed">
+              {supabaseConnected
+                ? `Connected to Supabase endpoint: ${supabaseUrl}. User authentications and mutations are synced directly to PostgreSQL.`
+                : 'Running in self-contained mode with built-in admin credentials. User accounts and portfolio edits are saved in browser storage.'}
+            </p>
+          </div>
+        </div>
+      </div>
       {successMessage && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-3">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
@@ -428,12 +456,21 @@ export const ProfilePage: React.FC = () => {
         )}
 
         {/* Quick instructions hint */}
-        <div className="p-3.5 rounded-lg bg-neutral-50 border border-neutral-200/80 flex items-start gap-2.5 text-xs text-neutral-600">
-          <Info className="w-4 h-4 text-neutral-400 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-medium text-neutral-800">Account Access Details</p>
-            <p className="text-[11px] text-neutral-500 leading-relaxed">
-              Users created here have direct login access to the CMS admin panel with their email and chosen password. When connected to Supabase, accounts can also be managed and invited directly in the Supabase Dashboard under <strong>Authentication → Users</strong>.
+        <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200/80 flex items-start gap-3 text-xs text-neutral-600">
+          <Info className="w-4 h-4 text-neutral-500 shrink-0 mt-0.5" />
+          <div className="space-y-1.5 leading-relaxed">
+            <p className="font-semibold text-neutral-900">How User Accounts & Supabase Work</p>
+            <p className="text-[11px] text-neutral-600">
+              {supabaseConnected ? (
+                <>
+                  Your app is connected to Supabase. When creating a user here, Supabase creates their Auth account and sets up their admin profile in the database. Alternatively, you can invite administrators directly from your{' '}
+                  <span className="font-medium text-neutral-900">Supabase Dashboard → Authentication → Users</span>.
+                </>
+              ) : (
+                <>
+                  In demo / local storage mode, any accounts you create here are immediately stored in the browser session. They can log into the CMS right away using their email and the password you set.
+                </>
+              )}
             </p>
           </div>
         </div>

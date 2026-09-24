@@ -60,6 +60,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'categories', label: 'Categories', icon: <Tag className="w-4 h-4" /> },
     { id: 'media', label: 'Media', icon: <ImageIcon className="w-4 h-4" /> },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
+    { id: 'profile', label: 'Profile & Team', icon: <User className="w-4 h-4" /> },
   ];
 
   const handlePrimaryNew = () => {

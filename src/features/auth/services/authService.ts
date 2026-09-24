@@ -1,4 +1,5 @@
-import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey } from '../../../lib/supabase';
 import { SignInCredentials } from '../types/auth';
 import { DbProfile } from '../../../types/database';
 
@@ -157,31 +158,69 @@ export class AuthService {
     }
 
     // When connected to Supabase:
-    // Try sign up via Supabase auth (or inviteUserByEmail if service role is available)
-    const { data, error } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password: payload.password,
-      options: {
-        data: {
-          full_name: payload.full_name.trim(),
-          role: payload.role,
-        },
-      },
-    });
+    // Notice: calling supabase.auth.signUp() directly from client side can replace the current admin's session
+    // if auto-confirm is enabled. We use a secondary non-persistent auth client or preserve the admin session.
+    const { data: currentAdminSession } = await supabase.auth.getSession();
+    const adminAccessToken = currentAdminSession?.session?.access_token;
+    const adminRefreshToken = currentAdminSession?.session?.refresh_token;
 
-    if (error) {
-      throw new Error(error.message || 'Failed to create user account in Supabase.');
+    let targetUserId: string | null = null;
+
+    try {
+      // Create a temporary isolated client without session persistence so current admin is not logged out
+      const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      });
+
+      const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+        email: cleanEmail,
+        password: payload.password,
+        options: {
+          data: {
+            full_name: payload.full_name.trim(),
+            role: payload.role,
+          },
+        },
+      });
+
+      if (signUpError) {
+        throw new Error(signUpError.message || 'Failed to create user in Supabase auth.');
+      }
+
+      targetUserId = signUpData.user?.id || null;
+    } catch (authErr: any) {
+      // If Supabase sign up is disabled or requires service role, provide friendly message
+      throw new Error(authErr.message || 'Failed to create user account in Supabase.');
+    } finally {
+      // Restore current admin session if it was altered
+      if (adminAccessToken && adminRefreshToken) {
+        try {
+          await supabase.auth.setSession({
+            access_token: adminAccessToken,
+            refresh_token: adminRefreshToken,
+          });
+        } catch {
+          // ignore session restore errors
+        }
+      }
     }
 
-    if (data.user) {
+    if (targetUserId) {
       // Upsert profile record explicitly to guarantee role & metadata
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        email: cleanEmail,
-        full_name: payload.full_name.trim(),
-        role: payload.role,
-        updated_at: new Date().toISOString(),
-      });
+      try {
+        await supabase.from('profiles').upsert({
+          id: targetUserId,
+          email: cleanEmail,
+          full_name: payload.full_name.trim(),
+          role: payload.role,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (profileErr) {
+        console.warn('Profile upsert note:', profileErr);
+      }
     }
 
     return {
