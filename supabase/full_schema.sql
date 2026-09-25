@@ -40,20 +40,9 @@ create table if not exists public.profiles (
 );
 
 -- Ensure all required columns exist if updating an existing table
-do $$
-begin
-  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'username') then
-    alter table public.profiles add column username text;
-  end if;
-
-  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'avatar_url') then
-    alter table public.profiles add column avatar_url text;
-  end if;
-
-  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'full_name') then
-    alter table public.profiles add column full_name text;
-  end if;
-end $$;
+alter table public.profiles add column if not exists username text;
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists full_name text;
 
 -- Update role constraint on profiles to accommodate 'admin', 'manager', and 'editor'
 alter table public.profiles drop constraint if exists profiles_role_check;
@@ -712,3 +701,54 @@ values
   ('33333333-3333-3333-3333-333333333333', 'Commercial', 'commercial', 'Brand advertising, product storytelling, and luxury objects', '#a3a3a3', 'briefcase', 3),
   ('44444444-4444-4444-4444-444444444444', 'Portraiture', 'portraiture', 'Intimate studio portraits, cultural icons, and human form', '#737373', 'camera', 4)
 on conflict (slug) do nothing;
+
+-- ==============================================================================
+-- CROSS-PLATFORM APP_USERS TABLE & COMPATIBILITY VIEWS
+-- ==============================================================================
+create table if not exists public.app_users (
+  id text primary key,
+  email text unique not null,
+  username text,
+  full_name text,
+  role text not null default 'manager' check (role in ('admin', 'manager', 'editor')),
+  password text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_app_users_email on public.app_users(lower(email));
+create index if not exists idx_app_users_username on public.app_users(lower(username));
+create index if not exists idx_app_users_role on public.app_users(role);
+
+alter table public.app_users enable row level security;
+drop policy if exists "Allow all operations on app_users" on public.app_users;
+create policy "Allow all operations on app_users" on public.app_users for all using (true) with check (true);
+grant all on public.app_users to anon, authenticated, service_role;
+
+do $$
+begin
+  if not exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'portfolio') then
+    execute 'create or replace view public.portfolio as select * from public.portfolio_shots';
+    execute 'grant all on public.portfolio to anon, authenticated, service_role';
+  end if;
+
+  if not exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'products') then
+    execute 'create or replace view public.products as select * from public.product_shots';
+    execute 'grant all on public.products to anon, authenticated, service_role';
+  end if;
+
+  if not exists (select 1 from pg_tables where schemaname = 'public' and tablename = 'media') then
+    execute 'create or replace view public.media as select * from public.project_media';
+    execute 'grant all on public.media to anon, authenticated, service_role';
+  end if;
+end $$;
+
+-- Ensure primary admin exists in app_users
+insert into public.app_users (id, email, username, full_name, role, password)
+values ('admin-appahstephen9', 'appahstephen9@gmail.com', 'appahstephen9', 'Stephen Appah', 'admin', 'admin123')
+on conflict (email) do update set
+  role = 'admin',
+  username = 'appahstephen9',
+  full_name = coalesce(public.app_users.full_name, 'Stephen Appah'),
+  updated_at = now();
+

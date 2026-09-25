@@ -52,13 +52,32 @@ export function useAuth() {
     if (isSupabaseConfigured()) {
       const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
         if (!isMounted) return;
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
+
         if (newSession?.user) {
+          setSession(newSession);
+          setUser(newSession.user);
           await fetchProfile(newSession.user.id);
-        } else {
+        } else if (event === 'SIGNED_OUT') {
+          // Explicit logout from Supabase
+          localStorage.removeItem('demo_admin_session');
+          setSession(null);
+          setUser(null);
           setProfile(null);
           setRole(null);
+        } else {
+          // For INITIAL_SESSION or TOKEN_REFRESHED where Supabase has no active token,
+          // preserve any valid stored admin session
+          const { session: currentSession } = await AuthService.getSession();
+          if (currentSession?.user) {
+            setSession(currentSession);
+            setUser(currentSession.user);
+            await fetchProfile(currentSession.user.id);
+          } else {
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+            setRole(null);
+          }
         }
         setIsLoading(false);
       });

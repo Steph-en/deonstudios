@@ -26,9 +26,17 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useDetailedAnalytics, useDashboardStats } from '../../hooks/usePortfolioQueries';
 import { AnalyticsService } from '../../features/analytics/services/analyticsService';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 
 export const AnalyticsPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user, profile, role } = useAuth();
+  const isAdmin =
+    role === 'admin' ||
+    profile?.role === 'admin' ||
+    user?.email?.toLowerCase() === 'appahstephen9@gmail.com' ||
+    user?.user_metadata?.role === 'admin';
+
   const { data: stats } = useDashboardStats();
   const { data: analytics, isLoading } = useDetailedAnalytics();
   const [isResetting, setIsResetting] = useState(false);
@@ -38,6 +46,7 @@ export const AnalyticsPage: React.FC = () => {
   const uniqueVisitors = stats?.uniqueVisitors ?? 0;
 
   const handleResetAnalytics = async () => {
+    if (!isAdmin) return;
     if (confirm('Are you sure you want to reset all platform analytics data? This will clear all page views and visitor metrics.')) {
       try {
         setIsResetting(true);
@@ -65,27 +74,29 @@ export const AnalyticsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {resetSuccess && (
-            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Analytics Reset
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={handleResetAnalytics}
-            disabled={isResetting || totalViews === 0}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Reset all analytics data"
-          >
-            {isResetting ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500" />
-            ) : (
-              <RotateCcw className="w-3.5 h-3.5 text-neutral-500" />
+        {isAdmin && (
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {resetSuccess && (
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Analytics Reset
+              </span>
             )}
-            Reset Analytics
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={handleResetAnalytics}
+              disabled={isResetting || totalViews === 0}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition shadow-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Reset all analytics data"
+            >
+              {isResetting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500" />
+              ) : (
+                <RotateCcw className="w-3.5 h-3.5 text-neutral-500" />
+              )}
+              Reset Analytics
+            </button>
+          </div>
+        )}
       </div>
 
       {/* KPI Cards */}

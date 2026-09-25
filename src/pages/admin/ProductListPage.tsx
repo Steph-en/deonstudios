@@ -210,7 +210,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
               <p className="text-xs text-neutral-500 max-w-md mx-auto">
                 {search || categoryFilter !== 'All' || statusFilter !== 'all'
                   ? 'Try adjusting your search criteria or reset filters.'
-                  : 'Your database has zero commercial product shots. You can create a new work or populate sample studio works.'}
+                  : 'Your studio catalogue currently has no commercial product works. You can create a new work or populate sample studio works.'}
               </p>
             </div>
 

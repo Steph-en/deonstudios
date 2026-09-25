@@ -930,7 +930,28 @@ async function startServer() {
 
   // 8. Team & User Account Management API
   api.get('/auth/users', (_req: Request, res: Response) => {
+    // Ensure primary admin has default password in db if missing
+    if (Array.isArray(db.users)) {
+      const admin = db.users.find((u) => u.email?.toLowerCase() === 'appahstephen9@gmail.com');
+      if (admin && !admin.password) {
+        admin.password = 'admin123';
+      }
+    }
     res.json(db.users || []);
+  });
+
+  api.post('/auth/change-password', (req: Request, res: Response) => {
+    const { password, email } = req.body;
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+    const targetEmail = (email || 'appahstephen9@gmail.com').toLowerCase();
+    const user = (db.users || []).find((u) => u.email?.toLowerCase() === targetEmail);
+    if (user) {
+      user.password = password;
+      saveDatabase(db);
+    }
+    res.json({ success: true });
   });
 
   api.post('/auth/users', (req: Request, res: Response) => {

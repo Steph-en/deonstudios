@@ -203,7 +203,7 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
               <p className="text-xs text-neutral-500 max-w-md mx-auto">
                 {search || categoryFilter !== 'All' || statusFilter !== 'all'
                   ? 'Try adjusting your search criteria or reset filters.'
-                  : 'Your database has zero single portrait shots. You can create a new work or populate sample studio works.'}
+                  : 'Your studio collection currently has no portrait works. You can create a new work or populate sample studio works.'}
               </p>
             </div>
 

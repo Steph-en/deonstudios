@@ -30,6 +30,7 @@ export interface Database {
         Row: {
           id: string;
           email: string;
+          username?: string | null;
           full_name: string | null;
           avatar_url: string | null;
           role: UserRole;
@@ -39,6 +40,7 @@ export interface Database {
         Insert: {
           id: string;
           email: string;
+          username?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
           role?: UserRole;
@@ -48,9 +50,43 @@ export interface Database {
         Update: {
           id?: string;
           email?: string;
+          username?: string | null;
           full_name?: string | null;
           avatar_url?: string | null;
           role?: UserRole;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      app_users: {
+        Row: {
+          id: string;
+          email: string;
+          username?: string | null;
+          full_name: string | null;
+          role: UserRole;
+          password?: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          username?: string | null;
+          full_name?: string | null;
+          role?: UserRole;
+          password?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          username?: string | null;
+          full_name?: string | null;
+          role?: UserRole;
+          password?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -12,10 +12,8 @@ import {
   UserPlus,
   Trash2,
   Users,
-  Shield,
   Loader2,
   Info,
-  ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { AuthService } from '../../features/auth/services/authService';
@@ -208,33 +206,35 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Supabase Status Banner */}
-      <div
-        className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
-          supabaseConnected
-            ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
-            : 'bg-neutral-50 border-neutral-200 text-neutral-900'
-        }`}
-      >
-        <div className="flex items-start gap-3">
-          <div
-            className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
-              supabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-500'
-            }`}
-          />
-          <div>
-            <p className="font-semibold">
-              Database & Centralized Auth:{' '}
-              {supabaseConnected ? 'Supabase Live Connected' : 'Centralized Database Synced'}
-            </p>
-            <p className="text-[11px] text-neutral-600 mt-0.5 leading-relaxed">
-              {supabaseConnected
-                ? `Connected to Supabase endpoint: ${supabaseUrl}. User authentications and mutations are synced directly to PostgreSQL.`
-                : 'Accounts and portfolio permissions are synced through the centralized server database across all browsers and devices.'}
-            </p>
+      {/* Supabase & Database Status Banner (Admin Only) */}
+      {isAdmin && (
+        <div
+          className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+            supabaseConnected
+              ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+              : 'bg-neutral-50 border-neutral-200 text-neutral-900'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${
+                supabaseConnected ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-500'
+              }`}
+            />
+            <div>
+              <p className="font-semibold">
+                Database & Centralized Auth:{' '}
+                {supabaseConnected ? 'Supabase Live Connected' : 'Centralized Database Synced'}
+              </p>
+              <p className="text-[11px] text-neutral-600 mt-0.5 leading-relaxed">
+                {supabaseConnected
+                  ? `Connected to Supabase endpoint: ${supabaseUrl}. User authentications and mutations are synced directly to PostgreSQL.`
+                  : 'Accounts and portfolio permissions are synced through the centralized server database across all browsers and devices.'}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {successMessage && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-start gap-3">
@@ -393,7 +393,7 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* TEAM & USER ACCOUNT MANAGEMENT SECTION (ADMINISTRATOR ONLY) */}
-      {isAdmin ? (
+      {isAdmin && (
         <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
             <div className="flex items-center gap-3">
@@ -554,20 +554,6 @@ export const ProfilePage: React.FC = () => {
                 panel or create accounts.
               </p>
             </div>
-          </div>
-        </div>
-      ) : (
-        /* Notification for Managers & non-admins: user creation and list are strictly hidden */
-        <div className="p-5 rounded-xl bg-neutral-50 border border-neutral-200 flex items-start gap-3 text-xs text-neutral-600">
-          <ShieldAlert className="w-4 h-4 text-neutral-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-neutral-800">User Account & Role Management</p>
-            <p className="text-[11px] text-neutral-500 mt-1 leading-relaxed">
-              Account provisioning and team role assignment are reserved exclusively for the studio
-              administrator (<span className="font-mono text-neutral-700">appahstephen9@gmail.com</span>).
-              As a manager, you have full privileges to curate and publish projects, portraits, and product
-              assets.
-            </p>
           </div>
         </div>
       )}

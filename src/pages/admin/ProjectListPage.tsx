@@ -197,7 +197,7 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
               <p className="text-xs text-neutral-500 max-w-md mx-auto">
                 {search || categoryFilter || statusFilter !== 'all'
                   ? 'Try adjusting your search criteria or reset filters.'
-                  : 'Your database has zero projects. You can create a new bespoke project or populate sample studio works.'}
+                  : 'Your studio portfolio currently has no bespoke projects. You can create a new bespoke project or populate sample studio works.'}
               </p>
             </div>
 

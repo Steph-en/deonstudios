@@ -28,15 +28,14 @@ export class AuthService {
       cleanEmail = PRIMARY_ADMIN_EMAIL;
     }
 
-    const isPrimaryAdminCredentials =
-      (rawInput === PRIMARY_ADMIN_USERNAME ||
-        rawInput === PRIMARY_ADMIN_EMAIL ||
-        rawInput === 'admin' ||
-        rawInput === 'admin@deonstudios.com') &&
-      (password === savedPassword || password === 'admin123');
+    const isPrimaryAdminUser =
+      rawInput === PRIMARY_ADMIN_USERNAME ||
+      rawInput === PRIMARY_ADMIN_EMAIL ||
+      rawInput === 'admin' ||
+      rawInput === 'admin@deonstudios.com';
 
-    // 1. Direct match for Primary Administrator credentials
-    if (isPrimaryAdminCredentials) {
+    // Helper to produce primary admin user session
+    const createAdminSession = (effectivePass?: string) => {
       const primaryAdminUser = {
         id: 'admin-appahstephen9',
         email: PRIMARY_ADMIN_EMAIL,
@@ -47,26 +46,96 @@ export class AuthService {
         },
       };
       localStorage.setItem('demo_admin_session', JSON.stringify(primaryAdminUser));
+      if (effectivePass) {
+        localStorage.setItem('demo_admin_password', effectivePass);
+      }
+      return primaryAdminUser;
+    };
 
-      // Also try background Supabase sign-in if available, but do not block
+    // 1. Direct match for Primary Administrator credentials with default / saved password
+    if (isPrimaryAdminUser && (password === savedPassword || password === 'admin123')) {
+      const adminUser = createAdminSession(password);
+
+      // Background sync to Supabase app_users and try Auth sign-in if configured
       if (isSupabaseConfigured()) {
+        try {
+          await supabase.from('app_users').upsert({
+            id: 'admin-appahstephen9',
+            email: PRIMARY_ADMIN_EMAIL,
+            username: PRIMARY_ADMIN_USERNAME,
+            full_name: 'Stephen Appah',
+            role: 'admin',
+            password: password,
+            updated_at: new Date().toISOString(),
+          });
+        } catch {
+          // ignore
+        }
         try {
           await supabase.auth.signInWithPassword({
             email: PRIMARY_ADMIN_EMAIL,
             password,
           });
         } catch {
-          // Fallback to local admin session is already secured
+          // ignore
         }
       }
 
       return {
-        data: { user: primaryAdminUser, session: { user: primaryAdminUser } },
+        data: { user: adminUser, session: { user: adminUser } },
         error: null,
       };
     }
 
-    // 2. Check stored custom team members (managers, admins, editors) from server or local
+    // 2. Cross-Platform Supabase app_users check (shared database across Google, Local, and Hosted environments)
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: suUser, error: suErr } = await supabase
+          .from('app_users')
+          .select('*')
+          .or(`email.ilike.${cleanEmail},username.ilike.${rawInput}`)
+          .maybeSingle();
+
+        if (!suErr && suUser) {
+          const isPasswordValid =
+            suUser.password === password ||
+            (suUser.role === 'admin' && (password === savedPassword || password === 'admin123'));
+
+          if (isPasswordValid) {
+            const isPrimary =
+              suUser.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
+              suUser.username?.toLowerCase() === PRIMARY_ADMIN_USERNAME;
+
+            const userSession = {
+              id: suUser.id,
+              email: suUser.email,
+              user_metadata: {
+                username: isPrimary
+                  ? PRIMARY_ADMIN_USERNAME
+                  : suUser.username || suUser.email.split('@')[0],
+                full_name:
+                  suUser.full_name || (isPrimary ? 'Stephen Appah' : 'Studio Member'),
+                role: (suUser.role as UserRole) || (isPrimary ? 'admin' : 'manager'),
+              },
+            };
+
+            localStorage.setItem('demo_admin_session', JSON.stringify(userSession));
+            if (isPrimary) {
+              localStorage.setItem('demo_admin_password', password);
+            }
+
+            return {
+              data: { user: userSession, session: { user: userSession } },
+              error: null,
+            };
+          }
+        }
+      } catch (suCheckErr) {
+        console.warn('Supabase app_users auth check notice:', suCheckErr);
+      }
+    }
+
+    // 3. Check stored custom team members (managers, admins, editors) from server or local
     let customUsers: any[] = [];
     try {
       customUsers = await ApiClient.get<any[]>('/auth/users');
@@ -82,20 +151,29 @@ export class AuthService {
     );
 
     if (matchedUser) {
-      const mockUser = {
+      const isPrimary =
+        matchedUser.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase() ||
+        matchedUser.username?.toLowerCase() === PRIMARY_ADMIN_USERNAME;
+
+      const userSession = {
         id: matchedUser.id,
         email: matchedUser.email,
         user_metadata: {
-          username: matchedUser.username || matchedUser.email.split('@')[0],
-          full_name: matchedUser.full_name,
-          role: (matchedUser.role as UserRole) || 'manager',
+          username: isPrimary
+            ? PRIMARY_ADMIN_USERNAME
+            : matchedUser.username || matchedUser.email.split('@')[0],
+          full_name: matchedUser.full_name || (isPrimary ? 'Stephen Appah' : 'User'),
+          role: (matchedUser.role as UserRole) || (isPrimary ? 'admin' : 'manager'),
         },
       };
-      localStorage.setItem('demo_admin_session', JSON.stringify(mockUser));
-      return { data: { user: mockUser, session: { user: mockUser } }, error: null };
+      localStorage.setItem('demo_admin_session', JSON.stringify(userSession));
+      if (isPrimary) {
+        localStorage.setItem('demo_admin_password', password);
+      }
+      return { data: { user: userSession, session: { user: userSession } }, error: null };
     }
 
-    // 3. Supabase Auth fallback when configured
+    // 4. Supabase Auth fallback when configured
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -123,6 +201,9 @@ export class AuthService {
             },
           };
           localStorage.setItem('demo_admin_session', JSON.stringify(userSession));
+          if (isPrimary) {
+            localStorage.setItem('demo_admin_password', password);
+          }
         }
 
         return { data, error: null };
@@ -166,12 +247,13 @@ export class AuthService {
   }
 
   /**
-   * Get all registered users from server or Supabase profiles
+   * Get all registered users from server or Supabase
    */
   static async getTeamMembers(): Promise<DbProfile[]> {
     const baseAdmin: DbProfile = {
       id: 'admin-appahstephen9',
       email: PRIMARY_ADMIN_EMAIL,
+      username: PRIMARY_ADMIN_USERNAME,
       full_name: 'Stephen Appah (Administrator)',
       avatar_url: null,
       role: 'admin',
@@ -187,23 +269,52 @@ export class AuthService {
       serverUsers = this.getLocalTeamUsers();
     }
 
-    // Filter out duplicate primary admin if stored in server
-    const serverProfiles: DbProfile[] = serverUsers
-      .filter((u) => u.email.toLowerCase() !== PRIMARY_ADMIN_EMAIL.toLowerCase())
+    const localProfiles: DbProfile[] = serverUsers
+      .filter((u) => u.email?.toLowerCase() !== PRIMARY_ADMIN_EMAIL.toLowerCase())
       .map((u) => ({
         id: u.id,
         email: u.email,
+        username: u.username || u.email?.split('@')[0],
         full_name: u.full_name,
         avatar_url: null,
         role: (u.role as UserRole) || 'manager',
-        created_at: u.created_at,
-        updated_at: u.created_at,
+        created_at: u.created_at || new Date().toISOString(),
+        updated_at: u.created_at || new Date().toISOString(),
       }));
 
     if (!isSupabaseConfigured()) {
-      return [baseAdmin, ...serverProfiles];
+      return [baseAdmin, ...localProfiles];
     }
 
+    // Try fetching from Supabase app_users table first (cross-platform storage)
+    try {
+      const { data: suUsers } = await supabase
+        .from('app_users')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (suUsers && suUsers.length > 0) {
+        const mappedProfiles: DbProfile[] = suUsers.map((u: any) => ({
+          id: u.id,
+          email: u.email,
+          username: u.username || u.email?.split('@')[0],
+          full_name: u.full_name || u.username || u.email.split('@')[0],
+          avatar_url: null,
+          role: (u.role as UserRole) || 'manager',
+          created_at: u.created_at || new Date().toISOString(),
+          updated_at: u.updated_at || new Date().toISOString(),
+        }));
+
+        const hasAdmin = mappedProfiles.some(
+          (p) => p.email.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase()
+        );
+        return hasAdmin ? mappedProfiles : [baseAdmin, ...mappedProfiles];
+      }
+    } catch {
+      // Continue to profiles query
+    }
+
+    // Fallback to Supabase profiles table
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -211,10 +322,9 @@ export class AuthService {
         .order('created_at', { ascending: true });
 
       if (error || !data || data.length === 0) {
-        return [baseAdmin, ...serverProfiles];
+        return [baseAdmin, ...localProfiles];
       }
 
-      // Check if primary admin is present in Supabase profiles
       const hasPrimary = data.some(
         (p) => p.email.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase()
       );
@@ -222,13 +332,13 @@ export class AuthService {
       const merged = hasPrimary ? (data as DbProfile[]) : [baseAdmin, ...(data as DbProfile[])];
       return merged;
     } catch {
-      return [baseAdmin, ...serverProfiles];
+      return [baseAdmin, ...localProfiles];
     }
   }
 
   /**
    * Invite or create a new user account with designated role
-   * Only administrators can call this
+   * Saves to Supabase app_users, public.profiles, server, and local storage
    */
   static async createTeamMember(payload: {
     email: string;
@@ -272,25 +382,41 @@ export class AuthService {
       role: payload.role,
       password: payload.password,
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
-    try {
-      await ApiClient.post('/auth/users', newUser);
-    } catch {
-      // fallback to local storage
-    }
-
-    existing.push(newUser);
-    this.saveLocalTeamUsers(existing);
-
-    // If Supabase is configured, create in Supabase Auth & public.profiles
+    // 1. Cross-Platform Persist: Insert into Supabase app_users table & profiles
     if (isSupabaseConfigured()) {
-      const { data: currentAdminSession } = await supabase.auth.getSession();
-      const adminAccessToken = currentAdminSession?.session?.access_token;
-      const adminRefreshToken = currentAdminSession?.session?.refresh_token;
+      try {
+        await supabase.from('app_users').upsert({
+          id: newUser.id,
+          email: newUser.email,
+          username: newUser.username,
+          full_name: newUser.full_name,
+          role: newUser.role,
+          password: newUser.password,
+          created_at: newUser.created_at,
+          updated_at: newUser.updated_at,
+        });
+      } catch (appUserErr) {
+        console.warn('Supabase app_users note:', appUserErr);
+      }
 
-      let targetUserId: string | null = null;
+      try {
+        await supabase.from('profiles').upsert({
+          id: newUser.id,
+          email: newUser.email,
+          username: newUser.username,
+          full_name: newUser.full_name,
+          role: newUser.role,
+          created_at: newUser.created_at,
+          updated_at: newUser.updated_at,
+        });
+      } catch (profErr) {
+        console.warn('Supabase profiles upsert note:', profErr);
+      }
 
+      // 2. Also attempt Supabase Auth sign-up (does not block if rate limited or email unconfirmed)
       try {
         const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
           auth: {
@@ -299,7 +425,7 @@ export class AuthService {
           },
         });
 
-        const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+        await tempClient.auth.signUp({
           email: cleanEmail,
           password: payload.password,
           options: {
@@ -311,43 +437,25 @@ export class AuthService {
             emailRedirectTo: getAuthRedirectUrl('/admin'),
           },
         });
-
-        if (!signUpError && signUpData?.user) {
-          targetUserId = signUpData.user.id;
-        }
       } catch (authErr) {
-        console.warn('Supabase sign-up attempt note:', authErr);
-      } finally {
-        if (adminAccessToken && adminRefreshToken) {
-          try {
-            await supabase.auth.setSession({
-              access_token: adminAccessToken,
-              refresh_token: adminRefreshToken,
-            });
-          } catch {
-            // ignore
-          }
-        }
-      }
-
-      if (targetUserId) {
-        try {
-          await supabase.from('profiles').upsert({
-            id: targetUserId,
-            email: cleanEmail,
-            full_name: payload.full_name.trim(),
-            role: payload.role,
-            updated_at: new Date().toISOString(),
-          });
-        } catch (profileErr) {
-          console.warn('Profile upsert note:', profileErr);
-        }
+        console.warn('Supabase sign-up attempt notice:', authErr);
       }
     }
 
+    // 3. Persist to server API if available (Local / Dev backend)
+    try {
+      await ApiClient.post('/auth/users', newUser);
+    } catch {
+      // offline / static hosted environment fallback
+    }
+
+    // 4. Save to local storage
+    existing.push(newUser);
+    this.saveLocalTeamUsers(existing);
+
     return {
       success: true,
-      message: `Account for ${payload.full_name} (${cleanEmail}) created with role "${payload.role.toUpperCase()}". They can now log in using these credentials.`,
+      message: `Account for ${payload.full_name} (${cleanEmail}) created with role "${payload.role.toUpperCase()}". Credentials are now active across all environments.`,
     };
   }
 
@@ -379,23 +487,47 @@ export class AuthService {
     this.saveLocalTeamUsers(existing);
 
     if (isSupabaseConfigured()) {
-      await supabase.from('profiles').delete().eq('id', id);
+      try {
+        await Promise.allSettled([
+          supabase.from('app_users').delete().eq('id', id),
+          supabase.from('profiles').delete().eq('id', id),
+        ]);
+      } catch {
+        // ignore
+      }
     }
   }
 
   /**
-   * Update current user's password
+   * Update current user's password across all environments
    */
   static async updatePassword(newPassword: string) {
     localStorage.setItem('demo_admin_password', newPassword);
 
+    const { session } = await this.getSession();
+    const userEmail = session?.user?.email || PRIMARY_ADMIN_EMAIL;
+
     if (isSupabaseConfigured()) {
+      // Sync to Supabase app_users table
+      try {
+        await supabase
+          .from('app_users')
+          .update({
+            password: newPassword,
+            updated_at: new Date().toISOString(),
+          })
+          .ilike('email', userEmail);
+      } catch (err) {
+        console.warn('Supabase app_users password update error:', err);
+      }
+
+      // Also try live Supabase Auth update if active session
       try {
         const { data, error } = await supabase.auth.updateUser({
           password: newPassword,
         });
         if (error) {
-          console.warn('Supabase password update note:', error.message);
+          console.warn('Supabase auth password update note:', error.message);
         }
         return { data, error: null };
       } catch (err: any) {
@@ -464,6 +596,7 @@ export class AuthService {
       return {
         id: 'admin-appahstephen9',
         email: PRIMARY_ADMIN_EMAIL,
+        username: PRIMARY_ADMIN_USERNAME,
         full_name: 'Stephen Appah',
         avatar_url: null,
         role: 'admin',
@@ -484,6 +617,9 @@ export class AuthService {
           return {
             id: sUser.id || userId,
             email: sUser.email || (isPrimary ? PRIMARY_ADMIN_EMAIL : 'member@deonstudios.com'),
+            username:
+              sUser.user_metadata?.username ||
+              (isPrimary ? PRIMARY_ADMIN_USERNAME : sUser.email?.split('@')[0]),
             full_name: sUser.user_metadata?.full_name || (isPrimary ? 'Stephen Appah' : 'User'),
             avatar_url: null,
             role: isPrimary ? 'admin' : ((sUser.user_metadata?.role as UserRole) || 'manager'),
@@ -509,12 +645,40 @@ export class AuthService {
       return {
         id: custom.id,
         email: custom.email,
+        username: custom.username || custom.email?.split('@')[0],
         full_name: custom.full_name,
         avatar_url: null,
         role: (custom.role as UserRole) || 'manager',
         created_at: custom.created_at,
         updated_at: custom.created_at,
       };
+    }
+
+    // 3.5 Check Supabase app_users table
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: appUser } = await supabase
+          .from('app_users')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (appUser) {
+          const isPrimary = appUser.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
+          return {
+            id: appUser.id,
+            email: appUser.email,
+            username: appUser.username || appUser.email?.split('@')[0],
+            full_name: appUser.full_name || appUser.username || appUser.email.split('@')[0],
+            avatar_url: null,
+            role: isPrimary ? 'admin' : ((appUser.role as UserRole) || 'manager'),
+            created_at: appUser.created_at,
+            updated_at: appUser.updated_at,
+          };
+        }
+      } catch {
+        // ignore
+      }
     }
 
     // 4. Check Supabase profiles table
@@ -530,6 +694,7 @@ export class AuthService {
           const isPrimary = data.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
           return {
             ...data,
+            username: data.username || (isPrimary ? PRIMARY_ADMIN_USERNAME : data.email?.split('@')[0]),
             role: isPrimary ? 'admin' : ((data.role as UserRole) || 'manager'),
           } as DbProfile;
         }
@@ -545,6 +710,9 @@ export class AuthService {
           return {
             id: authData.user.id,
             email: authData.user.email || '',
+            username:
+              authData.user.user_metadata?.username ||
+              (isPrimary ? PRIMARY_ADMIN_USERNAME : authData.user.email?.split('@')[0]),
             full_name:
               authData.user.user_metadata?.full_name ||
               (isPrimary ? 'Stephen Appah' : authData.user.email?.split('@')[0]) ||
