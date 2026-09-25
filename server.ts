@@ -460,8 +460,9 @@ function loadDatabase(): DatabaseSchema {
         ...parsed,
         config: {
           ...parsed.config,
-          supabaseUrl: process.env.VITE_SUPABASE_URL || parsed.config?.supabaseUrl || '',
-          supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || parsed.config?.supabaseAnonKey || '',
+          siteUrl: process.env.VITE_SITE_URL || parsed.config?.siteUrl || 'https://www.gideonboadi.com',
+          supabaseUrl: process.env.VITE_SUPABASE_URL || parsed.config?.supabaseUrl || 'https://oorbvpnuivsyfxftlqwr.supabase.co',
+          supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || parsed.config?.supabaseAnonKey || 'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV',
         },
       };
     }
@@ -486,6 +487,53 @@ db = loadDatabase();
 
 async function startServer() {
   const app = express();
+
+  // Known allowed origins for authentications and API requests
+  const ALLOWED_ORIGINS = [
+    'https://www.gideonboadi.com',
+    'https://gideonboadi.com',
+    'http://www.gideonboadi.com',
+    'http://gideonboadi.com',
+    'https://gideonboadi.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+  ];
+
+  // CORS Middleware: Allow https://www.gideonboadi.com and associated domains
+  app.use((req, res, next) => {
+    const origin = req.headers.origin as string | undefined;
+    const isAllowed =
+      !origin ||
+      ALLOWED_ORIGINS.includes(origin) ||
+      origin.endsWith('.run.app') ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('gideonboadi.com') ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('http://127.0.0.1:');
+
+    if (origin && isAllowed) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    } else if (!origin) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+
+    res.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD'
+    );
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey, X-Client-Info'
+    );
+
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
+    next();
+  });
 
   // Middleware for parsing JSON
   app.use(express.json({ limit: '50mb' }));
@@ -514,6 +562,8 @@ async function startServer() {
   api.get('/config', (_req: Request, res: Response) => {
     res.json({
       supabaseUrl: db.config?.supabaseUrl || '',
+      siteUrl: db.config?.siteUrl || 'https://www.gideonboadi.com',
+      allowedOrigins: ALLOWED_ORIGINS,
       isSupabaseConfigured: Boolean(
         db.config?.supabaseUrl &&
         db.config?.supabaseAnonKey &&

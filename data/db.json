@@ -406,6 +406,15 @@
   "config": {
     "supabaseUrl": "https://oorbvpnuivsyfxftlqwr.supabase.co",
     "supabaseAnonKey": "sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV",
-    "siteUrl": "https://gideonboadi.vercel.app/"
+    "siteUrl": "https://www.gideonboadi.com",
+    "allowedOrigins": [
+      "https://www.gideonboadi.com",
+      "https://gideonboadi.com",
+      "http://www.gideonboadi.com",
+      "http://gideonboadi.com",
+      "https://gideonboadi.vercel.app",
+      "http://localhost:3000",
+      "http://localhost:5173"
+    ]
   }
 }

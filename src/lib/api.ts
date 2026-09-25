@@ -5,7 +5,27 @@
  */
 
 export class ApiClient {
-  private static baseUrl = '/api';
+  private static baseUrl = import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api`
+    : '/api';
+
+  private static async parseResponse<T>(res: Response, endpoint: string): Promise<T> {
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok) {
+      let errorMsg = res.statusText;
+      if (contentType.includes('application/json')) {
+        const err = await res.json().catch(() => null);
+        if (err?.error) errorMsg = err.error;
+      }
+      throw new Error(errorMsg || `HTTP ${res.status}: Request failed for ${endpoint}`);
+    }
+
+    if (!contentType.includes('application/json')) {
+      throw new Error(`Expected JSON from ${endpoint}, but received ${contentType || 'non-JSON'}`);
+    }
+
+    return res.json();
+  }
 
   static async get<T>(endpoint: string): Promise<T> {
     const res = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -14,12 +34,7 @@ export class ApiClient {
       },
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || `HTTP ${res.status}: Failed to fetch ${endpoint}`);
-    }
-
-    return res.json();
+    return this.parseResponse<T>(res, endpoint);
   }
 
   static async post<T>(endpoint: string, data?: any): Promise<T> {
@@ -32,12 +47,7 @@ export class ApiClient {
       body: data !== undefined ? JSON.stringify(data) : undefined,
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || `HTTP ${res.status}: Failed to post to ${endpoint}`);
-    }
-
-    return res.json();
+    return this.parseResponse<T>(res, endpoint);
   }
 
   static async put<T>(endpoint: string, data: any): Promise<T> {
@@ -50,12 +60,7 @@ export class ApiClient {
       body: JSON.stringify(data),
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || `HTTP ${res.status}: Failed to update ${endpoint}`);
-    }
-
-    return res.json();
+    return this.parseResponse<T>(res, endpoint);
   }
 
   static async delete<T>(endpoint: string): Promise<T> {
@@ -66,11 +71,6 @@ export class ApiClient {
       },
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || `HTTP ${res.status}: Failed to delete ${endpoint}`);
-    }
-
-    return res.json();
+    return this.parseResponse<T>(res, endpoint);
   }
 }

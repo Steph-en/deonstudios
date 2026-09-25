@@ -50,7 +50,7 @@ export const SEOHead: React.FC<SEOHeadProps> = ({
   const origin =
     typeof window !== 'undefined' && window.location.origin
       ? window.location.origin
-      : 'https://gideonboadi.com';
+      : 'https://www.gideonboadi.com';
 
   const fullTitle = title || DEFAULT_TITLE;
 

@@ -1,5 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured, supabaseUrl, supabaseAnonKey } from '../../../lib/supabase';
+import {
+  supabase,
+  isSupabaseConfigured,
+  supabaseUrl,
+  supabaseAnonKey,
+  getAuthRedirectUrl,
+  PRIMARY_SITE_URL,
+} from '../../../lib/supabase';
 import { SignInCredentials } from '../types/auth';
 import { DbProfile, UserRole } from '../../../types/database';
 import { ApiClient } from '../../../lib/api';
@@ -98,6 +105,24 @@ export class AuthService {
 
         if (error) {
           throw new Error(error.message || 'Failed to sign in. Please verify your credentials.');
+        }
+
+        if (data?.user) {
+          const isPrimary =
+            data.user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
+          const userSession = {
+            id: data.user.id,
+            email: data.user.email,
+            user_metadata: {
+              username: isPrimary
+                ? PRIMARY_ADMIN_USERNAME
+                : data.user.user_metadata?.username || data.user.email?.split('@')[0],
+              full_name:
+                data.user.user_metadata?.full_name || (isPrimary ? 'Stephen Appah' : 'User'),
+              role: isPrimary ? 'admin' : ((data.user.user_metadata?.role as UserRole) || 'manager'),
+            },
+          };
+          localStorage.setItem('demo_admin_session', JSON.stringify(userSession));
         }
 
         return { data, error: null };
@@ -283,6 +308,7 @@ export class AuthService {
               username: cleanUsername,
               role: payload.role,
             },
+            emailRedirectTo: getAuthRedirectUrl('/admin'),
           },
         });
 
@@ -378,6 +404,18 @@ export class AuthService {
     }
 
     return { error: null };
+  }
+
+  /**
+   * Send password reset email with authorized redirect URL
+   */
+  static async sendPasswordReset(email: string) {
+    if (!isSupabaseConfigured()) {
+      return { data: null, error: null };
+    }
+    return supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: getAuthRedirectUrl('/admin'),
+    });
   }
 
   /**

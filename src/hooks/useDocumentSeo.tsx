@@ -14,7 +14,7 @@ export function getSeoConfig({
   selectedProject,
   adminTab,
 }: DocumentSeoProps) {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://gideonboadi.com';
+  const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://www.gideonboadi.com';
 
   let title = 'Deon Studios | Editorial & Fashion Photography by Gideon Boadi';
   let description =

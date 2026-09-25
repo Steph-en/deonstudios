@@ -51,7 +51,7 @@ export const ContactView: React.FC = () => {
             '@type': 'Organization',
             name: 'Deon Studios',
             email,
-            url: typeof window !== 'undefined' ? window.location.origin : 'https://gideonboadi.com',
+            url: typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://www.gideonboadi.com',
             contactPoint: {
               '@type': 'ContactPoint',
               contactType: 'editorial & commercial booking',
