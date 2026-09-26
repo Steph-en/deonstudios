@@ -16,10 +16,10 @@ export interface SEOHeadProps {
   articleSection?: string;
 }
 
-const DEFAULT_TITLE = 'Deon Studios | Editorial & Fashion Photography by Gideon Boadi';
+const DEFAULT_TITLE = 'Gideon Boadi | Editorial, Product & Fashion Photographer';
 const DEFAULT_DESCRIPTION =
-  'Official portfolio of photographer and visual storyteller Gideon Boadi, founder of Deon Studios. Discover evocative fashion, editorial, portraiture, and commercial campaigns.';
-const DEFAULT_IMAGE = '/assets/gideon_boadi_portrait.png';
+  'Official portfolio of photographer and visual storyteller Gideon Boadi, founder of Deon Studios. Editorial, fashion, portraiture, and commercial campaigns.';
+const DEFAULT_IMAGE = '/assets/logo.jpeg';
 const DEFAULT_KEYWORDS = [
   'Gideon Boadi',
   'Deon Studios',

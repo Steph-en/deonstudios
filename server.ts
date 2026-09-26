@@ -1012,11 +1012,60 @@ async function startServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
+
+    // Fallback: transform and serve index.html for any client route in dev mode
+    app.use('*', async (req, res, next) => {
+      if (req.method !== 'GET') return next();
+      const url = req.originalUrl;
+      try {
+        const indexPath = path.resolve(__dirname, 'index.html');
+        if (fs.existsSync(indexPath)) {
+          let template = fs.readFileSync(indexPath, 'utf-8');
+          template = await vite.transformIndexHtml(url, template);
+          res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+          return;
+        }
+        next();
+      } catch (e) {
+        vite.ssrFixStacktrace(e as Error);
+        next(e);
+      }
+    });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Deon Studios CMS] Server running on http://0.0.0.0:${PORT}`);
-  });
+  const listenOnPort = (portToTry: number): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const server = app.listen(portToTry, '0.0.0.0');
+
+      server.once('listening', () => {
+        resolve(portToTry);
+      });
+
+      server.once('error', (err: any) => {
+        if (err.code === 'EADDRINUSE') {
+          console.warn(`[Deon Studios CMS] Port ${portToTry} is already in use by another application.`);
+          if (process.env.PORT) {
+            reject(err);
+          } else {
+            console.log(`[Deon Studios CMS] Trying port ${portToTry + 1}...`);
+            resolve(listenOnPort(portToTry + 1));
+          }
+        } else {
+          reject(err);
+        }
+      });
+    });
+  };
+
+  const activePort = await listenOnPort(PORT);
+  console.log(`\n  ╭──────────────────────────────────────────────────╮`);
+  console.log(`  │                                                  │`);
+  console.log(`  │   Deon Studios Portfolio CMS is ready!           │`);
+  console.log(`  │                                                  │`);
+  console.log(`  │   ➜  Local:   http://localhost:${activePort}/             │`);
+  console.log(`  │   ➜  Admin:   http://localhost:${activePort}/admin        │`);
+  console.log(`  │                                                  │`);
+  console.log(`  ╰──────────────────────────────────────────────────╯\n`);
 }
 
 startServer().catch((err) => {

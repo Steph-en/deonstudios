@@ -16,11 +16,11 @@ export function getSeoConfig({
 }: DocumentSeoProps) {
   const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://www.gideonboadi.com';
 
-  let title = 'Deon Studios | Editorial & Fashion Photography by Gideon Boadi';
+  let title = 'Gideon Boadi | Editorial, Product & Fashion Photographer';
   let description =
-    'Official portfolio of photographer and visual storyteller Gideon Boadi, founder of Deon Studios. Discover evocative fashion, editorial, portraiture, and commercial campaigns.';
+    'Official portfolio of photographer and visual storyteller Gideon Boadi, founder of Deon Studios. Editorial, fashion, portraiture, and commercial campaigns.';
   let ogType: 'website' | 'article' | 'profile' = 'website';
-  let ogImage = '/assets/gideon_boadi_portrait.png';
+  let ogImage = '/assets/logo.jpeg';
   let canonicalUrl = origin;
   let noindex = false;
   let schema: Record<string, unknown> = {};
