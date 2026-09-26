@@ -75,8 +75,22 @@ export default function App() {
     const hash = window.location.hash || '';
     const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
     
-    if (hash.startsWith('#admin') || pathname === '/admin' || pathname.startsWith('/admin/')) {
-      const sub = hash.startsWith('#admin') ? hash.replace('#admin', '') : pathname.replace('/admin', '');
+    const isAdminPath =
+      hash.startsWith('#admin') ||
+      hash.startsWith('#login') ||
+      pathname === '/admin' ||
+      pathname.startsWith('/admin/') ||
+      pathname === '/login' ||
+      pathname.startsWith('/login/');
+
+    if (isAdminPath) {
+      const sub = hash.startsWith('#admin')
+        ? hash.replace('#admin', '')
+        : hash.startsWith('#login')
+        ? ''
+        : pathname.startsWith('/admin')
+        ? pathname.replace('/admin', '')
+        : '';
       let tab: AdminTab = 'overview';
       if (sub.includes('projects') || sub.includes('project')) tab = 'projects';
       else if (sub.includes('portfolio')) tab = 'portfolio';
@@ -158,11 +172,14 @@ export default function App() {
       const hash = window.location.hash || '';
       const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
 
-      // Check both path routing (/admin, /admin/projects, etc.) and hash routing (#admin, #admin/projects, etc.)
+      // Check both path routing (/admin, /login, etc.) and hash routing (#admin, #login, etc.)
       const isAdminRoute =
         hash.startsWith('#admin') ||
+        hash.startsWith('#login') ||
         pathname === '/admin' ||
-        pathname.startsWith('/admin/');
+        pathname.startsWith('/admin/') ||
+        pathname === '/login' ||
+        pathname.startsWith('/login/');
 
       if (isAdminRoute) {
         setActivePage('admin');
@@ -171,6 +188,10 @@ export default function App() {
         // Normalize target route from either hash or path
         const adminRoute = hash.startsWith('#admin')
           ? hash
+          : hash.startsWith('#login')
+          ? '#admin/overview'
+          : pathname.startsWith('/login')
+          ? '#admin/overview'
           : `#admin${pathname.slice('/admin'.length)}`;
 
         if (adminRoute === '#admin' || adminRoute === '#admin/' || adminRoute === '#admin/overview') {

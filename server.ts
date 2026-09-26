@@ -999,23 +999,26 @@ async function startServer() {
   // Serve static assets or mount Vite dev middleware
   if (process.env.NODE_ENV === 'production' && fs.existsSync(path.resolve(__dirname, 'dist'))) {
     app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.get('*', (_req, res) => {
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   } else {
     // Development mode: Vite middleware
     const vite = await createViteServer({
+      root: __dirname,
+      configFile: path.resolve(__dirname, 'vite.config.ts'),
       server: {
         middlewareMode: true,
         hmr: process.env.DISABLE_HMR !== 'true',
       },
-      appType: 'spa',
+      appType: 'custom',
     });
     app.use(vite.middlewares);
 
     // Fallback: transform and serve index.html for any client route in dev mode
-    app.use('*', async (req, res, next) => {
-      if (req.method !== 'GET') return next();
+    app.get('*', async (req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
       const url = req.originalUrl;
       try {
         const indexPath = path.resolve(__dirname, 'index.html');
@@ -1025,7 +1028,7 @@ async function startServer() {
           res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
           return;
         }
-        next();
+        res.status(404).send('<!doctype html><html><body><h2>index.html not found</h2><p>Please ensure you run npm run dev from the root of the project directory.</p></body></html>');
       } catch (e) {
         vite.ssrFixStacktrace(e as Error);
         next(e);
@@ -1043,11 +1046,12 @@ async function startServer() {
 
       server.once('error', (err: any) => {
         if (err.code === 'EADDRINUSE') {
-          console.warn(`[Deon Studios CMS] Port ${portToTry} is already in use by another application.`);
+          console.warn(`\n[WARNING] Port ${portToTry} is already in use by another application!`);
+          console.warn(`  Another server (such as Python, CherryPy, Docker, or another background process) is occupying port ${portToTry}.`);
           if (process.env.PORT) {
             reject(err);
           } else {
-            console.log(`[Deon Studios CMS] Trying port ${portToTry + 1}...`);
+            console.log(`  Attempting fallback to port ${portToTry + 1}...\n`);
             resolve(listenOnPort(portToTry + 1));
           }
         } else {
@@ -1058,14 +1062,20 @@ async function startServer() {
   };
 
   const activePort = await listenOnPort(PORT);
-  console.log(`\n  ╭──────────────────────────────────────────────────╮`);
-  console.log(`  │                                                  │`);
-  console.log(`  │   Deon Studios Portfolio CMS is ready!           │`);
-  console.log(`  │                                                  │`);
-  console.log(`  │   ➜  Local:   http://localhost:${activePort}/             │`);
-  console.log(`  │   ➜  Admin:   http://localhost:${activePort}/admin        │`);
-  console.log(`  │                                                  │`);
-  console.log(`  ╰──────────────────────────────────────────────────╯\n`);
+  console.log(`\n  ╭──────────────────────────────────────────────────────────╮`);
+  console.log(`  │                                                          │`);
+  console.log(`  │   Deon Studios Portfolio CMS is ready!                   │`);
+  console.log(`  │                                                          │`);
+  console.log(`  │   ➜  Main Site:   http://localhost:${activePort}/                 │`);
+  console.log(`  │   ➜  Admin Login: http://localhost:${activePort}/admin            │`);
+  console.log(`  │   ➜  Direct Link: http://localhost:${activePort}/admin/login      │`);
+  console.log(`  │                                                          │`);
+  if (activePort !== 3000) {
+    console.log(`  │   ⚠️  IMPORTANT: Port 3000 was occupied by another app.   │`);
+    console.log(`  │      Be sure to open http://localhost:${activePort} (NOT 3000)!     │`);
+    console.log(`  │                                                          │`);
+  }
+  console.log(`  ╰──────────────────────────────────────────────────────────╯\n`);
 }
 
 startServer().catch((err) => {
