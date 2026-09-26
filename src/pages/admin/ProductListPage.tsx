@@ -15,6 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useProductShots, useProductMutations } from '../../hooks/usePortfolioQueries';
 import { ProductService } from '../../features/products/services/productService';
 import { DbProductShot, ProjectStatus } from '../../types/database';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 interface ProductListPageProps {
   onEditProduct: (id: string) => void;
@@ -42,6 +43,8 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
   });
 
   const { updateProduct, deleteProduct, duplicateProduct } = useProductMutations();
+  const toast = useToast();
+  const { confirm } = useConfirm();
 
   const allCategories = [
     'All',
@@ -60,8 +63,12 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
         id: p.id,
         updates: { featured: !p.featured },
       });
+      toast.success(
+        !p.featured ? `"${p.title}" is now highlighted in products.` : `"${p.title}" removed from featured.`,
+        'PRODUCTS UPDATED'
+      );
     } catch (err: any) {
-      alert(err.message || 'Failed to update featured flag');
+      toast.error(err.message || 'Failed to update featured flag', 'UPDATE ERROR');
     }
   };
 
@@ -71,25 +78,36 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
         id: p.id,
         updates: { status: newStatus },
       });
+      toast.success(`"${p.title}" status changed to ${newStatus}.`, 'STATUS UPDATED');
     } catch (err: any) {
-      alert(err.message || 'Failed to update status');
+      toast.error(err.message || 'Failed to update status', 'STATUS ERROR');
     }
   };
 
   const handleDuplicate = async (id: string) => {
     try {
       await duplicateProduct.mutateAsync(id);
+      toast.success('Product duplicate created successfully.', 'PRODUCT DUPLICATED');
     } catch (err: any) {
-      alert(err.message || 'Failed to duplicate product');
+      toast.error(err.message || 'Failed to duplicate product', 'DUPLICATE ERROR');
     }
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (confirm(`Are you sure you want to delete "${title}"?`)) {
+    const ok = await confirm({
+      title: 'DELETE PRODUCT',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to delete "${title}" permanently? This cannot be undone.`,
+      confirmText: 'DELETE PERMANENTLY',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+    if (ok) {
       try {
         await deleteProduct.mutateAsync(id);
+        toast.success(`"${title}" was permanently removed from products.`, 'PRODUCT DELETED');
       } catch (err: any) {
-        alert(err.message || 'Failed to delete product');
+        toast.error(err.message || 'Failed to delete product', 'DELETE ERROR');
       }
     }
   };
@@ -100,8 +118,9 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
       await ProductService.seedProductsToDatabase();
       await queryClient.invalidateQueries({ queryKey: ['product-shots'] });
       await queryClient.refetchQueries({ queryKey: ['product-shots'] });
+      toast.success('Sample commercial products restored successfully.', 'PRODUCTS SEEDED');
     } catch (err: any) {
-      alert(err.message || 'Failed to seed sample product shots');
+      toast.error(err.message || 'Failed to seed sample product shots', 'SEED ERROR');
     } finally {
       setIsSeeding(false);
     }

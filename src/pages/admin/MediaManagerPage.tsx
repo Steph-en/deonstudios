@@ -15,9 +15,12 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MediaUploader } from '../../components/forms/MediaUploader';
 import { MediaService, LibraryMediaAsset } from '../../features/media/services/mediaService';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 export const MediaManagerPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [filterType, setFilterType] = useState<'all' | 'image' | 'video'>('all');
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -33,17 +36,27 @@ export const MediaManagerPage: React.FC = () => {
   const handleCopyUrl = (id: string, url: string) => {
     navigator.clipboard.writeText(url);
     setCopiedId(id);
+    toast.info('Asset URL copied to clipboard.', 'COPIED TO CLIPBOARD');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleDelete = async (asset: LibraryMediaAsset) => {
-    if (confirm(`Are you sure you want to permanently delete "${asset.name}"? This cannot be undone.`)) {
+    const ok = await confirm({
+      title: 'DELETE MEDIA ASSET',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to permanently delete "${asset.name}"? This will also remove references across projects and cannot be undone.`,
+      confirmText: 'DELETE PERMANENTLY',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+    if (ok) {
       try {
         setDeletingId(asset.id);
         await MediaService.deleteLibraryAsset(asset.id, asset.storagePath, asset.url);
         await queryClient.invalidateQueries();
+        toast.success(`"${asset.name}" was permanently purged.`, 'MEDIA DELETED');
       } catch (err: any) {
-        alert(err.message || 'Failed to delete media asset');
+        toast.error(err.message || 'Failed to delete media asset', 'DELETE ERROR');
       } finally {
         setDeletingId(null);
       }
@@ -55,8 +68,9 @@ export const MediaManagerPage: React.FC = () => {
       setIsSeeding(true);
       await MediaService.seedSampleAssets();
       await queryClient.invalidateQueries({ queryKey: ['media-library'] });
+      toast.success('Sample media assets loaded successfully.', 'MEDIA SEEDED');
     } catch (err: any) {
-      alert(err.message || 'Failed to seed sample assets');
+      toast.error(err.message || 'Failed to seed sample assets', 'SEED ERROR');
     } finally {
       setIsSeeding(false);
     }

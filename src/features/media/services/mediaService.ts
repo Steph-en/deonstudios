@@ -474,6 +474,24 @@ export class MediaService {
   }
 
   /**
+   * Bulk delete multiple media library assets
+   */
+  static async deleteMultipleLibraryAssets(
+    assets: { id: string; storagePath?: string; url?: string }[]
+  ): Promise<boolean> {
+    try {
+      await ApiClient.post('/media/batch-delete', { assets });
+    } catch {
+      // offline fallback
+    }
+
+    for (const asset of assets) {
+      await this.deleteLibraryAsset(asset.id, asset.storagePath, asset.url);
+    }
+    return true;
+  }
+
+  /**
    * Re-seed sample media assets if explicitly triggered by the user in the UI.
    * Clears deletion marks for the sample assets so they can be restored.
    */

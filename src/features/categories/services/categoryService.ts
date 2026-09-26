@@ -223,6 +223,31 @@ export class CategoryService {
   }
 
   /**
+   * Delete multiple categories in bulk
+   */
+  static async deleteCategories(ids: string[]): Promise<boolean> {
+    try {
+      await ApiClient.post('/categories/batch-delete', { ids });
+    } catch {
+      // offline fallback
+    }
+
+    const list = getLocalCategories();
+    const idSet = new Set(ids);
+    const filtered = list.filter((c) => !idSet.has(c.id));
+    saveLocalCategories(filtered);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('categories').delete().in('id', ids);
+      } catch (err) {
+        console.warn('Supabase bulk delete categories error:', err);
+      }
+    }
+    return true;
+  }
+
+  /**
    * Reorder categories by array of IDs
    */
   static async reorderCategories(orderedIds: string[]): Promise<boolean> {

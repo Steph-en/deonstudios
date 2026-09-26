@@ -21,6 +21,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useProjects, useCategories, useProjectMutations } from '../../hooks/usePortfolioQueries';
 import { ProjectService } from '../../features/projects/services/projectService';
 import { DbProject, ProjectStatus } from '../../types/database';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 interface ProjectListPageProps {
   onEditProject: (id: string) => void;
@@ -48,6 +49,8 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
 
   const { data: categories } = useCategories();
   const { updateProject, deleteProject, duplicateProject } = useProjectMutations();
+  const toast = useToast();
+  const { confirm } = useConfirm();
 
   const handleToggleFeatured = async (p: DbProject) => {
     try {
@@ -55,8 +58,12 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
         id: p.id,
         updates: { featured: !p.featured },
       });
+      toast.success(
+        !p.featured ? `"${p.title}" is now highlighted on the homepage.` : `"${p.title}" unpinned from featured.`,
+        'FEATURED UPDATED'
+      );
     } catch (err: any) {
-      alert(err.message || 'Failed to update featured flag');
+      toast.error(err.message || 'Failed to update featured flag', 'UPDATE ERROR');
     }
   };
 
@@ -66,25 +73,36 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
         id: p.id,
         updates: { status: newStatus },
       });
+      toast.success(`"${p.title}" status changed to ${newStatus}.`, 'STATUS UPDATED');
     } catch (err: any) {
-      alert(err.message || 'Failed to update status');
+      toast.error(err.message || 'Failed to update status', 'UPDATE ERROR');
     }
   };
 
   const handleDuplicate = async (id: string) => {
     try {
       await duplicateProject.mutateAsync(id);
+      toast.success('Project duplicate created successfully.', 'PROJECT DUPLICATED');
     } catch (err: any) {
-      alert(err.message || 'Failed to duplicate project');
+      toast.error(err.message || 'Failed to duplicate project', 'DUPLICATE ERROR');
     }
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (confirm(`Are you sure you want to delete "${title}"?`)) {
+    const ok = await confirm({
+      title: 'DELETE PROJECT',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to delete the project "${title}" permanently? This cannot be undone.`,
+      confirmText: 'DELETE PERMANENTLY',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+    if (ok) {
       try {
         await deleteProject.mutateAsync(id);
+        toast.success(`Project "${title}" was permanently removed.`, 'PROJECT DELETED');
       } catch (err: any) {
-        alert(err.message || 'Failed to delete project');
+        toast.error(err.message || 'Failed to delete project', 'DELETE ERROR');
       }
     }
   };
@@ -95,8 +113,9 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
       await ProjectService.seedProjectsToDatabase();
       await queryClient.invalidateQueries({ queryKey: ['projects'] });
       await queryClient.refetchQueries({ queryKey: ['projects'] });
+      toast.success('Sample editorial projects restored successfully.', 'PROJECTS SEEDED');
     } catch (err: any) {
-      alert(err.message || 'Failed to seed sample projects');
+      toast.error(err.message || 'Failed to seed sample projects', 'SEED ERROR');
     } finally {
       setIsSeeding(false);
     }

@@ -5,9 +5,12 @@ import { useCategories } from '../../hooks/usePortfolioQueries';
 import { CategoryService } from '../../features/categories/services/categoryService';
 import { DbCategory } from '../../types/database';
 import { slugify } from '../../lib/utils';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 export const CategoryManagerPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const { data: categories, isLoading } = useCategories();
 
   const [isCreating, setIsCreating] = useState(false);
@@ -74,18 +77,32 @@ export const CategoryManagerPage: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ['categories'] });
       setIsCreating(false);
       setEditingId(null);
+      toast.success(
+        isCreating ? `Category "${name.trim()}" created successfully.` : `Category "${name.trim()}" updated successfully.`,
+        'CATEGORY SAVED'
+      );
     } catch (err: any) {
       setError(err.message || 'Unable to save category.');
+      toast.error(err.message || 'Unable to save category.', 'SAVE FAILED');
     }
   };
 
   const handleDelete = async (cat: DbCategory) => {
-    if (confirm(`Are you sure you want to delete category "${cat.name}"?`)) {
+    const ok = await confirm({
+      title: 'DELETE CATEGORY',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to delete category "${cat.name}"? Projects assigned to this category will need to be reclassified.`,
+      confirmText: 'DELETE CATEGORY',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+    if (ok) {
       try {
         await CategoryService.deleteCategory(cat.id);
         await queryClient.invalidateQueries({ queryKey: ['categories'] });
+        toast.success(`Category "${cat.name}" was removed.`, 'CATEGORY DELETED');
       } catch (err: any) {
-        alert(err.message || 'Failed to delete category');
+        toast.error(err.message || 'Failed to delete category', 'DELETE ERROR');
       }
     }
   };

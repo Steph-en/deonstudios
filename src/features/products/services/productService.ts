@@ -381,6 +381,106 @@ export class ProductService {
   }
 
   /**
+   * Delete multiple products in bulk
+   */
+  static async deleteProducts(ids: string[]): Promise<void> {
+    try {
+      await ApiClient.post('/products/batch-delete', { ids });
+    } catch {
+      // offline fallback
+    }
+
+    const list = getLocalProducts();
+    const idSet = new Set(ids);
+    const keysToPurge: string[] = [];
+
+    for (const id of ids) {
+      const target = list.find((p) => p.id === id);
+      if (target) {
+        keysToPurge.push(target.id, target.url, target.title);
+      } else {
+        keysToPurge.push(id);
+      }
+    }
+
+    await markMediaAsDeleted(keysToPurge);
+    const filtered = list.filter((p) => !idSet.has(p.id));
+    saveLocalProducts(filtered);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('product_shots').delete().in('id', ids);
+      } catch (err) {
+        console.warn('Supabase bulk delete products error:', err);
+      }
+    }
+  }
+
+  /**
+   * Batch update products status
+   */
+  static async updateProductsStatus(ids: string[], status: ProjectStatus): Promise<void> {
+    try {
+      await ApiClient.post('/products/batch-update', { ids, updates: { status } });
+    } catch {
+      // fallback
+    }
+
+    const list = getLocalProducts();
+    const idSet = new Set(ids);
+    for (const p of list) {
+      if (idSet.has(p.id)) {
+        p.status = status;
+        p.updated_at = new Date().toISOString();
+      }
+    }
+    saveLocalProducts(list);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase
+          .from('product_shots')
+          .update({ status, updated_at: new Date().toISOString() })
+          .in('id', ids);
+      } catch (err) {
+        console.warn('Supabase bulk status update warning:', err);
+      }
+    }
+  }
+
+  /**
+   * Batch update products featured flag
+   */
+  static async updateProductsFeatured(ids: string[], featured: boolean): Promise<void> {
+    try {
+      await ApiClient.post('/products/batch-update', { ids, updates: { featured } });
+    } catch {
+      // fallback
+    }
+
+    const list = getLocalProducts();
+    const idSet = new Set(ids);
+    for (const p of list) {
+      if (idSet.has(p.id)) {
+        p.featured = featured;
+        p.updated_at = new Date().toISOString();
+      }
+    }
+    saveLocalProducts(list);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase
+          .from('product_shots')
+          .update({ featured, updated_at: new Date().toISOString() })
+          .in('id', ids);
+      } catch (err) {
+        console.warn('Supabase bulk featured update warning:', err);
+      }
+    }
+  }
+
+  /**
    * Seeds exactly 3 sample product still life shots into Supabase and local storage
    */
   static async seedProductsToDatabase(): Promise<DbProductShot[]> {

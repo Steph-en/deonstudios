@@ -381,6 +381,106 @@ export class PortfolioService {
   }
 
   /**
+   * Delete multiple shots in bulk
+   */
+  static async deleteShots(ids: string[]): Promise<void> {
+    try {
+      await ApiClient.post('/portfolio/batch-delete', { ids });
+    } catch {
+      // offline fallback
+    }
+
+    const list = getLocalShots();
+    const idSet = new Set(ids);
+    const keysToPurge: string[] = [];
+
+    for (const id of ids) {
+      const target = list.find((s) => s.id === id);
+      if (target) {
+        keysToPurge.push(target.id, target.url, target.title);
+      } else {
+        keysToPurge.push(id);
+      }
+    }
+
+    await markMediaAsDeleted(keysToPurge);
+    const filtered = list.filter((s) => !idSet.has(s.id));
+    saveLocalShots(filtered);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('portfolio_shots').delete().in('id', ids);
+      } catch (err) {
+        console.warn('Supabase bulk delete shots error:', err);
+      }
+    }
+  }
+
+  /**
+   * Batch update shots status
+   */
+  static async updateShotsStatus(ids: string[], status: ProjectStatus): Promise<void> {
+    try {
+      await ApiClient.post('/portfolio/batch-update', { ids, updates: { status } });
+    } catch {
+      // fallback
+    }
+
+    const list = getLocalShots();
+    const idSet = new Set(ids);
+    for (const s of list) {
+      if (idSet.has(s.id)) {
+        s.status = status;
+        s.updated_at = new Date().toISOString();
+      }
+    }
+    saveLocalShots(list);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase
+          .from('portfolio_shots')
+          .update({ status, updated_at: new Date().toISOString() })
+          .in('id', ids);
+      } catch (err) {
+        console.warn('Supabase bulk status update warning:', err);
+      }
+    }
+  }
+
+  /**
+   * Batch update shots featured flag
+   */
+  static async updateShotsFeatured(ids: string[], featured: boolean): Promise<void> {
+    try {
+      await ApiClient.post('/portfolio/batch-update', { ids, updates: { featured } });
+    } catch {
+      // fallback
+    }
+
+    const list = getLocalShots();
+    const idSet = new Set(ids);
+    for (const s of list) {
+      if (idSet.has(s.id)) {
+        s.featured = featured;
+        s.updated_at = new Date().toISOString();
+      }
+    }
+    saveLocalShots(list);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase
+          .from('portfolio_shots')
+          .update({ featured, updated_at: new Date().toISOString() })
+          .in('id', ids);
+      } catch (err) {
+        console.warn('Supabase bulk featured update warning:', err);
+      }
+    }
+  }
+
+  /**
    * Seeds exactly 3 sample portfolio portrait shots into Supabase and local storage
    */
   static async seedShotsToDatabase(): Promise<DbPortfolioShot[]> {

@@ -27,9 +27,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useDetailedAnalytics, useDashboardStats } from '../../hooks/usePortfolioQueries';
 import { AnalyticsService } from '../../features/analytics/services/analyticsService';
 import { useAuth } from '../../features/auth/hooks/useAuth';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 export const AnalyticsPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const { user, profile, role } = useAuth();
   const isAdmin =
     role === 'admin' ||
@@ -40,23 +43,34 @@ export const AnalyticsPage: React.FC = () => {
   const { data: stats } = useDashboardStats();
   const { data: analytics, isLoading } = useDetailedAnalytics();
   const [isResetting, setIsResetting] = useState(false);
-  const [resetSuccess, setResetSuccess] = useState(false);
 
   const totalViews = stats?.totalViews ?? 0;
   const uniqueVisitors = stats?.uniqueVisitors ?? 0;
 
   const handleResetAnalytics = async () => {
-    if (!isAdmin) return;
-    if (confirm('Are you sure you want to reset all platform analytics data? This will clear all page views and visitor metrics.')) {
+    if (!isAdmin) {
+      toast.error('Only administrators can reset analytics data.', 'ACCESS DENIED');
+      return;
+    }
+
+    const ok = await confirm({
+      title: 'RESET ALL ANALYTICS',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: 'Are you sure you want to reset all platform analytics data? This will permanently clear all historical page views, visitor metrics, and referral logs.',
+      confirmText: 'RESET ALL METRICS',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+
+    if (ok) {
       try {
         setIsResetting(true);
         await AnalyticsService.resetAnalytics();
         await queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
         await queryClient.invalidateQueries({ queryKey: ['detailed-analytics'] });
-        setResetSuccess(true);
-        setTimeout(() => setResetSuccess(false), 3000);
+        toast.success('All platform analytics and view counters have been reset to zero.', 'ANALYTICS RESET');
       } catch (err: any) {
-        alert(err.message || 'Failed to reset analytics');
+        toast.error(err.message || 'Failed to reset analytics', 'RESET FAILED');
       } finally {
         setIsResetting(false);
       }
@@ -76,11 +90,6 @@ export const AnalyticsPage: React.FC = () => {
 
         {isAdmin && (
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            {resetSuccess && (
-              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Analytics Reset
-              </span>
-            )}
             <button
               type="button"
               onClick={handleResetAnalytics}

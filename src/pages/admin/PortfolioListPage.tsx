@@ -16,6 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { usePortfolioShots, usePortfolioMutations } from '../../hooks/usePortfolioQueries';
 import { PortfolioService } from '../../features/portfolio/services/portfolioService';
 import { DbPortfolioShot, ProjectStatus } from '../../types/database';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 interface PortfolioListPageProps {
   onEditShot: (id: string) => void;
@@ -43,6 +44,8 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
   });
 
   const { updateShot, deleteShot, duplicateShot } = usePortfolioMutations();
+  const toast = useToast();
+  const { confirm } = useConfirm();
 
   // Extract unique categories
   const allCategories = ['All', 'Portraiture', 'Editorial', 'Fashion', 'Fine Art', 'Campaign'];
@@ -53,8 +56,12 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
         id: s.id,
         updates: { featured: !s.featured },
       });
+      toast.success(
+        !s.featured ? `"${s.title}" is now highlighted in portfolio.` : `"${s.title}" removed from featured.`,
+        'PORTFOLIO UPDATED'
+      );
     } catch (err: any) {
-      alert(err.message || 'Failed to update featured flag');
+      toast.error(err.message || 'Failed to update featured flag', 'UPDATE ERROR');
     }
   };
 
@@ -64,25 +71,36 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
         id: s.id,
         updates: { status: newStatus },
       });
+      toast.success(`"${s.title}" status changed to ${newStatus}.`, 'STATUS UPDATED');
     } catch (err: any) {
-      alert(err.message || 'Failed to update status');
+      toast.error(err.message || 'Failed to update status', 'STATUS ERROR');
     }
   };
 
   const handleDuplicate = async (id: string) => {
     try {
       await duplicateShot.mutateAsync(id);
+      toast.success('Portrait shot duplicate created successfully.', 'SHOT DUPLICATED');
     } catch (err: any) {
-      alert(err.message || 'Failed to duplicate shot');
+      toast.error(err.message || 'Failed to duplicate shot', 'DUPLICATE ERROR');
     }
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (confirm(`Are you sure you want to delete "${title}"?`)) {
+    const ok = await confirm({
+      title: 'DELETE PORTFOLIO SHOT',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to delete "${title}" permanently? This cannot be undone.`,
+      confirmText: 'DELETE PERMANENTLY',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+    if (ok) {
       try {
         await deleteShot.mutateAsync(id);
+        toast.success(`"${title}" was permanently removed from portfolio.`, 'SHOT DELETED');
       } catch (err: any) {
-        alert(err.message || 'Failed to delete shot');
+        toast.error(err.message || 'Failed to delete shot', 'DELETE ERROR');
       }
     }
   };
@@ -93,8 +111,9 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
       await PortfolioService.seedShotsToDatabase();
       await queryClient.invalidateQueries({ queryKey: ['portfolio-shots'] });
       await queryClient.refetchQueries({ queryKey: ['portfolio-shots'] });
+      toast.success('Sample portraits restored successfully.', 'PORTRAITS SEEDED');
     } catch (err: any) {
-      alert(err.message || 'Failed to seed sample portraits');
+      toast.error(err.message || 'Failed to seed sample portraits', 'SEED ERROR');
     } finally {
       setIsSeeding(false);
     }

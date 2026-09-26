@@ -148,11 +148,40 @@ export function useProjectMutations() {
     },
   });
 
+  const deleteMultipleProjects = useMutation({
+    mutationFn: (ids: string[]) => ProjectService.deleteProjects(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboardStats });
+    },
+  });
+
+  const updateMultipleProjectsStatus = useMutation({
+    mutationFn: ({ ids, status }: { ids: string[]; status: ProjectStatus }) =>
+      ProjectService.updateProjectsStatus(ids, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboardStats });
+    },
+  });
+
+  const updateMultipleProjectsFeatured = useMutation({
+    mutationFn: ({ ids, featured }: { ids: string[]; featured: boolean }) =>
+      ProjectService.updateProjectsFeatured(ids, featured),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboardStats });
+    },
+  });
+
   return {
     createProject,
     updateProject,
     deleteProject,
     duplicateProject,
+    deleteMultipleProjects,
+    updateMultipleProjectsStatus,
+    updateMultipleProjectsFeatured,
   };
 }
 
@@ -224,11 +253,40 @@ export function usePortfolioMutations() {
     },
   });
 
+  const deleteMultipleShots = useMutation({
+    mutationFn: (ids: string[]) => PortfolioService.deleteShots(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portfolio-shots'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboardStats });
+    },
+  });
+
+  const updateMultipleShotsStatus = useMutation({
+    mutationFn: ({ ids, status }: { ids: string[]; status: ProjectStatus }) =>
+      PortfolioService.updateShotsStatus(ids, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portfolio-shots'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboardStats });
+    },
+  });
+
+  const updateMultipleShotsFeatured = useMutation({
+    mutationFn: ({ ids, featured }: { ids: string[]; featured: boolean }) =>
+      PortfolioService.updateShotsFeatured(ids, featured),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portfolio-shots'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboardStats });
+    },
+  });
+
   return {
     createShot,
     updateShot,
     deleteShot,
     duplicateShot,
+    deleteMultipleShots,
+    updateMultipleShotsStatus,
+    updateMultipleShotsFeatured,
   };
 }
 

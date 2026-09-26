@@ -482,6 +482,117 @@ export class ProjectService {
   }
 
   /**
+   * Delete multiple projects in bulk
+   */
+  static async deleteProjects(ids: string[]): Promise<boolean> {
+    try {
+      await ApiClient.post('/projects/batch-delete', { ids });
+    } catch {
+      // offline fallback
+    }
+
+    const list = getLocalProjects();
+    const idSet = new Set(ids);
+    const keysToPurge: string[] = [];
+
+    for (const id of ids) {
+      const target = list.find((p) => p.id === id);
+      if (target) {
+        keysToPurge.push(
+          target.id,
+          target.slug,
+          target.preview_image,
+          target.hero_image,
+          ...(target.media || []).flatMap((m) => [m.id, m.media_url, m.file_name])
+        );
+      } else {
+        keysToPurge.push(id);
+      }
+    }
+
+    await markMediaAsDeleted(keysToPurge);
+    const filtered = list.filter((p) => !idSet.has(p.id));
+    saveLocalProjects(filtered);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('projects').delete().in('id', ids);
+      } catch (err) {
+        console.warn('Supabase bulk delete warning:', err);
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Batch update project status
+   */
+  static async updateProjectsStatus(ids: string[], status: ProjectStatus): Promise<void> {
+    try {
+      await ApiClient.post('/projects/batch-update', { ids, updates: { status } });
+    } catch {
+      // fallback
+    }
+
+    const list = getLocalProjects();
+    const idSet = new Set(ids);
+    for (const p of list) {
+      if (idSet.has(p.id)) {
+        p.status = status;
+        p.updated_at = new Date().toISOString();
+        if (status === 'published' && !p.published_at) {
+          p.published_at = new Date().toISOString();
+        }
+      }
+    }
+    saveLocalProjects(list);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase
+          .from('projects')
+          .update({ status, updated_at: new Date().toISOString() })
+          .in('id', ids);
+      } catch (err) {
+        console.warn('Supabase bulk status update warning:', err);
+      }
+    }
+  }
+
+  /**
+   * Batch update project featured flag
+   */
+  static async updateProjectsFeatured(ids: string[], featured: boolean): Promise<void> {
+    try {
+      await ApiClient.post('/projects/batch-update', { ids, updates: { featured } });
+    } catch {
+      // fallback
+    }
+
+    const list = getLocalProjects();
+    const idSet = new Set(ids);
+    for (const p of list) {
+      if (idSet.has(p.id)) {
+        p.featured = featured;
+        p.updated_at = new Date().toISOString();
+      }
+    }
+    saveLocalProjects(list);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase
+          .from('projects')
+          .update({ featured, updated_at: new Date().toISOString() })
+          .in('id', ids);
+      } catch (err) {
+        console.warn('Supabase bulk featured update warning:', err);
+      }
+    }
+  }
+
+  /**
    * Seeds 3 sample studio portfolio projects into Supabase (and local storage)
    * This provides a clean template structure showing how projects are organized.
    */

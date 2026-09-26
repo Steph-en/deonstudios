@@ -663,6 +663,28 @@ async function startServer() {
     res.json({ success: true, id });
   });
 
+  api.post('/projects/batch-delete', (req: Request, res: Response) => {
+    const { ids } = req.body;
+    if (Array.isArray(ids)) {
+      const idSet = new Set(ids);
+      db.projects = db.projects.filter((p) => !idSet.has(p.id));
+      saveDatabase(db);
+    }
+    res.json({ success: true, count: ids?.length || 0 });
+  });
+
+  api.post('/projects/batch-update', (req: Request, res: Response) => {
+    const { ids, updates } = req.body;
+    if (Array.isArray(ids) && updates) {
+      const idSet = new Set(ids);
+      db.projects = db.projects.map((p) =>
+        idSet.has(p.id) ? { ...p, ...updates, updated_at: new Date().toISOString() } : p
+      );
+      saveDatabase(db);
+    }
+    res.json({ success: true, count: ids?.length || 0 });
+  });
+
   api.post('/projects/seed', (_req: Request, res: Response) => {
     const initial = getInitialDatabase();
     db.projects = initial.projects;
@@ -743,6 +765,28 @@ async function startServer() {
       saveDatabase(db);
     }
     res.json({ success: true, id });
+  });
+
+  api.post('/portfolio/batch-delete', (req: Request, res: Response) => {
+    const { ids } = req.body;
+    if (Array.isArray(ids)) {
+      const idSet = new Set(ids);
+      db.portfolio = db.portfolio.filter((s) => !idSet.has(s.id));
+      saveDatabase(db);
+    }
+    res.json({ success: true, count: ids?.length || 0 });
+  });
+
+  api.post('/portfolio/batch-update', (req: Request, res: Response) => {
+    const { ids, updates } = req.body;
+    if (Array.isArray(ids) && updates) {
+      const idSet = new Set(ids);
+      db.portfolio = db.portfolio.map((s) =>
+        idSet.has(s.id) ? { ...s, ...updates, updated_at: new Date().toISOString() } : s
+      );
+      saveDatabase(db);
+    }
+    res.json({ success: true, count: ids?.length || 0 });
   });
 
   api.post('/portfolio/seed', (_req: Request, res: Response) => {
@@ -827,6 +871,28 @@ async function startServer() {
     res.json({ success: true, id });
   });
 
+  api.post('/products/batch-delete', (req: Request, res: Response) => {
+    const { ids } = req.body;
+    if (Array.isArray(ids)) {
+      const idSet = new Set(ids);
+      db.products = db.products.filter((p) => !idSet.has(p.id));
+      saveDatabase(db);
+    }
+    res.json({ success: true, count: ids?.length || 0 });
+  });
+
+  api.post('/products/batch-update', (req: Request, res: Response) => {
+    const { ids, updates } = req.body;
+    if (Array.isArray(ids) && updates) {
+      const idSet = new Set(ids);
+      db.products = db.products.map((p) =>
+        idSet.has(p.id) ? { ...p, ...updates, updated_at: new Date().toISOString() } : p
+      );
+      saveDatabase(db);
+    }
+    res.json({ success: true, count: ids?.length || 0 });
+  });
+
   api.post('/products/seed', (_req: Request, res: Response) => {
     const initial = getInitialDatabase();
     db.products = initial.products;
@@ -849,6 +915,26 @@ async function startServer() {
     db.categories.push(newCat);
     saveDatabase(db);
     res.status(201).json(newCat);
+  });
+
+  api.delete('/categories/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const idx = db.categories.findIndex((c) => c.id === id);
+    if (idx !== -1) {
+      db.categories.splice(idx, 1);
+      saveDatabase(db);
+    }
+    res.json({ success: true, id });
+  });
+
+  api.post('/categories/batch-delete', (req: Request, res: Response) => {
+    const { ids } = req.body;
+    if (Array.isArray(ids)) {
+      const idSet = new Set(ids);
+      db.categories = db.categories.filter((c) => !idSet.has(c.id));
+      saveDatabase(db);
+    }
+    res.json({ success: true, count: ids?.length || 0 });
   });
 
   // 7. Media Library API (Permanent deletion guaranteed)
@@ -926,6 +1012,40 @@ async function startServer() {
 
     saveDatabase(db);
     res.json({ success: true, id, url });
+  });
+
+  api.post('/media/batch-delete', (req: Request, res: Response) => {
+    const { assets } = req.body; // array of { id, url }
+    if (Array.isArray(assets)) {
+      if (!db.deleted_keys) db.deleted_keys = [];
+      const idSet = new Set(assets.map((a: any) => a.id));
+      const urlSet = new Set(assets.map((a: any) => a.url).filter(Boolean));
+
+      for (const a of assets) {
+        if (a.id) db.deleted_keys.push(a.id.toLowerCase());
+        if (a.url) {
+          db.deleted_keys.push(a.url.toLowerCase());
+          if (a.url.includes('?')) {
+            db.deleted_keys.push(a.url.split('?')[0].toLowerCase());
+          }
+        }
+      }
+
+      db.media = (db.media || []).filter((m) => !idSet.has(m.id) && !urlSet.has(m.url));
+
+      for (const proj of db.projects) {
+        if (Array.isArray(proj.media)) {
+          proj.media = proj.media.filter(
+            (m: any) => !idSet.has(m.id) && !urlSet.has(m.media_url)
+          );
+        }
+      }
+      db.portfolio = db.portfolio.filter((s) => !idSet.has(s.id) && !urlSet.has(s.url));
+      db.products = db.products.filter((p) => !idSet.has(p.id) && !urlSet.has(p.url));
+
+      saveDatabase(db);
+    }
+    res.json({ success: true, count: assets?.length || 0 });
   });
 
   // 8. Team & User Account Management API

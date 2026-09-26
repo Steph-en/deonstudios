@@ -13,6 +13,7 @@ import {
 import { usePortfolioShot, usePortfolioMutations } from '../../hooks/usePortfolioQueries';
 import { MediaUploader } from '../../components/forms/MediaUploader';
 import { DbPortfolioShot, ProjectStatus } from '../../types/database';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 interface PortfolioEditPageProps {
   shotId: string | null;
@@ -25,6 +26,8 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
   onBack,
   onViewPublicPortfolio,
 }) => {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const isNew = !shotId || shotId === 'new';
   const { data: existingShot, isLoading: isShotLoading } = usePortfolioShot(isNew ? null : shotId);
   const { createShot, updateShot, deleteShot } = usePortfolioMutations();
@@ -101,17 +104,21 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
 
       if (isNew) {
         await createShot.mutateAsync(payload);
+        toast.success(`Portrait "${title}" created successfully.`, 'PORTRAIT CREATED');
       } else if (shotId) {
         await updateShot.mutateAsync({ id: shotId, updates: payload });
+        toast.success(`Portrait "${title}" saved successfully.`, 'PORTRAIT SAVED');
       }
 
       setSaveSuccess(true);
       setTimeout(() => {
         setSaveSuccess(false);
         onBack();
-      }, 900);
+      }, 700);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to save portrait.');
+      const errText = err.message || 'Failed to save portrait.';
+      setErrorMessage(errText);
+      toast.error(errText, 'SAVE ERROR');
     } finally {
       setIsSaving(false);
     }
@@ -119,12 +126,22 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
 
   const handleDelete = async () => {
     if (!shotId || isNew) return;
-    if (confirm(`Are you sure you want to delete "${title}"?`)) {
+    const ok = await confirm({
+      title: 'DELETE PORTRAIT',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to permanently delete "${title}" from the portfolio? This cannot be undone.`,
+      confirmText: 'DELETE PERMANENTLY',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+
+    if (ok) {
       try {
         await deleteShot.mutateAsync(shotId);
+        toast.success(`"${title}" was removed from the portfolio.`, 'PORTRAIT DELETED');
         onBack();
       } catch (err: any) {
-        alert(err.message || 'Failed to delete portrait.');
+        toast.error(err.message || 'Failed to delete portrait.', 'DELETE ERROR');
       }
     }
   };

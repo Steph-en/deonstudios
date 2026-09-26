@@ -19,9 +19,12 @@ import { useAuth } from '../../features/auth/hooks/useAuth';
 import { AuthService } from '../../features/auth/services/authService';
 import { DbProfile, UserRole } from '../../types/database';
 import { isSupabaseConfigured, supabaseUrl } from '../../lib/supabase';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 export const ProfilePage: React.FC = () => {
   const { user, profile, role } = useAuth();
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const supabaseConnected = isSupabaseConfigured();
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -128,17 +131,26 @@ export const ProfilePage: React.FC = () => {
 
   const handleDeleteUser = async (id: string, name: string) => {
     if (!isAdmin) {
-      setUserActionError('Only administrators are permitted to remove user accounts.');
+      toast.error('Only administrators are permitted to remove user accounts.', 'ACCESS DENIED');
       return;
     }
 
-    if (confirm(`Are you sure you want to remove account access for ${name}?`)) {
+    const ok = await confirm({
+      title: 'REMOVE TEAM MEMBER',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to remove account access for ${name}? This will revoke their CMS login privileges.`,
+      confirmText: 'REVOKE ACCESS',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+
+    if (ok) {
       try {
         await AuthService.removeTeamMember(id);
-        setUserActionSuccess(`Successfully removed access for ${name}.`);
+        toast.success(`Successfully removed account access for ${name}.`, 'ACCESS REVOKED');
         await loadTeamMembers();
       } catch (err: any) {
-        setUserActionError(err.message || 'Failed to delete user.');
+        toast.error(err.message || 'Failed to delete user.', 'ERROR');
       }
     }
   };
@@ -149,24 +161,32 @@ export const ProfilePage: React.FC = () => {
     setErrorMessage(null);
 
     if (newPassword.length < 6) {
-      setErrorMessage('New password must be at least 6 characters long.');
+      const err = 'New password must be at least 6 characters long.';
+      setErrorMessage(err);
+      toast.error(err, 'PASSWORD ERROR');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setErrorMessage('New passwords do not match. Please verify.');
+      const err = 'New passwords do not match. Please verify.';
+      setErrorMessage(err);
+      toast.error(err, 'PASSWORD MISMATCH');
       return;
     }
 
     setIsLoading(true);
     try {
       await AuthService.updatePassword(newPassword);
-      setSuccessMessage('Your password has been successfully updated.');
+      const msg = 'Your password has been successfully updated.';
+      setSuccessMessage(msg);
+      toast.success(msg, 'PASSWORD UPDATED');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to update password. Please try again.');
+      const errorMsg = 'Failed to update password. Please try again.';
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg, 'UPDATE FAILED');
     } finally {
       setIsLoading(false);
     }

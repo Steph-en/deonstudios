@@ -11,6 +11,7 @@ import {
 import { useProductShot, useProductMutations } from '../../hooks/usePortfolioQueries';
 import { MediaUploader } from '../../components/forms/MediaUploader';
 import { DbProductShot, ProjectStatus } from '../../types/database';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 interface ProductEditPageProps {
   productId: string | null;
@@ -23,6 +24,8 @@ export const ProductEditPage: React.FC<ProductEditPageProps> = ({
   onBack,
   onViewPublicProducts,
 }) => {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const isNew = !productId || productId === 'new';
   const { data: existingProduct, isLoading: isProductLoading } = useProductShot(isNew ? null : productId);
   const { createProduct, updateProduct, deleteProduct } = useProductMutations();
@@ -99,17 +102,21 @@ export const ProductEditPage: React.FC<ProductEditPageProps> = ({
 
       if (isNew) {
         await createProduct.mutateAsync(payload);
+        toast.success(`Product "${title}" created successfully.`, 'PRODUCT CREATED');
       } else if (productId) {
         await updateProduct.mutateAsync({ id: productId, updates: payload });
+        toast.success(`Product "${title}" saved successfully.`, 'PRODUCT SAVED');
       }
 
       setSaveSuccess(true);
       setTimeout(() => {
         setSaveSuccess(false);
         onBack();
-      }, 900);
+      }, 700);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to save product.');
+      const errText = err.message || 'Failed to save product.';
+      setErrorMessage(errText);
+      toast.error(errText, 'SAVE ERROR');
     } finally {
       setIsSaving(false);
     }
@@ -117,12 +124,22 @@ export const ProductEditPage: React.FC<ProductEditPageProps> = ({
 
   const handleDelete = async () => {
     if (!productId || isNew) return;
-    if (confirm(`Are you sure you want to delete "${title}"?`)) {
+    const ok = await confirm({
+      title: 'DELETE PRODUCT',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to permanently delete "${title}"? This cannot be undone.`,
+      confirmText: 'DELETE PERMANENTLY',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+
+    if (ok) {
       try {
         await deleteProduct.mutateAsync(productId);
+        toast.success(`"${title}" was permanently removed.`, 'PRODUCT DELETED');
         onBack();
       } catch (err: any) {
-        alert(err.message || 'Failed to delete product.');
+        toast.error(err.message || 'Failed to delete product.', 'DELETE ERROR');
       }
     }
   };

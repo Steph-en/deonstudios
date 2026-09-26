@@ -31,6 +31,7 @@ import { CaseStudyBuilder } from '../../components/forms/CaseStudyBuilder';
 import { MediaService } from '../../features/media/services/mediaService';
 import { SectionService } from '../../features/projects/services/sectionService';
 import { DbProject, DbProjectMedia, DbProjectSection, ProjectStatus } from '../../types/database';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 interface ProjectEditPageProps {
   projectId: string | null; // null means 'new'
@@ -141,6 +142,9 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
     }
   };
 
+  const toast = useToast();
+  const { confirm } = useConfirm();
+
   const onSubmit = async (data: ProjectFormData) => {
     setErrorMessage(null);
     setSaveSuccess(false);
@@ -149,6 +153,7 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
       if (isNew) {
         const created = await createProject.mutateAsync(data);
         setSaveSuccess(true);
+        toast.success(`Project "${data.title}" created successfully.`, 'PROJECT CREATED');
         setTimeout(() => setSaveSuccess(false), 3000);
         if (created?.id) {
           onBack();
@@ -159,18 +164,21 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
           updates: data,
         });
         setSaveSuccess(true);
+        toast.success(`Project "${data.title}" saved successfully.`, 'CHANGES SAVED');
         setTimeout(() => setSaveSuccess(false), 3000);
       }
     } catch (err: any) {
       console.error('Error saving project:', err);
-      setErrorMessage(err.message || 'Unable to save project. Please check your inputs.');
+      const errText = err.message || 'Unable to save project. Please check your inputs.';
+      setErrorMessage(errText);
+      toast.error(errText, 'SAVE FAILED');
     }
   };
 
   // Gallery handlers
   const handleAddGalleryItem = async (item: Partial<DbProjectMedia>) => {
     if (!projectId && isNew) {
-      alert('Please save the initial project details before uploading gallery assets.');
+      toast.warning('Please save the initial project details before uploading gallery assets.', 'INITIAL SAVE REQUIRED');
       return;
     }
     try {
@@ -188,18 +196,31 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
         display_order: galleryItems.length + 1,
       });
       setGalleryItems((prev) => [...prev, added]);
+      toast.success('Gallery media asset added.', 'MEDIA ADDED');
     } catch (err: any) {
-      alert(err.message || 'Failed to add media asset');
+      toast.error(err.message || 'Failed to add media asset', 'UPLOAD ERROR');
     }
   };
 
   const handleDeleteGalleryItem = async (id: string, storagePath: string) => {
-    try {
-      const itemToDelete = galleryItems.find((i) => i.id === id);
-      await MediaService.deleteMedia(id, storagePath, itemToDelete?.media_url);
-      setGalleryItems((prev) => prev.filter((i) => i.id !== id));
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete media');
+    const ok = await confirm({
+      title: 'DELETE GALLERY IMAGE',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: 'Are you sure you want to permanently delete this media asset from the project gallery?',
+      confirmText: 'DELETE IMAGE',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+
+    if (ok) {
+      try {
+        const itemToDelete = galleryItems.find((i) => i.id === id);
+        await MediaService.deleteMedia(id, storagePath, itemToDelete?.media_url);
+        setGalleryItems((prev) => prev.filter((i) => i.id !== id));
+        toast.success('Gallery media item was deleted.', 'MEDIA REMOVED');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to delete media', 'DELETE ERROR');
+      }
     }
   };
 
@@ -209,8 +230,9 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
       setGalleryItems((prev) =>
         prev.map((i) => (i.id === id ? { ...i, alt_text: alt } : i))
       );
+      toast.info('Alt description updated.', 'CAPTION SAVED');
     } catch (err: any) {
-      alert(err.message || 'Failed to update alt text');
+      toast.error(err.message || 'Failed to update alt text', 'UPDATE ERROR');
     }
   };
 
@@ -228,7 +250,7 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
   // Case Study Sections handlers
   const handleAddSection = async (sec: Partial<DbProjectSection>) => {
     if (!projectId && isNew) {
-      alert('Please save the initial project details before adding case study sections.');
+      toast.warning('Please save the initial project details before adding case study sections.', 'INITIAL SAVE REQUIRED');
       return;
     }
     try {
@@ -241,17 +263,30 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
         display_order: sections.length + 1,
       });
       setSections((prev) => [...prev, added]);
+      toast.success('Case study section added.', 'SECTION ADDED');
     } catch (err: any) {
-      alert(err.message || 'Failed to add section');
+      toast.error(err.message || 'Failed to add section', 'ERROR');
     }
   };
 
   const handleDeleteSection = async (id: string) => {
-    try {
-      await SectionService.deleteSection(id);
-      setSections((prev) => prev.filter((s) => s.id !== id));
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete section');
+    const ok = await confirm({
+      title: 'DELETE SECTION',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: 'Are you sure you want to remove this narrative section from the case study?',
+      confirmText: 'DELETE SECTION',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+
+    if (ok) {
+      try {
+        await SectionService.deleteSection(id);
+        setSections((prev) => prev.filter((s) => s.id !== id));
+        toast.success('Case study section removed.', 'SECTION REMOVED');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to delete section', 'ERROR');
+      }
     }
   };
 
@@ -261,8 +296,9 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
       setSections((prev) =>
         prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
       );
+      toast.info('Case study section saved.', 'SECTION UPDATED');
     } catch (err: any) {
-      alert(err.message || 'Failed to update section');
+      toast.error(err.message || 'Failed to update section', 'UPDATE ERROR');
     }
   };
 
