@@ -1036,6 +1036,22 @@ async function startServer() {
     });
   }
 
+function getProcessUsingPort(port: number): string | null {
+  try {
+    const { execSync } = require('child_process');
+    if (process.platform === 'darwin' || process.platform === 'linux') {
+      const output = execSync(`lsof -i :${port} -sTCP:LISTEN -P -n 2>/dev/null || true`, { encoding: 'utf-8' }).trim();
+      return output || null;
+    } else if (process.platform === 'win32') {
+      const output = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf-8' }).trim();
+      return output || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
   const listenOnPort = (portToTry: number): Promise<number> => {
     return new Promise((resolve, reject) => {
       const server = app.listen(portToTry, '0.0.0.0');
@@ -1046,12 +1062,29 @@ async function startServer() {
 
       server.once('error', (err: any) => {
         if (err.code === 'EADDRINUSE') {
-          console.warn(`\n[WARNING] Port ${portToTry} is already in use by another application!`);
-          console.warn(`  Another server (such as Python, CherryPy, Docker, or another background process) is occupying port ${portToTry}.`);
-          if (process.env.PORT) {
+          const procInfo = getProcessUsingPort(portToTry);
+          console.warn(`\n` + '═'.repeat(66));
+          console.warn(`  ⚠️  [PORT CONFLICT] Port ${portToTry} is occupied by another application!`);
+          console.warn('═'.repeat(66));
+          if (procInfo) {
+            console.warn(`  Detected background process squatting on port ${portToTry}:`);
+            console.warn(`  ${procInfo.split('\n').join('\n  ')}\n`);
+          }
+          console.warn(`  WHY THIS MATTERS:`);
+          console.warn(`  A background server (Python / CherryPy / another web service)`);
+          console.warn(`  is intercepting port ${portToTry}. When you open http://localhost:${portToTry}`);
+          console.warn(`  in your browser, that other service responds with:`);
+          console.warn(`  "404: The requested resource was not found on this server"`);
+          console.warn(`\n  HOW TO FREE PORT ${portToTry}:`);
+          console.warn(`  • In this project, run:   npm run kill-3000`);
+          console.warn(`  • On macOS / Linux run:   lsof -ti:${portToTry} | xargs kill -9`);
+          console.warn(`  • On Windows PowerShell:  npx kill-port ${portToTry}`);
+          console.warn('═'.repeat(66) + '\n');
+
+          if (process.env.STRICT_PORT === 'true') {
             reject(err);
           } else {
-            console.log(`  Attempting fallback to port ${portToTry + 1}...\n`);
+            console.log(`  ➜ Auto-switching Deon Studios to port ${portToTry + 1}...\n`);
             resolve(listenOnPort(portToTry + 1));
           }
         } else {
