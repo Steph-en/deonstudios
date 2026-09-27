@@ -6,12 +6,63 @@ import { CategoryService } from '../../features/categories/services/categoryServ
 import { DbCategory } from '../../types/database';
 import { slugify } from '../../lib/utils';
 import { useConfirm, useToast } from '../../context/AdminUIContext';
+import { BulkActionBar } from '../../components/admin/BulkActionBar';
 
 export const CategoryManagerPage: React.FC = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { confirm } = useConfirm();
   const { data: categories, isLoading } = useCategories();
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // Selection helpers
+  const allCategoryIds = (categories || []).map((c) => c.id);
+  const isAllSelected = allCategoryIds.length > 0 && allCategoryIds.every((id) => selectedIds.includes(id));
+  const isPartiallySelected = selectedIds.length > 0 && !isAllSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allCategoryIds);
+    }
+  };
+
+  const handleToggleSelectOne = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    const ok = await confirm({
+      title: 'DELETE CATEGORIES',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to delete ${count} selected categor${count > 1 ? 'ies' : 'y'}? Projects assigned to these categories will need to be reclassified.`,
+      confirmText: `DELETE ${count} CATEGOR${count > 1 ? 'IES' : 'Y'}`,
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+
+    if (ok) {
+      try {
+        setIsBulkDeleting(true);
+        await CategoryService.deleteCategories(selectedIds);
+        await queryClient.invalidateQueries({ queryKey: ['categories'] });
+        setSelectedIds([]);
+        toast.success(`Successfully deleted ${count} categor${count > 1 ? 'ies' : 'y'}.`, 'CATEGORIES DELETED');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to delete categories', 'DELETE ERROR');
+      } finally {
+        setIsBulkDeleting(false);
+      }
+    }
+  };
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -252,6 +303,18 @@ export const CategoryManagerPage: React.FC = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-neutral-100 bg-neutral-50/70 text-[11px] font-mono uppercase tracking-wider text-neutral-500">
+                  <th className="py-3 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isPartiallySelected;
+                      }}
+                      onChange={handleToggleSelectAll}
+                      className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900 cursor-pointer"
+                      title={isAllSelected ? 'Deselect all' : 'Select all'}
+                    />
+                  </th>
                   <th className="py-3 px-4 w-12">#</th>
                   <th className="py-3 px-4">Name</th>
                   <th className="py-3 px-4">Slug</th>
@@ -260,44 +323,71 @@ export const CategoryManagerPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 text-xs">
-                {(categories || []).map((cat, idx) => (
-                  <tr key={cat.id} className="hover:bg-neutral-50/80 transition">
-                    <td className="py-3.5 px-4 font-mono text-neutral-400">{idx + 1}</td>
-                    <td className="py-3.5 px-4 font-semibold text-neutral-900 flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-neutral-400" />
-                      {cat.name}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-neutral-500">{cat.slug}</td>
-                    <td className="py-3.5 px-4 text-neutral-600 max-w-sm truncate">
-                      {cat.description || '—'}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleStartEdit(cat)}
-                          className="p-1.5 rounded text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition"
-                          title="Edit Category"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(cat)}
-                          className="p-1.5 rounded text-neutral-400 hover:text-red-600 hover:bg-red-50 transition"
-                          title="Delete Category"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {(categories || []).map((cat, idx) => {
+                  const isSelected = selectedIds.includes(cat.id);
+                  return (
+                    <tr
+                      key={cat.id}
+                      className={`hover:bg-neutral-50/80 transition ${
+                        isSelected ? 'bg-neutral-900/[0.03]' : ''
+                      }`}
+                    >
+                      <td className="py-3.5 px-3 text-center w-10">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => handleToggleSelectOne(cat.id, e)}
+                          className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900 cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-neutral-400">{idx + 1}</td>
+                      <td className="py-3.5 px-4 font-semibold text-neutral-900 flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-neutral-400" />
+                        {cat.name}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-neutral-500">{cat.slug}</td>
+                      <td className="py-3.5 px-4 text-neutral-600 max-w-sm truncate">
+                        {cat.description || '—'}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(cat)}
+                            className="p-1.5 rounded text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition"
+                            title="Edit Category"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(cat)}
+                            className="p-1.5 rounded text-neutral-400 hover:text-red-600 hover:bg-red-50 transition"
+                            title="Delete Category"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Floating Bulk Actions Bar */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        totalCount={categories?.length || 0}
+        onClearSelection={() => setSelectedIds([])}
+        onSelectAll={handleToggleSelectAll}
+        onDelete={handleBulkDelete}
+        isDeleting={isBulkDeleting}
+        entityName="categories"
+      />
     </div>
   );
 };

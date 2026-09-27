@@ -17,6 +17,7 @@ import { usePortfolioShots, usePortfolioMutations } from '../../hooks/usePortfol
 import { PortfolioService } from '../../features/portfolio/services/portfolioService';
 import { DbPortfolioShot, ProjectStatus } from '../../types/database';
 import { useConfirm, useToast } from '../../context/AdminUIContext';
+import { BulkActionBar } from '../../components/admin/BulkActionBar';
 
 interface PortfolioListPageProps {
   onEditShot: (id: string) => void;
@@ -43,9 +44,93 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
     search: search || undefined,
   });
 
-  const { updateShot, deleteShot, duplicateShot } = usePortfolioMutations();
+  const {
+    updateShot,
+    deleteShot,
+    duplicateShot,
+    deleteMultipleShots,
+    updateMultipleShotsStatus,
+    updateMultipleShotsFeatured,
+  } = usePortfolioMutations();
   const toast = useToast();
   const { confirm } = useConfirm();
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // Selection helpers
+  const allShotIds = (shots || []).map((s) => s.id);
+  const isAllSelected = allShotIds.length > 0 && allShotIds.every((id) => selectedIds.includes(id));
+  const isPartiallySelected = selectedIds.length > 0 && !isAllSelected;
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allShotIds);
+    }
+  };
+
+  const handleToggleSelectOne = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    const ok = await confirm({
+      title: 'DELETE PORTFOLIO SHOTS',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to permanently delete ${count} selected portrait${count > 1 ? 's' : ''}? This cannot be undone.`,
+      confirmText: `DELETE ${count} PORTRAIT${count > 1 ? 'S' : ''}`,
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+
+    if (ok) {
+      try {
+        setIsBulkDeleting(true);
+        await deleteMultipleShots.mutateAsync(selectedIds);
+        setSelectedIds([]);
+        toast.success(`Successfully deleted ${count} portrait shot${count > 1 ? 's' : ''}.`, 'PORTFOLIO DELETED');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to delete selected shots', 'DELETE ERROR');
+      } finally {
+        setIsBulkDeleting(false);
+      }
+    }
+  };
+
+  const handleBulkStatus = async (status: ProjectStatus) => {
+    if (selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    try {
+      await updateMultipleShotsStatus.mutateAsync({ ids: selectedIds, status });
+      toast.success(
+        `Updated ${count} portrait${count > 1 ? 's' : ''} to "${status}".`,
+        'STATUS UPDATED'
+      );
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update status', 'UPDATE ERROR');
+    }
+  };
+
+  const handleBulkFeatured = async (featured: boolean) => {
+    if (selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    try {
+      await updateMultipleShotsFeatured.mutateAsync({ ids: selectedIds, featured });
+      toast.success(
+        `${featured ? 'Featured' : 'Unfeatured'} ${count} portrait${count > 1 ? 's' : ''}.`,
+        'FEATURED UPDATED'
+      );
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update featured flag', 'UPDATE ERROR');
+    }
+  };
 
   // Extract unique categories
   const allCategories = ['All', 'Portraiture', 'Editorial', 'Fashion', 'Fine Art', 'Campaign'];
@@ -255,7 +340,19 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-neutral-100 bg-neutral-50/70 text-[11px] font-mono uppercase tracking-wider text-neutral-500">
-                  <th className="py-3 px-4">Plate</th>
+                  <th className="py-3 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isPartiallySelected;
+                      }}
+                      onChange={handleToggleSelectAll}
+                      className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900 cursor-pointer"
+                      title={isAllSelected ? 'Deselect all' : 'Select all'}
+                    />
+                  </th>
+                  <th className="py-3 px-3">Plate</th>
                   <th className="py-3 px-4">Title & Client</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">Aspect Ratio</th>
@@ -266,10 +363,26 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
               </thead>
               <tbody className="divide-y divide-neutral-100 text-xs">
                 {shots.map((s) => {
+                  const isSelected = selectedIds.includes(s.id);
                   return (
-                    <tr key={s.id} className="hover:bg-neutral-50/80 transition group">
+                    <tr
+                      key={s.id}
+                      className={`hover:bg-neutral-50/80 transition group ${
+                        isSelected ? 'bg-neutral-900/[0.03]' : ''
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <td className="py-3 px-3 text-center w-10">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => handleToggleSelectOne(s.id, e)}
+                          className="w-4 h-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900 cursor-pointer"
+                        />
+                      </td>
+
                       {/* Thumbnail */}
-                      <td className="py-3 px-4 w-16">
+                      <td className="py-3 px-3 w-16">
                         <button
                           type="button"
                           onClick={() => setPreviewShot(s)}
@@ -428,6 +541,50 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
           </div>
         </div>
       )}
+
+      {/* Floating Bulk Actions Bar */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        totalCount={shots?.length || 0}
+        onClearSelection={() => setSelectedIds([])}
+        onSelectAll={handleToggleSelectAll}
+        onDelete={handleBulkDelete}
+        isDeleting={isBulkDeleting}
+        entityName="portraits"
+        customActions={
+          <>
+            {/* Quick Status Dropdown */}
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleBulkStatus(e.target.value as ProjectStatus);
+                  e.target.value = '';
+                }
+              }}
+              className="text-xs px-2.5 py-1.5 rounded-xl bg-neutral-900 border border-neutral-700 text-neutral-200 focus:outline-none focus:border-white transition cursor-pointer"
+            >
+              <option value="" disabled>
+                Set Status...
+              </option>
+              <option value="published">Publish Selected</option>
+              <option value="draft">Set to Draft</option>
+              <option value="archived">Archive Selected</option>
+            </select>
+
+            {/* Quick Feature Toggle */}
+            <button
+              type="button"
+              onClick={() => handleBulkFeatured(true)}
+              className="px-2.5 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+              title="Feature selected portraits"
+            >
+              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+              <span className="hidden sm:inline">Feature</span>
+            </button>
+          </>
+        }
+      />
     </div>
   );
 };

@@ -358,11 +358,40 @@ export function useProductMutations() {
     },
   });
 
+  const deleteMultipleProducts = useMutation({
+    mutationFn: (ids: string[]) => ProductService.deleteProducts(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-shots'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboardStats });
+    },
+  });
+
+  const updateMultipleProductsStatus = useMutation({
+    mutationFn: ({ ids, status }: { ids: string[]; status: ProjectStatus }) =>
+      ProductService.updateProductsStatus(ids, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-shots'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboardStats });
+    },
+  });
+
+  const updateMultipleProductsFeatured = useMutation({
+    mutationFn: ({ ids, featured }: { ids: string[]; featured: boolean }) =>
+      ProductService.updateProductsFeatured(ids, featured),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-shots'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.dashboardStats });
+    },
+  });
+
   return {
     createProduct,
     updateProduct,
     deleteProduct,
     duplicateProduct,
+    deleteMultipleProducts,
+    updateMultipleProductsStatus,
+    updateMultipleProductsFeatured,
   };
 }
 

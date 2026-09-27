@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MediaUploader } from '../../components/forms/MediaUploader';
 import { MediaService, LibraryMediaAsset } from '../../features/media/services/mediaService';
 import { useConfirm, useToast } from '../../context/AdminUIContext';
+import { BulkActionBar } from '../../components/admin/BulkActionBar';
 
 export const MediaManagerPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -28,10 +29,73 @@ export const MediaManagerPage: React.FC = () => {
   const [isSeeding, setIsSeeding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   const { data: assets = [], isLoading } = useQuery<LibraryMediaAsset[]>({
     queryKey: ['media-library'],
     queryFn: () => MediaService.getAllLibraryAssets(),
   });
+
+  const filtered = assets.filter((a) => {
+    const matchesType = filterType === 'all' || a.type === filterType;
+    const matchesSearch =
+      !search ||
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
+      a.url.toLowerCase().includes(search.toLowerCase());
+    return matchesType && matchesSearch;
+  });
+
+  // Bulk Selection Helpers
+  const allFilteredIds = filtered.map((a) => a.id);
+  const isAllSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedIds.includes(id));
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allFilteredIds);
+    }
+  };
+
+  const handleToggleSelectOne = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    const ok = await confirm({
+      title: 'DELETE MEDIA ASSETS',
+      subtitle: 'CONFIRMATION REQUIRED',
+      message: `Are you sure you want to permanently delete ${count} media asset${count > 1 ? 's' : ''}? This will also remove references across projects and cannot be undone.`,
+      confirmText: `DELETE ${count} ASSET${count > 1 ? 'S' : ''}`,
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+
+    if (ok) {
+      try {
+        setIsBulkDeleting(true);
+        const targets = assets.filter((a) => selectedIds.includes(a.id)).map((a) => ({
+          id: a.id,
+          storagePath: a.storagePath,
+          url: a.url,
+        }));
+        await MediaService.deleteMultipleLibraryAssets(targets);
+        await queryClient.invalidateQueries();
+        setSelectedIds([]);
+        toast.success(`Successfully deleted ${count} media asset${count > 1 ? 's' : ''}.`, 'MEDIA DELETED');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to delete media assets', 'DELETE ERROR');
+      } finally {
+        setIsBulkDeleting(false);
+      }
+    }
+  };
 
   const handleCopyUrl = (id: string, url: string) => {
     navigator.clipboard.writeText(url);
@@ -75,15 +139,6 @@ export const MediaManagerPage: React.FC = () => {
       setIsSeeding(false);
     }
   };
-
-  const filtered = assets.filter((a) => {
-    const matchesType = filterType === 'all' || a.type === filterType;
-    const matchesSearch =
-      !search ||
-      a.name.toLowerCase().includes(search.toLowerCase()) ||
-      a.url.toLowerCase().includes(search.toLowerCase());
-    return matchesType && matchesSearch;
-  });
 
   return (
     <div className="space-y-6">
@@ -163,12 +218,26 @@ export const MediaManagerPage: React.FC = () => {
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as any)}
-            className="text-xs px-2.5 py-2 border border-neutral-200 rounded-lg bg-neutral-50 text-neutral-700 focus:outline-none focus:border-neutral-900 font-medium"
+            className="text-xs px-2.5 py-2 border border-neutral-200 rounded-lg bg-neutral-50 text-neutral-700 focus:outline-none focus:border-neutral-900 font-medium cursor-pointer"
           >
             <option value="all">All Media</option>
             <option value="image">Images Only</option>
             <option value="video">Videos Only</option>
           </select>
+
+          {filtered.length > 0 && (
+            <button
+              type="button"
+              onClick={handleToggleSelectAll}
+              className={`text-xs px-3 py-2 border rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                isAllSelected
+                  ? 'bg-neutral-900 text-white border-neutral-900'
+                  : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'
+              }`}
+            >
+              <span>{isAllSelected ? 'Deselect All' : `Select All (${filtered.length})`}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -220,75 +289,112 @@ export const MediaManagerPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {filtered.map((asset) => (
-            <div
-              key={asset.id}
-              className="group bg-white border border-neutral-200 rounded-lg overflow-hidden shadow-sm hover:border-neutral-400 transition flex flex-col"
-            >
-              <div className="relative aspect-square bg-neutral-900 overflow-hidden">
-                {asset.type === 'video' ? (
-                  <video src={asset.url} className="w-full h-full object-cover" muted />
-                ) : (
-                  <img
-                    src={asset.url}
-                    alt={asset.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                    referrerPolicy="no-referrer"
-                  />
-                )}
+          {filtered.map((asset) => {
+            const isSelected = selectedIds.includes(asset.id);
+            return (
+              <div
+                key={asset.id}
+                onClick={() => handleToggleSelectOne(asset.id)}
+                className={`group bg-white border rounded-lg overflow-hidden shadow-sm transition flex flex-col cursor-pointer ${
+                  isSelected
+                    ? 'border-neutral-900 ring-2 ring-neutral-900 shadow-md'
+                    : 'border-neutral-200 hover:border-neutral-400'
+                }`}
+              >
+                <div className="relative aspect-square bg-neutral-900 overflow-hidden">
+                  {/* Selection Checkbox */}
+                  <div
+                    className={`absolute top-1.5 left-1.5 z-10 transition-opacity ${
+                      isSelected || selectedIds.length > 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => handleToggleSelectOne(asset.id, e)}
+                      className="w-4 h-4 rounded border-white/70 bg-black/70 text-neutral-900 focus:ring-0 cursor-pointer shadow"
+                    />
+                  </div>
 
-                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-black/60 text-white backdrop-blur-sm">
-                  {asset.type}
+                  {asset.type === 'video' ? (
+                    <video src={asset.url} className="w-full h-full object-cover" muted />
+                  ) : (
+                    <img
+                      src={asset.url}
+                      alt={asset.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+
+                  <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-black/60 text-white backdrop-blur-sm">
+                    {asset.type}
+                  </div>
+                </div>
+
+                <div className="p-2.5 flex-1 flex flex-col justify-between gap-2 bg-neutral-50/50">
+                  <div>
+                    <p className="text-xs font-medium text-neutral-800 truncate" title={asset.name}>
+                      {asset.name}
+                    </p>
+                    <p className="text-[10px] font-mono text-neutral-400 mt-0.5">
+                      {asset.size} • {asset.date}
+                    </p>
+                  </div>
+
+                  <div
+                    className="flex items-center justify-between pt-1 border-t border-neutral-100"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleCopyUrl(asset.id, asset.url)}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-600 hover:text-neutral-950 transition cursor-pointer"
+                      title="Copy Public URL"
+                    >
+                      {copiedId === asset.id ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" /> Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" /> Copy URL
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(asset)}
+                      disabled={deletingId === asset.id}
+                      className="p-1 text-neutral-400 hover:text-red-600 transition cursor-pointer disabled:opacity-50"
+                      title="Delete file permanently"
+                    >
+                      {deletingId === asset.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin text-neutral-500" />
+                      ) : (
+                        <Trash2 className="w-3 h-3" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <div className="p-2.5 flex-1 flex flex-col justify-between gap-2 bg-neutral-50/50">
-                <div>
-                  <p className="text-xs font-medium text-neutral-800 truncate" title={asset.name}>
-                    {asset.name}
-                  </p>
-                  <p className="text-[10px] font-mono text-neutral-400 mt-0.5">
-                    {asset.size} • {asset.date}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between pt-1 border-t border-neutral-100">
-                  <button
-                    type="button"
-                    onClick={() => handleCopyUrl(asset.id, asset.url)}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-600 hover:text-neutral-950 transition cursor-pointer"
-                    title="Copy Public URL"
-                  >
-                    {copiedId === asset.id ? (
-                      <>
-                        <Check className="w-3 h-3 text-emerald-600" /> Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3 h-3" /> Copy URL
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(asset)}
-                    disabled={deletingId === asset.id}
-                    className="p-1 text-neutral-400 hover:text-red-600 transition cursor-pointer disabled:opacity-50"
-                    title="Delete file permanently"
-                  >
-                    {deletingId === asset.id ? (
-                      <Loader2 className="w-3 h-3 animate-spin text-neutral-500" />
-                    ) : (
-                      <Trash2 className="w-3 h-3" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      {/* Floating Bulk Actions Bar */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        totalCount={assets.length}
+        onClearSelection={() => setSelectedIds([])}
+        onSelectAll={handleToggleSelectAll}
+        onDelete={handleBulkDelete}
+        isDeleting={isBulkDeleting}
+        entityName="media assets"
+      />
     </div>
   );
 };
