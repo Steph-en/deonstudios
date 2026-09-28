@@ -26,13 +26,21 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onCancel }) => 
     },
   });
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: LoginFormData, e?: React.BaseSyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setAuthError(null);
-    const res = await login(data);
-    if (res.success) {
-      onSuccess();
-    } else {
-      setAuthError(res.error || 'Authentication failed. Please check your credentials.');
+    try {
+      const res = await login(data);
+      if (res.success) {
+        onSuccess();
+      } else {
+        setAuthError(res.error || 'Authentication failed. Please check your credentials.');
+      }
+    } catch (err: any) {
+      setAuthError(err?.message || 'Authentication failed. Please check your credentials.');
     }
   };
 

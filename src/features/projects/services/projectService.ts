@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { DbProject, ProjectWithDetails, ProjectStatus } from '../../../types/database';
 import { PROJECTS as STATIC_PROJECTS } from '../../../data/portfolioData';
 import { StorageService } from '../../../services/storageService';
-import { isMediaDeleted, markMediaAsDeleted } from '../../../services/indexedDbStorage';
+import { isMediaDeleted, markMediaAsDeleted, unmarkMediaAsDeleted } from '../../../services/indexedDbStorage';
 import { ApiClient } from '../../../lib/api';
 
 // Local storage key for fallback/demo edits when Supabase is not yet populated
@@ -191,8 +191,16 @@ export class ProjectService {
     }
 
     const { data, error } = await query;
-    if (error) {
-      console.warn('Supabase projects query returned error, falling back to local dataset:', error.message);
+    if (error || !data || data.length === 0) {
+      try {
+        const serverProjects = await ApiClient.get<ProjectWithDetails[]>('/projects');
+        if (serverProjects && serverProjects.length > 0) {
+          saveLocalProjects(serverProjects);
+          return serverProjects;
+        }
+      } catch {
+        // fallback
+      }
       return getLocalProjects();
     }
 
@@ -600,6 +608,23 @@ export class ProjectService {
     // Exactly 3 sample projects representing different creative categories
     const selectedSamples = STATIC_PROJECTS.slice(0, 3);
 
+    // Unmark any previously blacklisted IDs, slugs, or image URLs
+    const keysToUnmark: string[] = [];
+    selectedSamples.forEach((sp, idx) => {
+      keysToUnmark.push(sp.id || `proj-${idx + 1}`);
+      keysToUnmark.push(sp.slug);
+      if (sp.images) {
+        sp.images.forEach((img) => {
+          if (img.url) keysToUnmark.push(img.url);
+        });
+      }
+    });
+    try {
+      await unmarkMediaAsDeleted(keysToUnmark);
+    } catch {
+      // ignore
+    }
+
     const sampleProjects = selectedSamples.map((sp, idx) => ({
       title: sp.title,
       slug: sp.slug,
@@ -622,23 +647,20 @@ export class ProjectService {
     if (isSupabaseConfigured()) {
       for (const p of sampleProjects) {
         try {
-          await supabase.from('projects').upsert(p, { onConflict: 'slug' });
+          const res = await supabase.from('projects').upsert(p, { onConflict: 'slug' });
+          if (res.error) {
+            console.warn('Seeding project in Supabase notice:', res.error.message);
+          }
         } catch (e) {
           console.warn('Seeding project error:', e);
         }
       }
     }
 
-    if (!isSupabaseConfigured()) {
-      try {
-        const res = await ApiClient.post<{ projects: ProjectWithDetails[] }>('/projects/seed');
-        if (res?.projects) {
-          saveLocalProjects(res.projects);
-          return res.projects;
-        }
-      } catch {
-        // fallback
-      }
+    try {
+      await ApiClient.post<{ projects: ProjectWithDetails[] }>('/projects/seed');
+    } catch {
+      // fallback
     }
 
     // Also populate local cache with exactly these 3 sample projects

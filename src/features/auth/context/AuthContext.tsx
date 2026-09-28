@@ -97,7 +97,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(
     async (credentials: SignInCredentials) => {
-      setIsLoading(true);
       try {
         const { data } = await AuthService.signIn(credentials);
         const loggedUser = data?.user as User | undefined;
@@ -126,10 +125,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setRole(isPrimary ? 'admin' : 'manager');
         }
 
-        setIsLoading(false);
         return { success: true };
       } catch (error: any) {
-        setIsLoading(false);
         return { success: false, error: error.message || 'Login failed' };
       }
     },

@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { DeviceType } from '../../../types/database';
+import { ApiClient } from '../../../lib/api';
 
 function getSessionId(): string {
   if (typeof window === 'undefined') return 'server';
@@ -166,6 +167,35 @@ export class AnalyticsService {
       // ignore
     }
 
+    // If local counts are 0, try fetching from server database
+    if (localProjectsCount === 0 || localPortCount === 0 || localProdCount === 0) {
+      try {
+        const [serverProj, serverPort, serverProd, serverCat] = await Promise.all([
+          ApiClient.get<any[]>('/projects').catch(() => []),
+          ApiClient.get<any[]>('/portfolio').catch(() => []),
+          ApiClient.get<any[]>('/products').catch(() => []),
+          ApiClient.get<any[]>('/categories').catch(() => []),
+        ]);
+        if (serverProj && serverProj.length > 0) {
+          localProjectsCount = serverProj.filter((p: any) => !p.deleted_at).length;
+          localPublishedCount = serverProj.filter((p: any) => p.status === 'published' && !p.deleted_at).length;
+          localDraftCount = serverProj.filter((p: any) => p.status === 'draft' && !p.deleted_at).length;
+          localArchivedCount = serverProj.filter((p: any) => p.status === 'archived' && !p.deleted_at).length;
+        }
+        if (serverPort && serverPort.length > 0) {
+          localPortCount = serverPort.filter((s: any) => !s.deleted_at).length;
+        }
+        if (serverProd && serverProd.length > 0) {
+          localProdCount = serverProd.filter((p: any) => !p.deleted_at).length;
+        }
+        if (serverCat && serverCat.length > 0) {
+          localCategoriesCount = serverCat.length;
+        }
+      } catch {
+        // fallback
+      }
+    }
+
     if (!isSupabaseConfigured()) {
       return {
         totalProjects: localProjectsCount,
@@ -197,13 +227,13 @@ export class AnalyticsService {
       const dbUniqueVisitors = new Set(viewRes.data?.map((d) => d.user_session_id)).size || 0;
 
       return {
-        totalProjects: pRes.count ?? localProjectsCount,
-        publishedProjects: pubRes.count ?? localPublishedCount,
-        draftProjects: draftRes.count ?? localDraftCount,
-        archivedProjects: archRes.count ?? localArchivedCount,
-        totalPortfolioShots: portRes.count ?? localPortCount,
-        totalProductShots: prodRes.count ?? localProdCount,
-        totalCategories: catRes.count ?? localCategoriesCount,
+        totalProjects: (pRes.count && pRes.count > 0) ? pRes.count : localProjectsCount,
+        publishedProjects: (pubRes.count && pubRes.count > 0) ? pubRes.count : localPublishedCount,
+        draftProjects: (draftRes.count && draftRes.count > 0) ? draftRes.count : localDraftCount,
+        archivedProjects: (archRes.count && archRes.count > 0) ? archRes.count : localArchivedCount,
+        totalPortfolioShots: (portRes.count && portRes.count > 0) ? portRes.count : localPortCount,
+        totalProductShots: (prodRes.count && prodRes.count > 0) ? prodRes.count : localProdCount,
+        totalCategories: (catRes.count && catRes.count > 0) ? catRes.count : localCategoriesCount,
         totalViews: dbViewsCount > 0 ? dbViewsCount : localViewsCount,
         uniqueVisitors: dbUniqueVisitors > 0 ? dbUniqueVisitors : localUniqueVisitors,
       };

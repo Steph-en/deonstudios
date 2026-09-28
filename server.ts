@@ -688,6 +688,19 @@ async function startServer() {
   api.post('/projects/seed', (_req: Request, res: Response) => {
     const initial = getInitialDatabase();
     db.projects = initial.projects;
+    if (Array.isArray(db.deleted_keys)) {
+      const seedKeys = new Set(
+        initial.projects.flatMap((p: any) => [
+          p.id?.toLowerCase(),
+          p.slug?.toLowerCase(),
+          p.preview_image?.toLowerCase(),
+          p.hero_image?.toLowerCase(),
+          ...(p.media || []).map((m: any) => m.id?.toLowerCase()),
+          ...(p.media || []).map((m: any) => m.media_url?.toLowerCase()),
+        ]).filter(Boolean)
+      );
+      db.deleted_keys = db.deleted_keys.filter((k: string) => !seedKeys.has(k.toLowerCase()));
+    }
     saveDatabase(db);
     res.json({ success: true, count: db.projects.length, projects: db.projects });
   });
@@ -792,6 +805,17 @@ async function startServer() {
   api.post('/portfolio/seed', (_req: Request, res: Response) => {
     const initial = getInitialDatabase();
     db.portfolio = initial.portfolio;
+    if (Array.isArray(db.deleted_keys)) {
+      const seedKeys = new Set(
+        initial.portfolio.flatMap((s: any) => [
+          s.id?.toLowerCase(),
+          s.url?.toLowerCase(),
+          s.fallback_url?.toLowerCase(),
+          s.title?.toLowerCase(),
+        ]).filter(Boolean)
+      );
+      db.deleted_keys = db.deleted_keys.filter((k: string) => !seedKeys.has(k.toLowerCase()));
+    }
     saveDatabase(db);
     res.json({ success: true, count: db.portfolio.length, portfolio: db.portfolio });
   });
@@ -896,6 +920,17 @@ async function startServer() {
   api.post('/products/seed', (_req: Request, res: Response) => {
     const initial = getInitialDatabase();
     db.products = initial.products;
+    if (Array.isArray(db.deleted_keys)) {
+      const seedKeys = new Set(
+        initial.products.flatMap((p: any) => [
+          p.id?.toLowerCase(),
+          p.url?.toLowerCase(),
+          p.fallback_url?.toLowerCase(),
+          p.title?.toLowerCase(),
+        ]).filter(Boolean)
+      );
+      db.deleted_keys = db.deleted_keys.filter((k: string) => !seedKeys.has(k.toLowerCase()));
+    }
     saveDatabase(db);
     res.json({ success: true, count: db.products.length, products: db.products });
   });

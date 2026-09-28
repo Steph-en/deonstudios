@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { DbPortfolioShot, ProjectStatus } from '../../../types/database';
 import { SingleShot } from '../../../types';
 import { PORTFOLIO_SHOTS as STATIC_PORTFOLIO_SHOTS } from '../../../data/portfolioData';
-import { isMediaDeleted, markMediaAsDeleted } from '../../../services/indexedDbStorage';
+import { isMediaDeleted, markMediaAsDeleted, unmarkMediaAsDeleted } from '../../../services/indexedDbStorage';
 import { ApiClient } from '../../../lib/api';
 
 const LOCAL_PORTFOLIO_KEY = 'deon_cms_local_portfolio_shots';
@@ -164,6 +164,15 @@ export class PortfolioService {
 
       const { data, error } = await query;
       if (error || !data || data.length === 0) {
+        try {
+          const serverShots = await ApiClient.get<DbPortfolioShot[]>('/portfolio');
+          if (serverShots && serverShots.length > 0) {
+            saveLocalShots(serverShots);
+            return serverShots;
+          }
+        } catch {
+          // fallback
+        }
         return getLocalShots();
       }
       return data as DbPortfolioShot[];
@@ -484,16 +493,24 @@ export class PortfolioService {
    * Seeds exactly 3 sample portfolio portrait shots into Supabase and local storage
    */
   static async seedShotsToDatabase(): Promise<DbPortfolioShot[]> {
-    if (!isSupabaseConfigured()) {
-      try {
-        const res = await ApiClient.post<{ portfolio: DbPortfolioShot[] }>('/portfolio/seed');
-        if (res?.portfolio) {
-          saveLocalShots(res.portfolio);
-          return res.portfolio;
-        }
-      } catch {
-        // fallback
-      }
+    // Unmark any previously blacklisted IDs, titles, or URLs
+    const keysToUnmark: string[] = [];
+    STATIC_PORTFOLIO_SHOTS.slice(0, 3).forEach((s, idx) => {
+      keysToUnmark.push(s.id || `port-${idx + 1}`);
+      if (s.title) keysToUnmark.push(s.title);
+      if (s.url) keysToUnmark.push(s.url);
+      if (s.fallbackUrl) keysToUnmark.push(s.fallbackUrl);
+    });
+    try {
+      await unmarkMediaAsDeleted(keysToUnmark);
+    } catch {
+      // ignore
+    }
+
+    try {
+      await ApiClient.post<{ portfolio: DbPortfolioShot[] }>('/portfolio/seed');
+    } catch {
+      // fallback
     }
 
     // Exactly 3 sample shots showing portrait, editorial, and creative lighting structures
@@ -503,7 +520,10 @@ export class PortfolioService {
       for (const shot of initial) {
         try {
           const { id, ...dataWithoutId } = shot;
-          await supabase.from('portfolio_shots').insert(dataWithoutId);
+          const res = await supabase.from('portfolio_shots').insert(dataWithoutId);
+          if (res.error) {
+            console.warn('Seed shot in Supabase notice:', res.error.message);
+          }
         } catch (e) {
           console.warn('Seed shot error:', e);
         }

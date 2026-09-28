@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { DbProductShot, ProjectStatus } from '../../../types/database';
 import { SingleShot } from '../../../types';
 import { PRODUCT_SHOTS as STATIC_PRODUCT_SHOTS } from '../../../data/portfolioData';
-import { isMediaDeleted, markMediaAsDeleted } from '../../../services/indexedDbStorage';
+import { isMediaDeleted, markMediaAsDeleted, unmarkMediaAsDeleted } from '../../../services/indexedDbStorage';
 import { ApiClient } from '../../../lib/api';
 
 const LOCAL_PRODUCTS_KEY = 'deon_cms_local_product_shots';
@@ -164,6 +164,15 @@ export class ProductService {
 
       const { data, error } = await query;
       if (error || !data || data.length === 0) {
+        try {
+          const serverProducts = await ApiClient.get<DbProductShot[]>('/products');
+          if (serverProducts && serverProducts.length > 0) {
+            saveLocalProducts(serverProducts);
+            return serverProducts;
+          }
+        } catch {
+          // fallback
+        }
         return getLocalProducts();
       }
       return data as DbProductShot[];
@@ -484,16 +493,24 @@ export class ProductService {
    * Seeds exactly 3 sample product still life shots into Supabase and local storage
    */
   static async seedProductsToDatabase(): Promise<DbProductShot[]> {
-    if (!isSupabaseConfigured()) {
-      try {
-        const res = await ApiClient.post<{ products: DbProductShot[] }>('/products/seed');
-        if (res?.products) {
-          saveLocalProducts(res.products);
-          return res.products;
-        }
-      } catch {
-        // fallback
-      }
+    // Unmark any previously blacklisted IDs, titles, or URLs
+    const keysToUnmark: string[] = [];
+    STATIC_PRODUCT_SHOTS.slice(0, 3).forEach((s, idx) => {
+      keysToUnmark.push(s.id || `prod-${idx + 1}`);
+      if (s.title) keysToUnmark.push(s.title);
+      if (s.url) keysToUnmark.push(s.url);
+      if (s.fallbackUrl) keysToUnmark.push(s.fallbackUrl);
+    });
+    try {
+      await unmarkMediaAsDeleted(keysToUnmark);
+    } catch {
+      // ignore
+    }
+
+    try {
+      await ApiClient.post<{ products: DbProductShot[] }>('/products/seed');
+    } catch {
+      // fallback
     }
 
     // Exactly 3 sample shots showing cosmetics, skincare, and set design structures
@@ -503,7 +520,10 @@ export class ProductService {
       for (const shot of initial) {
         try {
           const { id, ...dataWithoutId } = shot;
-          await supabase.from('product_shots').insert(dataWithoutId);
+          const res = await supabase.from('product_shots').insert(dataWithoutId);
+          if (res.error) {
+            console.warn('Seed product in Supabase notice:', res.error.message);
+          }
         } catch (e) {
           console.warn('Seed product error:', e);
         }

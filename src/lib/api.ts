@@ -5,9 +5,12 @@
  */
 
 export class ApiClient {
-  private static baseUrl = import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api`
-    : '/api';
+  private static baseUrl =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL)
+      ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api`
+      : typeof window !== 'undefined'
+      ? '/api'
+      : 'http://localhost:3000/api';
 
   private static async parseResponse<T>(res: Response, endpoint: string): Promise<T> {
     const contentType = res.headers.get('content-type') || '';
