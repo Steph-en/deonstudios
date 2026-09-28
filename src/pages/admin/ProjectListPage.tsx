@@ -516,7 +516,7 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
                   e.target.value = '';
                 }
               }}
-              className="text-xs px-2.5 py-1.5 rounded-xl bg-neutral-900 border border-neutral-700 text-neutral-200 focus:outline-none focus:border-white transition cursor-pointer"
+              className="text-xs px-2.5 py-1.5 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-300 text-neutral-800 focus:outline-none focus:border-neutral-900 transition cursor-pointer font-medium"
             >
               <option value="" disabled>
                 Set Status...
@@ -530,10 +530,10 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
             <button
               type="button"
               onClick={() => handleBulkFeatured(true)}
-              className="px-2.5 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-300 text-neutral-800 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
               title="Feature selected projects"
             >
-              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
               <span className="hidden sm:inline">Feature</span>
             </button>
           </>

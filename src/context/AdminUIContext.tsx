@@ -218,21 +218,21 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
       </div>
 
       {/* ========================================================================= */}
-      {/* CENTERED LIGHTBOX CONFIRMATION / ALERT MODAL DIALOG */}
-      {/* Replaces browser confirm() and alert() matching provided screenshot design */}
+      {/* CENTERED LIGHTBOX CONFIRMATION / ALERT MODAL DIALOG (LIGHT THEME) */}
+      {/* Replaces browser confirm() and alert() matching light design system */}
       {/* ========================================================================= */}
       {dialog.isOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-xs animate-in fade-in duration-200"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               handleDialogCancel();
             }
           }}
         >
-          <div className="relative w-full max-w-[460px] bg-neutral-900/95 border border-neutral-800 rounded-2xl shadow-2xl p-6 text-neutral-100 overflow-hidden transform scale-100 transition-all">
+          <div className="relative w-full max-w-[460px] bg-white border border-neutral-200 rounded-2xl shadow-2xl p-6 text-neutral-900 overflow-hidden ring-1 ring-black/5 transform scale-100 transition-all">
             {/* Top decorative accent glow */}
             <div
               className={`absolute top-0 left-0 right-0 h-[2px] ${
@@ -240,7 +240,7 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   ? 'bg-gradient-to-r from-transparent via-rose-500 to-transparent'
                   : variant === 'warning'
                   ? 'bg-gradient-to-r from-transparent via-amber-500 to-transparent'
-                  : 'bg-gradient-to-r from-transparent via-neutral-400 to-transparent'
+                  : 'bg-gradient-to-r from-transparent via-neutral-300 to-transparent'
               }`}
             />
 
@@ -251,10 +251,10 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
                     variant === 'danger'
-                      ? 'bg-rose-500/10 border border-rose-500/20 text-rose-500'
+                      ? 'bg-rose-50 border border-rose-200 text-rose-600'
                       : variant === 'warning'
-                      ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400'
-                      : 'bg-neutral-800 border border-neutral-700 text-neutral-300'
+                      ? 'bg-amber-50 border border-amber-200 text-amber-600'
+                      : 'bg-neutral-100 border border-neutral-200 text-neutral-700'
                   }`}
                 >
                   {variant === 'danger' ? (
@@ -267,10 +267,10 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-bold tracking-wide uppercase text-neutral-100 font-sans">
+                  <h3 className="text-sm font-bold tracking-wide uppercase text-neutral-900 font-sans">
                     {dialog.options.title || 'CONFIRM ACTION'}
                   </h3>
-                  <p className="text-[10px] font-semibold tracking-wider uppercase text-neutral-400 mt-0.5">
+                  <p className="text-[10px] font-semibold tracking-wider uppercase text-neutral-500 mt-0.5">
                     {dialog.options.subtitle || 'CONFIRMATION REQUIRED'}
                   </p>
                 </div>
@@ -280,7 +280,7 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
               <button
                 type="button"
                 onClick={handleDialogCancel}
-                className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+                className="p-1 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
                 title="Close"
               >
                 <X className="w-4 h-4" />
@@ -289,18 +289,18 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
             {/* Body Description */}
             <div className="mt-4 mb-6">
-              <p className="text-sm text-neutral-300 leading-relaxed font-sans">
+              <p className="text-sm text-neutral-600 leading-relaxed font-sans">
                 {dialog.options.message}
               </p>
             </div>
 
             {/* Footer Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-neutral-800/80">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-100">
               {!dialog.isAlertOnly && (
                 <button
                   type="button"
                   onClick={handleDialogCancel}
-                  className="px-5 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 active:scale-[0.98] text-neutral-300 text-xs font-semibold uppercase tracking-wider transition border border-neutral-700/60"
+                  className="px-5 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 active:scale-[0.98] text-neutral-700 text-xs font-semibold uppercase tracking-wider transition border border-neutral-200 cursor-pointer"
                 >
                   {dialog.options.cancelText || 'CANCEL'}
                 </button>
@@ -310,12 +310,12 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 ref={confirmButtonRef}
                 type="button"
                 onClick={handleDialogConfirm}
-                className={`px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider active:scale-[0.98] transition shadow-lg ${
+                className={`px-5 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider active:scale-[0.98] transition shadow-sm cursor-pointer ${
                   variant === 'danger'
-                    ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/25'
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20'
                     : variant === 'warning'
-                    ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/25'
-                    : 'bg-white hover:bg-neutral-200 text-neutral-950 shadow-white/10'
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20'
+                    : 'bg-neutral-900 hover:bg-neutral-800 text-white'
                 }`}
               >
                 {dialog.options.confirmText || (dialog.isAlertOnly ? 'GOT IT' : 'DELETE PERMANENTLY')}
@@ -328,7 +328,7 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
 };
 
-// MacBook style individual Toast item with 4-second auto-dismiss and progress bar
+// MacBook style individual Toast item with 4-second auto-dismiss and progress bar (Light Theme)
 const MacToast: React.FC<{ item: ToastItem; onDismiss: () => void }> = ({ item, onDismiss }) => {
   const [progress, setProgress] = useState(100);
 
@@ -349,23 +349,23 @@ const MacToast: React.FC<{ item: ToastItem; onDismiss: () => void }> = ({ item, 
 
   const typeConfig = {
     success: {
-      badgeClass: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
-      progressClass: 'bg-emerald-500',
+      badgeClass: 'bg-emerald-50 border-emerald-200 text-emerald-600',
+      progressClass: 'bg-emerald-600',
       icon: <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />,
     },
     error: {
-      badgeClass: 'bg-rose-500/10 border-rose-500/20 text-rose-400',
-      progressClass: 'bg-rose-500',
+      badgeClass: 'bg-rose-50 border-rose-200 text-rose-600',
+      progressClass: 'bg-rose-600',
       icon: <AlertCircle className="w-4 h-4 stroke-[2.5]" />,
     },
     warning: {
-      badgeClass: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
+      badgeClass: 'bg-amber-50 border-amber-200 text-amber-600',
       progressClass: 'bg-amber-500',
       icon: <AlertTriangle className="w-4 h-4 stroke-[2.5]" />,
     },
     info: {
-      badgeClass: 'bg-sky-500/10 border-sky-500/20 text-sky-400',
-      progressClass: 'bg-sky-500',
+      badgeClass: 'bg-sky-50 border-sky-200 text-sky-600',
+      progressClass: 'bg-sky-600',
       icon: <Info className="w-4 h-4 stroke-[2.5]" />,
     },
   }[item.type];
@@ -373,24 +373,24 @@ const MacToast: React.FC<{ item: ToastItem; onDismiss: () => void }> = ({ item, 
   return (
     <div
       role="alert"
-      className="pointer-events-auto relative w-full bg-neutral-900/90 backdrop-blur-xl border border-neutral-700/60 shadow-2xl rounded-2xl p-3.5 text-neutral-100 overflow-hidden transition-all duration-300 transform translate-x-0 animate-in slide-in-from-right-8 fade-in"
+      className="pointer-events-auto relative w-full bg-white/95 backdrop-blur-xl border border-neutral-200/90 shadow-xl rounded-2xl p-3.5 text-neutral-900 overflow-hidden ring-1 ring-black/5 transition-all duration-300 transform translate-x-0 animate-in slide-in-from-right-8 fade-in"
     >
       {/* Top macOS Notification Header Bar */}
-      <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-neutral-800/80">
+      <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-neutral-100">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded bg-neutral-800 border border-neutral-700 flex items-center justify-center text-neutral-300">
+          <div className="w-4 h-4 rounded bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-600">
             <Camera className="w-2.5 h-2.5" />
           </div>
-          <span className="text-[10px] font-bold tracking-wider uppercase text-neutral-400">
+          <span className="text-[10px] font-bold tracking-wider uppercase text-neutral-500">
             Deon Studios
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-neutral-500 font-mono">now</span>
+          <span className="text-[10px] text-neutral-400 font-mono">now</span>
           <button
             type="button"
             onClick={onDismiss}
-            className="p-0.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+            className="p-0.5 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
             title="Dismiss"
           >
             <X className="w-3.5 h-3.5" />
@@ -400,15 +400,15 @@ const MacToast: React.FC<{ item: ToastItem; onDismiss: () => void }> = ({ item, 
 
       {/* Notification Content */}
       <div className="flex items-start gap-3">
-        <div className={`p-1 rounded-lg border shrink-0 ${typeConfig.badgeClass}`}>
+        <div className={`p-1.5 rounded-lg border shrink-0 ${typeConfig.badgeClass}`}>
           {typeConfig.icon}
         </div>
         <div className="flex-1 min-w-0 pr-1">
-          <p className="text-xs font-semibold text-neutral-100 uppercase tracking-wide truncate">
+          <p className="text-xs font-semibold text-neutral-900 uppercase tracking-wide truncate">
             {item.title}
           </p>
           {item.message && (
-            <p className="text-xs text-neutral-300 mt-0.5 leading-relaxed break-words">
+            <p className="text-xs text-neutral-600 mt-0.5 leading-relaxed break-words font-normal">
               {item.message}
             </p>
           )}
@@ -416,7 +416,7 @@ const MacToast: React.FC<{ item: ToastItem; onDismiss: () => void }> = ({ item, 
       </div>
 
       {/* Progress Bar (4-second duration visual indicator) */}
-      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-neutral-800">
+      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-neutral-100">
         <div
           className={`h-full transition-all duration-75 ease-linear ${typeConfig.progressClass}`}
           style={{ width: `${progress}%` }}

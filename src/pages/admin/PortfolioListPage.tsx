@@ -508,14 +508,14 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
       {/* Quick Modal Preview */}
       {previewShot && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-neutral-950/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
           onClick={() => setPreviewShot(null)}
         >
           <div
-            className="max-w-xl w-full bg-neutral-950 text-white rounded-xl overflow-hidden border border-neutral-800 shadow-2xl"
+            className="max-w-xl w-full bg-white text-neutral-900 rounded-2xl overflow-hidden border border-neutral-200 shadow-2xl ring-1 ring-black/5"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="relative aspect-[3/4] max-h-[70vh] bg-black">
+            <div className="relative aspect-[3/4] max-h-[70vh] bg-neutral-100">
               <img
                 src={previewShot.url}
                 alt={previewShot.title}
@@ -523,17 +523,17 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
                 referrerPolicy="no-referrer"
               />
             </div>
-            <div className="p-4 flex items-center justify-between border-t border-neutral-800">
+            <div className="p-4 flex items-center justify-between border-t border-neutral-100 bg-white">
               <div>
-                <h4 className="text-sm font-semibold">{previewShot.title}</h4>
-                <p className="text-xs text-neutral-400">
+                <h4 className="text-sm font-semibold text-neutral-900">{previewShot.title}</h4>
+                <p className="text-xs text-neutral-500">
                   {previewShot.client_or_brand || 'Studio Portrait'} • {previewShot.category}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setPreviewShot(null)}
-                className="text-xs px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-white transition"
+                className="text-xs px-3.5 py-1.5 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-medium transition cursor-pointer"
               >
                 Close
               </button>
@@ -562,7 +562,7 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
                   e.target.value = '';
                 }
               }}
-              className="text-xs px-2.5 py-1.5 rounded-xl bg-neutral-900 border border-neutral-700 text-neutral-200 focus:outline-none focus:border-white transition cursor-pointer"
+              className="text-xs px-2.5 py-1.5 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-300 text-neutral-800 focus:outline-none focus:border-neutral-900 transition cursor-pointer font-medium"
             >
               <option value="" disabled>
                 Set Status...
@@ -576,10 +576,10 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
             <button
               type="button"
               onClick={() => handleBulkFeatured(true)}
-              className="px-2.5 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
+              className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-neutral-50 border border-neutral-300 text-neutral-800 text-xs font-medium transition cursor-pointer flex items-center gap-1.5"
               title="Feature selected portraits"
             >
-              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
               <span className="hidden sm:inline">Feature</span>
             </button>
           </>

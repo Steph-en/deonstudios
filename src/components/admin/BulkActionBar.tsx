@@ -30,13 +30,13 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] w-[95%] max-w-2xl animate-in slide-in-from-bottom-5 fade-in duration-200">
-      <div className="bg-neutral-950/95 text-neutral-100 backdrop-blur-xl border border-neutral-700/80 rounded-2xl shadow-2xl p-2.5 sm:p-3 px-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white/95 text-neutral-900 backdrop-blur-xl border border-neutral-200/90 rounded-2xl shadow-2xl p-2.5 sm:p-3 px-4 flex flex-wrap items-center justify-between gap-3 ring-1 ring-black/5">
         {/* Left Section: Count & Select All */}
         <div className="flex items-center gap-2.5">
-          <span className="flex items-center justify-center px-2 py-0.5 rounded-md bg-white/10 text-white font-mono text-xs font-bold border border-white/15">
+          <span className="flex items-center justify-center px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-900 font-mono text-xs font-bold border border-neutral-200">
             {selectedCount}
           </span>
-          <span className="text-xs text-neutral-300 font-medium">
+          <span className="text-xs text-neutral-600 font-medium">
             selected <span className="hidden sm:inline">of {totalCount} {entityName}</span>
           </span>
 
@@ -44,7 +44,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
             <button
               type="button"
               onClick={onSelectAll}
-              className="text-[11px] text-neutral-400 hover:text-white underline decoration-neutral-600 hover:decoration-white transition ml-1 cursor-pointer"
+              className="text-[11px] text-neutral-500 hover:text-neutral-900 underline decoration-neutral-300 hover:decoration-neutral-900 transition ml-1 cursor-pointer font-medium"
             >
               Select all ({totalCount})
             </button>
@@ -60,19 +60,19 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               type="button"
               onClick={onDelete}
               disabled={isDeleting}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-[0.98] text-white text-xs font-semibold uppercase tracking-wider transition shadow-lg shadow-rose-600/20 disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white text-xs font-semibold uppercase tracking-wider transition shadow-sm shadow-rose-600/20 disabled:opacity-50 cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>{deleteLabel || `Delete (${selectedCount})`}</span>
             </button>
           )}
 
-          <div className="h-4 w-[1px] bg-neutral-800 hidden sm:block" />
+          <div className="h-4 w-[1px] bg-neutral-200 hidden sm:block" />
 
           <button
             type="button"
             onClick={onClearSelection}
-            className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+            className="p-1 rounded-lg text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
             title="Deselect all"
           >
             <X className="w-4 h-4" />
