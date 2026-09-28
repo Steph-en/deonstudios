@@ -1105,12 +1105,15 @@ async function startServer() {
 
   api.delete('/auth/users/:id', (req: Request, res: Response) => {
     const { id } = req.params;
-    if (id === 'admin-appahstephen9' || id === 'demo-admin-id') {
+    const email = ((req.query.email as string) || (req.body?.email as string) || '').trim().toLowerCase();
+    if (id === 'admin-appahstephen9' || id === 'demo-admin-id' || email === 'appahstephen9@gmail.com') {
       return res.status(400).json({ error: 'Cannot delete primary owner' });
     }
-    db.users = (db.users || []).filter((u) => u.id !== id);
+    db.users = (db.users || []).filter(
+      (u) => u.id !== id && (email ? u.email?.toLowerCase() !== email : true)
+    );
     saveDatabase(db);
-    res.json({ success: true, id });
+    res.json({ success: true, id, email });
   });
 
   // Mount API router

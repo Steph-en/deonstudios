@@ -502,6 +502,13 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       };
+      delete_user_by_admin: {
+        Args: {
+          target_user_email: string;
+          target_user_id?: string | null;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       [_ in never]: never;

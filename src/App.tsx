@@ -467,10 +467,12 @@ export default function App() {
           <DocumentSeo activePage="admin" selectedProject={null} adminTab="overview" />
           <LoginForm
             onSuccess={() => {
+              setActivePage('admin');
               setAdminTab('overview');
               setEditingProjectId(null);
               setEditingPortfolioShotId(null);
               setEditingProductId(null);
+              window.location.hash = '#admin/overview';
             }}
             onCancel={handleNavigateHome}
           />

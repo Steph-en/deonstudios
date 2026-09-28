@@ -188,6 +188,49 @@ export class AuthService {
         if (data?.user) {
           const isPrimary =
             data.user.email?.toLowerCase() === PRIMARY_ADMIN_EMAIL.toLowerCase();
+
+          // If this is a team member (non-primary admin), verify their account has NOT been deleted
+          if (!isPrimary) {
+            let isUserActive = false;
+            try {
+              const { data: appUser } = await supabase
+                .from('app_users')
+                .select('id, email, role')
+                .ilike('email', cleanEmail)
+                .maybeSingle();
+
+              const { data: profUser } = await supabase
+                .from('profiles')
+                .select('id, email, role')
+                .ilike('email', cleanEmail)
+                .maybeSingle();
+
+              isUserActive = Boolean(appUser || profUser);
+            } catch {
+              // If query error, check local server users as fallback
+              const localUsers = this.getLocalTeamUsers();
+              isUserActive = localUsers.some((u) => u.email.toLowerCase() === cleanEmail);
+            }
+
+            if (!isUserActive) {
+              // User has been deleted/revoked by the administrator!
+              await supabase.auth.signOut();
+              localStorage.removeItem('demo_admin_session');
+
+              // Asynchronously clean up from auth.users via RPC
+              try {
+                await (supabase.rpc as any)('delete_user_by_admin', {
+                  target_user_email: cleanEmail,
+                  target_user_id: data.user.id,
+                });
+              } catch {
+                // ignore
+              }
+
+              throw new Error('This account has been revoked or removed by the administrator. Access is disabled.');
+            }
+          }
+
           const userSession = {
             id: data.user.id,
             email: data.user.email,
@@ -204,6 +247,11 @@ export class AuthService {
           if (isPrimary) {
             localStorage.setItem('demo_admin_password', password);
           }
+
+          return {
+            data: { user: userSession, session: { user: userSession } },
+            error: null,
+          };
         }
 
         return { data, error: null };
@@ -374,8 +422,41 @@ export class AuthService {
       throw new Error(`An account with email "${cleanEmail}" already exists.`);
     }
 
+    let authUid: string | null = null;
+
+    // 1. Attempt Supabase Auth sign-up first to obtain real UUID
+    if (isSupabaseConfigured()) {
+      try {
+        const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+        });
+
+        const { data: signUpData } = await tempClient.auth.signUp({
+          email: cleanEmail,
+          password: payload.password,
+          options: {
+            data: {
+              full_name: payload.full_name.trim(),
+              username: cleanUsername,
+              role: payload.role,
+            },
+            emailRedirectTo: getAuthRedirectUrl('/admin'),
+          },
+        });
+
+        if (signUpData?.user?.id) {
+          authUid = signUpData.user.id;
+        }
+      } catch (authErr) {
+        console.warn('Supabase sign-up attempt notice:', authErr);
+      }
+    }
+
     const newUser = {
-      id: `usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: authUid || `usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       email: cleanEmail,
       username: cleanUsername,
       full_name: payload.full_name.trim(),
@@ -385,7 +466,7 @@ export class AuthService {
       updated_at: new Date().toISOString(),
     };
 
-    // 1. Cross-Platform Persist: Insert into Supabase app_users table & profiles
+    // 2. Cross-Platform Persist: Insert into Supabase app_users table & profiles
     if (isSupabaseConfigured()) {
       try {
         await supabase.from('app_users').upsert({
@@ -415,31 +496,6 @@ export class AuthService {
       } catch (profErr) {
         console.warn('Supabase profiles upsert note:', profErr);
       }
-
-      // 2. Also attempt Supabase Auth sign-up (does not block if rate limited or email unconfirmed)
-      try {
-        const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
-          auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-          },
-        });
-
-        await tempClient.auth.signUp({
-          email: cleanEmail,
-          password: payload.password,
-          options: {
-            data: {
-              full_name: payload.full_name.trim(),
-              username: cleanUsername,
-              role: payload.role,
-            },
-            emailRedirectTo: getAuthRedirectUrl('/admin'),
-          },
-        });
-      } catch (authErr) {
-        console.warn('Supabase sign-up attempt notice:', authErr);
-      }
     }
 
     // 3. Persist to server API if available (Local / Dev backend)
@@ -460,10 +516,54 @@ export class AuthService {
   }
 
   /**
-   * Remove a user account
+   * Remove a user account across all database stores and Supabase Authentication
    */
-  static async removeTeamMember(id: string): Promise<void> {
-    if (id === 'admin-appahstephen9' || id === 'demo-admin-id') {
+  static async removeTeamMember(id: string, email?: string): Promise<void> {
+    let cleanEmail = email?.trim().toLowerCase();
+
+    // Auto-resolve email if not directly provided
+    if (!cleanEmail) {
+      const local = this.getLocalTeamUsers().find((u) => u.id === id);
+      if (local?.email) {
+        cleanEmail = local.email.trim().toLowerCase();
+      }
+    }
+
+    if (!cleanEmail && isSupabaseConfigured()) {
+      try {
+        const { data: suAppUser } = await supabase
+          .from('app_users')
+          .select('email')
+          .eq('id', id)
+          .maybeSingle();
+        if (suAppUser?.email) {
+          cleanEmail = suAppUser.email.trim().toLowerCase();
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!cleanEmail && isSupabaseConfigured()) {
+      try {
+        const { data: suProf } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', id)
+          .maybeSingle();
+        if (suProf?.email) {
+          cleanEmail = suProf.email.trim().toLowerCase();
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (
+      id === 'admin-appahstephen9' ||
+      id === 'demo-admin-id' ||
+      cleanEmail === PRIMARY_ADMIN_EMAIL
+    ) {
       throw new Error('Cannot delete the primary owner account.');
     }
 
@@ -477,21 +577,45 @@ export class AuthService {
       throw new Error('Access Denied: Only administrators have permission to remove users.');
     }
 
+    // 1. Delete from local server API (development environment)
     try {
-      await ApiClient.delete(`/auth/users/${id}`);
+      const url = `/auth/users/${encodeURIComponent(id)}${cleanEmail ? `?email=${encodeURIComponent(cleanEmail)}` : ''}`;
+      await ApiClient.delete(url);
     } catch {
       // offline
     }
 
-    const existing = this.getLocalTeamUsers().filter((u) => u.id !== id);
+    // 2. Delete from local storage
+    const existing = this.getLocalTeamUsers().filter(
+      (u) => u.id !== id && (cleanEmail ? u.email.toLowerCase() !== cleanEmail : true)
+    );
     this.saveLocalTeamUsers(existing);
 
+    // 3. Delete from Supabase (both PostgreSQL tables AND auth.users via RPC)
     if (isSupabaseConfigured()) {
+      // A. Call RPC to delete from auth.users, profiles, and app_users in PostgreSQL
       try {
-        await Promise.allSettled([
+        await (supabase.rpc as any)('delete_user_by_admin', {
+          target_user_email: cleanEmail || '',
+          target_user_id: id,
+        });
+      } catch (rpcErr) {
+        console.warn('RPC delete_user_by_admin notice:', rpcErr);
+      }
+
+      // B. Redundant explicit table cleanup across tables
+      try {
+        const ops: PromiseLike<any>[] = [
           supabase.from('app_users').delete().eq('id', id),
           supabase.from('profiles').delete().eq('id', id),
-        ]);
+        ];
+        if (cleanEmail) {
+          ops.push(
+            supabase.from('app_users').delete().ilike('email', cleanEmail),
+            supabase.from('profiles').delete().ilike('email', cleanEmail)
+          );
+        }
+        await Promise.allSettled(ops.map((p) => Promise.resolve(p)));
       } catch {
         // ignore
       }

@@ -36,11 +36,28 @@ export interface AlertDialogOptions {
   variant?: 'danger' | 'warning' | 'info';
 }
 
+export interface PromptDialogOptions {
+  title?: string;
+  subtitle?: string;
+  message: string;
+  defaultValue?: string;
+  placeholder?: string;
+  confirmText?: string;
+  cancelText?: string;
+}
+
 interface DialogState {
   isOpen: boolean;
   isAlertOnly: boolean;
   options: ConfirmDialogOptions;
   resolve?: (value: boolean) => void;
+}
+
+interface PromptState {
+  isOpen: boolean;
+  options: PromptDialogOptions;
+  inputValue: string;
+  resolve?: (value: string | null) => void;
 }
 
 interface AdminUIContextType {
@@ -52,6 +69,7 @@ interface AdminUIContextType {
   };
   confirm: (options: ConfirmDialogOptions | string) => Promise<boolean>;
   alert: (options: AlertDialogOptions | string) => Promise<void>;
+  prompt: (options: PromptDialogOptions | string) => Promise<string | null>;
 }
 
 const AdminUIContext = createContext<AdminUIContextType | null>(null);
@@ -63,8 +81,14 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
     isAlertOnly: false,
     options: { message: '' },
   });
+  const [promptState, setPromptState] = useState<PromptState>({
+    isOpen: false,
+    options: { message: '' },
+    inputValue: '',
+  });
 
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const promptInputRef = useRef<HTMLInputElement>(null);
 
   // Toast functions
   const addToast = useCallback(
@@ -165,6 +189,39 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, []);
 
+  // Prompt dialog function (replaces browser window.prompt in light theme)
+  const prompt = useCallback((options: PromptDialogOptions | string): Promise<string | null> => {
+    const normalizedOptions: PromptDialogOptions =
+      typeof options === 'string'
+        ? {
+            title: 'INPUT REQUIRED',
+            subtitle: 'PLEASE ENTER VALUE',
+            message: options,
+            confirmText: 'SUBMIT',
+            cancelText: 'CANCEL',
+            placeholder: '',
+            defaultValue: '',
+          }
+        : {
+            title: options.title || 'INPUT REQUIRED',
+            subtitle: options.subtitle || 'PLEASE ENTER VALUE',
+            message: options.message,
+            confirmText: options.confirmText || 'SUBMIT',
+            cancelText: options.cancelText || 'CANCEL',
+            placeholder: options.placeholder || '',
+            defaultValue: options.defaultValue || '',
+          };
+
+    return new Promise<string | null>((resolve) => {
+      setPromptState({
+        isOpen: true,
+        options: normalizedOptions,
+        inputValue: normalizedOptions.defaultValue || '',
+        resolve,
+      });
+    });
+  }, []);
+
   const handleDialogConfirm = () => {
     dialog.resolve?.(true);
     setDialog((prev) => ({ ...prev, isOpen: false }));
@@ -173,6 +230,16 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const handleDialogCancel = () => {
     dialog.resolve?.(false);
     setDialog((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const handlePromptConfirm = () => {
+    promptState.resolve?.(promptState.inputValue);
+    setPromptState((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const handlePromptCancel = () => {
+    promptState.resolve?.(null);
+    setPromptState((prev) => ({ ...prev, isOpen: false }));
   };
 
   // Keyboard navigation for modal dialog (Escape to cancel, Enter to confirm)
@@ -199,10 +266,33 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [dialog.isOpen]);
 
+  // Keyboard navigation for prompt modal
+  useEffect(() => {
+    if (!promptState.isOpen) return;
+
+    setTimeout(() => {
+      promptInputRef.current?.focus();
+      promptInputRef.current?.select();
+    }, 50);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handlePromptCancel();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handlePromptConfirm();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [promptState.isOpen, promptState.inputValue]);
+
   const variant = dialog.options.variant || 'danger';
 
   return (
-    <AdminUIContext.Provider value={{ toast, confirm, alert }}>
+    <AdminUIContext.Provider value={{ toast, confirm, alert, prompt }}>
       {children}
 
       {/* ========================================================================= */}
@@ -324,6 +414,91 @@ export const AdminUIProvider: React.FC<{ children: React.ReactNode }> = ({ child
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* LIGHT-THEMED PROMPT MODAL DIALOG (REPLACES WINDOW.PROMPT) */}
+      {/* ========================================================================= */}
+      {promptState.isOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-neutral-950/40 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handlePromptCancel();
+            }
+          }}
+        >
+          <div className="relative w-full max-w-[460px] bg-white border border-neutral-200 rounded-xl shadow-2xl p-6 text-neutral-900 overflow-hidden ring-1 ring-black/5 transform scale-100 transition-all">
+            {/* Top decorative accent glow */}
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-neutral-300 to-transparent" />
+
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-700 flex items-center justify-center shrink-0">
+                  <Info className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold tracking-wide uppercase text-neutral-900 font-sans">
+                    {promptState.options.title || 'INPUT REQUIRED'}
+                  </h3>
+                  <p className="text-[8px] font-semibold tracking-wider uppercase text-neutral-400 mt-0.5">
+                    {promptState.options.subtitle || 'PLEASE ENTER VALUE'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePromptCancel}
+                className="p-1 rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
+                title="Close"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Message */}
+            <div className="mt-4 mb-4">
+              <p className="text-xs text-neutral-600 leading-relaxed font-sans">
+                {promptState.options.message}
+              </p>
+            </div>
+
+            {/* Text Input */}
+            <div className="mb-6">
+              <input
+                ref={promptInputRef}
+                type="text"
+                value={promptState.inputValue}
+                onChange={(e) => setPromptState((prev) => ({ ...prev, inputValue: e.target.value }))}
+                placeholder={promptState.options.placeholder || 'Enter value...'}
+                className="w-full text-xs px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white focus:ring-1 focus:ring-neutral-900/10 transition"
+              />
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={handlePromptCancel}
+                className="px-5 py-2 rounded-md bg-neutral-100 hover:bg-neutral-200 active:scale-[0.98] text-neutral-700 text-xs font-semibold uppercase tracking-wider transition border border-neutral-200 cursor-pointer"
+              >
+                {promptState.options.cancelText || 'CANCEL'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePromptConfirm}
+                className="px-5 py-2 rounded-md bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] text-white text-xs font-semibold uppercase tracking-wider transition shadow-sm cursor-pointer"
+              >
+                {promptState.options.confirmText || 'SUBMIT'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminUIContext.Provider>
   );
 };
@@ -438,3 +613,4 @@ export const useConfirm = () => {
   const { confirm, alert } = useAdminUI();
   return { confirm, alert };
 };
+export const usePrompt = () => useAdminUI().prompt;

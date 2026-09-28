@@ -129,7 +129,7 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleDeleteUser = async (id: string, name: string) => {
+  const handleDeleteUser = async (id: string, name: string, email: string) => {
     if (!isAdmin) {
       toast.error('Only administrators are permitted to remove user accounts.', 'ACCESS DENIED');
       return;
@@ -138,7 +138,7 @@ export const ProfilePage: React.FC = () => {
     const ok = await confirm({
       title: 'REMOVE TEAM MEMBER',
       subtitle: 'CONFIRMATION REQUIRED',
-      message: `Are you sure you want to remove account access for ${name}? This will revoke their CMS login privileges.`,
+      message: `Are you sure you want to remove account access for ${name} (${email})? This will revoke their CMS login privileges across all environments and permanently delete their authentication record.`,
       confirmText: 'REVOKE ACCESS',
       cancelText: 'CANCEL',
       variant: 'danger',
@@ -146,7 +146,7 @@ export const ProfilePage: React.FC = () => {
 
     if (ok) {
       try {
-        await AuthService.removeTeamMember(id);
+        await AuthService.removeTeamMember(id, email);
         toast.success(`Successfully removed account access for ${name}.`, 'ACCESS REVOKED');
         await loadTeamMembers();
       } catch (err: any) {
@@ -548,7 +548,7 @@ export const ProfilePage: React.FC = () => {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => handleDeleteUser(member.id, member.full_name || member.email)}
+                          onClick={() => handleDeleteUser(member.id, member.full_name || member.email, member.email)}
                           className="p-1.5 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
                           title="Revoke access"
                           aria-label="Revoke user access"

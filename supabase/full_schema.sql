@@ -752,3 +752,102 @@ on conflict (email) do update set
   full_name = coalesce(public.app_users.full_name, 'Stephen Appah'),
   updated_at = now();
 
+-- ==============================================================================
+-- USER MANAGEMENT SYNCHRONIZATION & CASCADE DELETION
+-- ==============================================================================
+-- 1. Create Administrative RPC: public.delete_user_by_admin
+create or replace function public.delete_user_by_admin(
+  target_user_email text,
+  target_user_id text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  v_auth_uid uuid;
+  v_clean_email text;
+  v_deleted_count int := 0;
+begin
+  v_clean_email := lower(trim(target_user_email));
+
+  -- Security Guard: Prevent deletion of primary owner account
+  if v_clean_email = 'appahstephen9@gmail.com' or target_user_id = 'admin-appahstephen9' then
+    return jsonb_build_object(
+      'success', false,
+      'error', 'Cannot delete the primary studio administrator'
+    );
+  end if;
+
+  -- 1. Locate auth.users record by email or target_user_id
+  if v_clean_email is not null and v_clean_email <> '' then
+    select id into v_auth_uid from auth.users where lower(email) = v_clean_email limit 1;
+  end if;
+
+  if v_auth_uid is null and target_user_id is not null and target_user_id <> '' then
+    begin
+      select id into v_auth_uid from auth.users where id = target_user_id::uuid limit 1;
+    exception when others then
+      v_auth_uid := null;
+    end;
+  end if;
+
+  -- 2. Delete from auth.users (permanently revokes authentication)
+  if v_auth_uid is not null then
+    delete from auth.users where id = v_auth_uid;
+    v_deleted_count := v_deleted_count + 1;
+  end if;
+
+  if v_clean_email is not null and v_clean_email <> '' then
+    delete from auth.users where lower(email) = v_clean_email;
+  end if;
+
+  -- 3. Delete from public.profiles
+  if v_auth_uid is not null then
+    delete from public.profiles where id = v_auth_uid;
+  end if;
+  if v_clean_email is not null and v_clean_email <> '' then
+    delete from public.profiles where lower(email) = v_clean_email;
+  end if;
+
+  -- 4. Delete from public.app_users
+  if target_user_id is not null and target_user_id <> '' then
+    delete from public.app_users where id = target_user_id;
+  end if;
+  if v_auth_uid is not null then
+    delete from public.app_users where id = v_auth_uid::text;
+  end if;
+  if v_clean_email is not null and v_clean_email <> '' then
+    delete from public.app_users where lower(email) = v_clean_email;
+  end if;
+
+  return jsonb_build_object(
+    'success', true,
+    'email', v_clean_email,
+    'deleted_auth_uid', v_auth_uid
+  );
+end;
+$$;
+
+grant execute on function public.delete_user_by_admin(text, text) to anon, authenticated, service_role;
+
+-- 2. Cascade Delete Trigger on auth.users
+create or replace function public.handle_deleted_auth_user()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  delete from public.profiles where id = old.id or lower(email) = lower(old.email);
+  delete from public.app_users where id = old.id::text or lower(email) = lower(old.email);
+  return old;
+end;
+$$;
+
+drop trigger if exists on_auth_user_deleted on auth.users;
+create trigger on_auth_user_deleted
+  after delete on auth.users
+  for each row execute procedure public.handle_deleted_auth_user();
+
+
