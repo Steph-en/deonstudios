@@ -59,7 +59,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onCancel }) => 
         {/* Centered Brand & Portal Header */}
         <div className="text-center mb-8">
           <span className="block text-[11px] font-mono uppercase tracking-[0.24em] text-neutral-400 font-medium mb-2.5">
-            Gideon Boadu
+            Gideon Boadi
           </span>
           <h1 className="text-2xl sm:text-[28px] font-sans font-bold uppercase tracking-tight text-neutral-900 leading-none mb-2.5">
             Admin Portal
