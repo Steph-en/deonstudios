@@ -145,7 +145,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onOpenContact }) => {
 
             {/* Features & Recognition */}
             <div className="pt-4 sm:pt-6 border-t border-neutral-200 space-y-3">
-              <h3 className="font-sans-clean text-[10px] sm:text-[12px] font-bold uppercase tracking-[0.16em] text-neutral-950 mb-2">
+              {/* <h3 className="font-sans-clean text-[10px] sm:text-[12px] font-bold uppercase tracking-[0.16em] text-neutral-950 mb-2">
                 Features &amp; Recognition
               </h3>
               <div className="space-y-1.5 text-[10px] sm:text-[12px] text-neutral-700 leading-normal">
@@ -154,7 +154,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ onOpenContact }) => {
                     {award.year} {award.title}
                   </p>
                 ))}
-              </div>
+              </div> */}
 
               {/* Selected Clients inline list */}
               <div className="pt-2 text-[10px] sm:text-[12px] text-neutral-600 leading-relaxed">

@@ -211,7 +211,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
               letterSpacing: '0.32em',
             }}
           >
-            Creative Director
+            Photographer
           </p>
         </div>
       </div>
