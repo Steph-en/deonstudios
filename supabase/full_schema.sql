@@ -186,6 +186,7 @@ create table if not exists public.analytics (
   traffic_source text,
   page_url text,
   user_session_id text,
+  created_at timestamptz not null default now(),
   viewed_at timestamptz not null default now()
 );
 
@@ -615,26 +616,32 @@ create policy "Staff can view analytics"
 -- STORAGE POLICIES FOR portfolio-media BUCKET
 -- ------------------------------------------------------------------------------
 drop policy if exists "Public Access to Portfolio Media" on storage.objects;
-create policy "Public Access to Portfolio Media"
+drop policy if exists "Authenticated Upload to Portfolio Media" on storage.objects;
+drop policy if exists "Authenticated Update to Portfolio Media" on storage.objects;
+drop policy if exists "Authenticated Delete from Portfolio Media" on storage.objects;
+drop policy if exists "Allow All Select Portfolio Media" on storage.objects;
+drop policy if exists "Allow All Upload Portfolio Media" on storage.objects;
+drop policy if exists "Allow All Update Portfolio Media" on storage.objects;
+drop policy if exists "Allow All Delete Portfolio Media" on storage.objects;
+
+create policy "Allow All Select Portfolio Media"
   on storage.objects for select
+  to public
   using (bucket_id = 'portfolio-media');
 
-drop policy if exists "Authenticated Upload to Portfolio Media" on storage.objects;
-create policy "Authenticated Upload to Portfolio Media"
+create policy "Allow All Upload Portfolio Media"
   on storage.objects for insert
-  to authenticated
+  to public
   with check (bucket_id = 'portfolio-media');
 
-drop policy if exists "Authenticated Update to Portfolio Media" on storage.objects;
-create policy "Authenticated Update to Portfolio Media"
+create policy "Allow All Update Portfolio Media"
   on storage.objects for update
-  to authenticated
+  to public
   using (bucket_id = 'portfolio-media');
 
-drop policy if exists "Authenticated Delete from Portfolio Media" on storage.objects;
-create policy "Authenticated Delete from Portfolio Media"
+create policy "Allow All Delete Portfolio Media"
   on storage.objects for delete
-  to authenticated
+  to public
   using (bucket_id = 'portfolio-media');
 
 -- ==============================================================================

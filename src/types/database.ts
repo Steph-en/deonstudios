@@ -329,6 +329,7 @@ export interface Database {
           traffic_source: string | null;
           page_url: string | null;
           user_session_id: string | null;
+          created_at?: string;
           viewed_at: string;
         };
         Insert: {
@@ -339,6 +340,7 @@ export interface Database {
           traffic_source?: string | null;
           page_url?: string | null;
           user_session_id?: string | null;
+          created_at?: string;
           viewed_at?: string;
         };
         Update: {
@@ -349,6 +351,7 @@ export interface Database {
           traffic_source?: string | null;
           page_url?: string | null;
           user_session_id?: string | null;
+          created_at?: string;
           viewed_at?: string;
         };
         Relationships: [

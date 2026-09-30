@@ -6,7 +6,7 @@ import { formatFileSize } from '../../lib/utils';
 interface MediaUploaderProps {
   label: string;
   description?: string;
-  accept?: 'image' | 'video' | 'both';
+  accept?: 'image' | 'video' | 'both' | 'image/*' | 'video/*' | string;
   currentUrl?: string | null;
   currentPath?: string | null;
   projectId?: string;
@@ -34,9 +34,9 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const acceptedMime =
-    accept === 'video'
+    accept.includes('video') && !accept.includes('image')
       ? 'video/mp4,video/webm'
-      : accept === 'image'
+      : accept.includes('image') && !accept.includes('video')
       ? 'image/jpeg,image/png,image/webp,image/svg+xml'
       : 'image/jpeg,image/png,image/webp,image/svg+xml,video/mp4,video/webm';
 

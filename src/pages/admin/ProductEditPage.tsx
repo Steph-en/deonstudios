@@ -317,8 +317,8 @@ export const ProductEditPage: React.FC<ProductEditPageProps> = ({
             <MediaUploader
               label="Upload Product Photograph"
               currentUrl={url}
-              onUploadComplete={(newUrl) => setUrl(newUrl)}
-              accept="image/*"
+              onUploadComplete={(res: any) => setUrl(typeof res === 'string' ? res : res?.url || '')}
+              accept="image"
             />
 
             <div>
