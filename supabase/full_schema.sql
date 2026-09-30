@@ -613,36 +613,20 @@ create policy "Staff can view analytics"
   using (public.is_staff() or auth.role() = 'authenticated');
 
 -- ------------------------------------------------------------------------------
--- STORAGE POLICIES FOR portfolio-media BUCKET
+-- STORAGE BUCKET CONFIGURATION ('portfolio-media')
 -- ------------------------------------------------------------------------------
-drop policy if exists "Public Access to Portfolio Media" on storage.objects;
-drop policy if exists "Authenticated Upload to Portfolio Media" on storage.objects;
-drop policy if exists "Authenticated Update to Portfolio Media" on storage.objects;
-drop policy if exists "Authenticated Delete from Portfolio Media" on storage.objects;
-drop policy if exists "Allow All Select Portfolio Media" on storage.objects;
-drop policy if exists "Allow All Upload Portfolio Media" on storage.objects;
-drop policy if exists "Allow All Update Portfolio Media" on storage.objects;
-drop policy if exists "Allow All Delete Portfolio Media" on storage.objects;
-
-create policy "Allow All Select Portfolio Media"
-  on storage.objects for select
-  to public
-  using (bucket_id = 'portfolio-media');
-
-create policy "Allow All Upload Portfolio Media"
-  on storage.objects for insert
-  to public
-  with check (bucket_id = 'portfolio-media');
-
-create policy "Allow All Update Portfolio Media"
-  on storage.objects for update
-  to public
-  using (bucket_id = 'portfolio-media');
-
-create policy "Allow All Delete Portfolio Media"
-  on storage.objects for delete
-  to public
-  using (bucket_id = 'portfolio-media');
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'portfolio-media',
+  'portfolio-media',
+  true,
+  52428800,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif', 'video/mp4', 'video/webm']
+)
+on conflict (id) do update set
+  public = true,
+  file_size_limit = 52428800,
+  allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif', 'video/mp4', 'video/webm'];
 
 -- ==============================================================================
 -- DASHBOARD STATS RPC HELPER (Includes user counts for administrators)

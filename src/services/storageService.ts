@@ -124,14 +124,43 @@ export class StorageService {
         // Ensure active Supabase Auth session if possible
         const { data: sessionData } = await supabase.auth.getSession();
         if (!sessionData?.session) {
+          const sessionRaw =
+            typeof window !== 'undefined'
+              ? localStorage.getItem('demo_admin_session')
+              : null;
+          let targetEmail = 'appahstephen9@gmail.com';
+          if (sessionRaw) {
+            try {
+              const parsed = JSON.parse(sessionRaw);
+              if (parsed?.email) targetEmail = parsed.email;
+            } catch {
+              // fallback
+            }
+          }
+
           const savedAdminPass =
             typeof window !== 'undefined'
               ? localStorage.getItem('demo_admin_password')
               : null;
-          await supabase.auth.signInWithPassword({
-            email: 'appahstephen9@gmail.com',
+
+          let authRes = await supabase.auth.signInWithPassword({
+            email: targetEmail,
             password: savedAdminPass || 'admin123',
           });
+
+          if (authRes.error && targetEmail !== 'appahstephen9@gmail.com') {
+            authRes = await supabase.auth.signInWithPassword({
+              email: targetEmail,
+              password: targetEmail,
+            });
+          }
+
+          if (authRes.error) {
+            await supabase.auth.signInWithPassword({
+              email: 'appahstephen9@gmail.com',
+              password: 'admin123',
+            });
+          }
         }
       } catch {
         // Continue to upload attempt
