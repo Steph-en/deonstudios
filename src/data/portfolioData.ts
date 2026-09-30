@@ -14,7 +14,7 @@ export const HERO_VIDEOS = [
   },
 ];
 
-export const FALLBACK_HERO_POSTER = '/assets/L1060844 2.jpg';
+export const FALLBACK_HERO_POSTER = 'https://res.cloudinary.com/degd6ahfu/image/upload/v1790790128/L1060844-2_hh2gdx.jpg';
 
 export const PROJECTS: Project[] = [];
 

@@ -134,7 +134,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
           referrerPolicy="no-referrer"
         />
 
-        <video
+        {/* <video
           ref={videoRef}
           key={activeVideoUrl}
           poster={FALLBACK_HERO_POSTER}
@@ -159,33 +159,33 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
           className={`w-full h-full object-cover object-center transition-all duration-1000 ease-out ${
             videoLoaded ? 'opacity-100' : 'opacity-0'
           }`}
-        >
+        > */}
           {/* Conditional sources matching viewport */}
-          <source
+          {/* <source
             media="(max-width: 767px), (orientation: portrait)"
             src={HERO_VIDEO_MOBILE}
             type="video/mp4"
-          />
+          /> */}
           {/* Desktop primary source from public /videos */}
-          <source
+          {/* <source
             media="(min-width: 768px) and (orientation: landscape)"
             src="/videos/hero-desktop.mp4"
             type="video/mp4"
-          />
+          /> */}
           {/* Desktop source from src/assets */}
-          <source
+          {/* <source
             media="(min-width: 768px) and (orientation: landscape)"
             src={HERO_VIDEO_DESKTOP}
-            type="video/mp4"
-          />
+            type="video/mp4" 
+          />*/}
           {/* Fallback sources */}
-          <source src={activeVideoUrl} type="video/mp4" />
+          {/* <source src={activeVideoUrl} type="video/mp4" />
           <source src="/videos/hero-desktop.mp4" type="video/mp4" />
-        </video>
+        </video> */}
 
         {/* Ambient Darkened Overlay for Text Legibility */}
         <div
-          className="absolute inset-0 pointer-events-none bg-black/35 backdrop-brightness-[0.92] transition-colors duration-500"
+          className="absolute inset-0 pointer-events-none bg-black/20 backdrop-brightness-[0.99]  transition-colors duration-500"
         />
       </div>
 
@@ -195,7 +195,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
           {/* Photographer & Artist Name in Refined Editorial Font Size */}
           <h1
             className="font-editorial font-light text-white tracking-tight text-left drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)]"
-            style={{ fontSize: '48.12px', lineHeight: '48.12px' }}
+            style={{ fontSize: '68.12px', lineHeight: '48.12px' }}
           >
             Gideon Boadi
           </h1>
@@ -204,10 +204,10 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
           <p
             className="uppercase font-medium text-white/80 text-left drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]"
             style={{
-              fontSize: '10.54px',
+              fontSize: '15.54px',
               lineHeight: '16.81px',
               fontFamily: 'Times New Roman, serif',
-              marginTop: '8px',
+              marginTop: '6px',
               letterSpacing: '0.32em',
             }}
           >
