@@ -25,7 +25,7 @@ export type AdminTab =
   | 'portfolio'
   | 'products'
   | 'categories'
-  | 'media'
+  // | 'media'
   | 'analytics'
   | 'profile';
 
@@ -70,7 +70,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'projects', label: 'Projects', icon: <FolderKanban className="w-4 h-4" /> },
     { id: 'products', label: 'Products', icon: <Package className="w-4 h-4" /> },
     { id: 'categories', label: 'Categories', icon: <Tag className="w-4 h-4" /> },
-    { id: 'media', label: 'Media', icon: <ImageIcon className="w-4 h-4" /> },
+    // { id: 'media', label: 'Media', icon: <ImageIcon className="w-4 h-4" /> },
     { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'profile', label: isAdmin ? 'Profile & Team' : 'My Profile', icon: <User className="w-4 h-4" /> },
   ];
