@@ -25,7 +25,7 @@ export type AdminTab =
   | 'portfolio'
   | 'products'
   | 'categories'
-  // | 'media'
+  | 'media'
   | 'analytics'
   | 'profile';
 

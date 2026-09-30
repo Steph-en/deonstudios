@@ -90,6 +90,7 @@ export class AnalyticsService {
     // 2. Log to Supabase if available
     if (isSupabaseConfigured()) {
       try {
+        const nowIso = new Date().toISOString();
         await supabase.from('analytics').insert({
           project_id: projectId || null,
           page_url: pageUrl,
@@ -97,6 +98,8 @@ export class AnalyticsService {
           traffic_source,
           user_session_id: sid,
           country: 'Global',
+          created_at: nowIso,
+          viewed_at: nowIso,
         });
       } catch (err) {
         console.debug('Analytics logging skipped:', err);
@@ -262,14 +265,31 @@ export class AnalyticsService {
 
     if (isSupabaseConfigured()) {
       try {
-        const { data, error } = await supabase
+        let queryRes = await supabase
           .from('analytics')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(1000);
 
-        if (!error && data && data.length > 0) {
-          rawViews = data as AnalyticsRecord[];
+        // If created_at column is not yet migrated, fallback to viewed_at
+        if (queryRes.error) {
+          queryRes = await supabase
+            .from('analytics')
+            .select('*')
+            .order('viewed_at', { ascending: false })
+            .limit(1000);
+        }
+
+        // If still error, fallback to unordered
+        if (queryRes.error) {
+          queryRes = await supabase
+            .from('analytics')
+            .select('*')
+            .limit(1000);
+        }
+
+        if (!queryRes.error && queryRes.data && queryRes.data.length > 0) {
+          rawViews = queryRes.data as AnalyticsRecord[];
         }
       } catch (err) {
         console.warn('Error fetching Supabase analytics:', err);
