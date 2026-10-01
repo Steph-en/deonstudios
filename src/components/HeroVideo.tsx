@@ -194,7 +194,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
         <div className="flex flex-col items-start text-left pointer-events-auto max-w-4xl">
           {/* Photographer & Artist Name in Refined Editorial Font Size */}
           <h1
-            className="font-editorial font-light text-white tracking-tight text-left drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)]"
+            className="font-editorial p-0 m-0 font-light text-white tracking-tight text-left drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)]"
             style={{ fontSize: '68.12px', lineHeight: '48.12px' }}
           >
             Gideon Boadi
@@ -204,7 +204,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ theme, onExploreClick }) =
           <p
             className="uppercase font-medium text-white/80 text-left drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]"
             style={{
-              fontSize: '15.54px',
+              fontSize: '13.54px',
               lineHeight: '16.81px',
               fontFamily: 'Times New Roman, serif',
               marginTop: '6px',
