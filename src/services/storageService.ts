@@ -1,7 +1,17 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { fileToPersistentDataUrl } from './indexedDbStorage';
+import { ApiClient } from '../lib/api';
 
 const BUCKET_NAME = 'portfolio-media';
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
 
 export interface UploadProgressCallback {
   (progress: number): void;
@@ -194,22 +204,34 @@ export class StorageService {
       }
     }
 
-    // Seamless Fallback: If Supabase Storage is not configured, or if an RLS policy prevents
-    // upload prior to running migration 015, persist in local IndexedDB so the upload succeeds.
+    // Universal Server Proxy Fallback:
+    // Guarantees that the image is saved to Supabase Storage or server-hosted storage
+    // and returns a universally accessible HTTP URL that works across all client laptops.
     try {
-      const persistentUrl = await fileToPersistentDataUrl(file);
-      return {
-        path: finalPath,
-        url: persistentUrl,
+      const base64 = await fileToBase64(file);
+      const serverRes = await ApiClient.post<any>('/upload', {
         fileName: file.name,
-        fileSize: file.size,
         mimeType: file.type,
-        width,
-        height,
-      };
-    } catch (fallbackErr: any) {
-      throw new Error(`Upload failed: ${fallbackErr?.message || 'Could not process media file'}`);
+        base64,
+        destinationPath,
+      });
+
+      if (serverRes?.url) {
+        return {
+          path: serverRes.path || finalPath,
+          url: serverRes.url,
+          fileName: serverRes.fileName || file.name,
+          fileSize: serverRes.fileSize || file.size,
+          mimeType: serverRes.mimeType || file.type,
+          width,
+          height,
+        };
+      }
+    } catch (serverErr: any) {
+      console.warn('Backend upload proxy notice:', serverErr?.message || serverErr);
     }
+
+    throw new Error('Upload failed: Could not persist media asset to storage. Please ensure your network connection is active.');
   }
 
   /**

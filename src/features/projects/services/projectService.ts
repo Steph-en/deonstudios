@@ -191,7 +191,8 @@ export class ProjectService {
     }
 
     const { data, error } = await query;
-    if (error || !data || data.length === 0) {
+    if (error || !data) {
+      console.warn('Notice fetching Supabase projects, using server/local cache:', error?.message);
       try {
         const serverProjects = await ApiClient.get<ProjectWithDetails[]>('/projects');
         if (serverProjects && serverProjects.length > 0) {
@@ -204,6 +205,8 @@ export class ProjectService {
       return getLocalProjects();
     }
 
+    // Supabase is authoritative source of truth: sync cache & return
+    saveLocalProjects(data as ProjectWithDetails[]);
     return (data as ProjectWithDetails[]) || [];
   }
 
@@ -345,27 +348,32 @@ export class ProjectService {
       }
     }
 
+    const categoryId =
+      project.category_id && project.category_id.trim() !== ''
+        ? project.category_id
+        : null;
+
     const { data, error } = await supabase
       .from('projects')
       .insert({
         title: project.title!,
         slug,
-        category_id: project.category_id,
-        client: project.client,
-        year: project.year,
-        role: project.role,
+        category_id: categoryId,
+        client: project.client || null,
+        year: project.year || null,
+        role: project.role || null,
         description: project.description!,
-        long_description: project.long_description,
+        long_description: project.long_description || null,
         status: project.status || 'draft',
         featured: project.featured || false,
-        preview_image: project.preview_image,
-        preview_video: project.preview_video,
-        hero_image: project.hero_image,
-        hero_video: project.hero_video,
-        og_image: project.og_image,
-        seo_title: project.seo_title,
-        seo_description: project.seo_description,
-        seo_keywords: project.seo_keywords,
+        preview_image: project.preview_image || null,
+        preview_video: project.preview_video || null,
+        hero_image: project.hero_image || null,
+        hero_video: project.hero_video || null,
+        og_image: project.og_image || null,
+        seo_title: project.seo_title || null,
+        seo_description: project.seo_description || null,
+        seo_keywords: project.seo_keywords || null,
         published_at: project.status === 'published' ? new Date().toISOString() : null,
       })
       .select()
@@ -375,7 +383,19 @@ export class ProjectService {
       throw new Error(error.message || 'Unable to create project. Please try again.');
     }
 
-    return data as DbProject;
+    const createdProject = data as DbProject;
+
+    // Keep server and local cache synchronized across all laptops
+    try {
+      await ApiClient.post('/projects', createdProject);
+    } catch {
+      // ignore
+    }
+    const currentList = getLocalProjects();
+    currentList.unshift(createdProject as any);
+    saveLocalProjects(currentList);
+
+    return createdProject;
   }
 
   /**
@@ -411,6 +431,9 @@ export class ProjectService {
     }
 
     const updatePayload: Record<string, any> = { ...updates };
+    if (updatePayload.category_id === '') {
+      updatePayload.category_id = null;
+    }
     if (updates.status === 'published' && !updates.published_at) {
       updatePayload.published_at = new Date().toISOString();
     }
@@ -426,7 +449,21 @@ export class ProjectService {
       throw new Error(error.message || 'Unable to update project. Please try again.');
     }
 
-    return data as DbProject;
+    const updatedProject = data as DbProject;
+
+    try {
+      await ApiClient.put(`/projects/${id}`, updatedProject);
+    } catch {
+      // ignore
+    }
+    const currentList = getLocalProjects();
+    const idx = currentList.findIndex((p) => p.id === id);
+    if (idx !== -1) {
+      currentList[idx] = { ...currentList[idx], ...updatedProject };
+      saveLocalProjects(currentList);
+    }
+
+    return updatedProject;
   }
 
   /**

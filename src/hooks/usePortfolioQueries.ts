@@ -39,7 +39,8 @@ export function useProjects(options?: {
   return useQuery({
     queryKey: QUERY_KEYS.projects(options),
     queryFn: () => ProjectService.getProjects(options),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: 1000 * 5, // 5 seconds for fast cross-device sync
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -47,7 +48,8 @@ export function usePublishedProjects() {
   return useQuery({
     queryKey: QUERY_KEYS.projects({ status: 'published' }),
     queryFn: () => ProjectService.getPublishedProjects(),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 5, // 5 seconds for fast cross-device sync
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -195,7 +197,8 @@ export function usePortfolioShots(options?: {
   return useQuery({
     queryKey: QUERY_KEYS.portfolioShots(options),
     queryFn: () => PortfolioService.getShots(options),
-    staleTime: 1000 * 60 * 2,
+    staleTime: 1000 * 5, // 5 seconds
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -203,7 +206,8 @@ export function usePublishedPortfolioShots() {
   return useQuery({
     queryKey: QUERY_KEYS.portfolioShots({ status: 'published' }),
     queryFn: () => PortfolioService.getPublishedShots(),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 5, // 5 seconds
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -212,7 +216,8 @@ export function usePortfolioShot(id: string | null) {
     queryKey: QUERY_KEYS.portfolioShot(id || ''),
     queryFn: () => (id ? PortfolioService.getShotById(id) : Promise.resolve(null)),
     enabled: Boolean(id),
-    staleTime: 1000 * 60 * 2,
+    staleTime: 1000 * 5,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -300,7 +305,8 @@ export function useProductShots(options?: {
   return useQuery({
     queryKey: QUERY_KEYS.productShots(options),
     queryFn: () => ProductService.getProducts(options),
-    staleTime: 1000 * 60 * 2,
+    staleTime: 1000 * 5, // 5 seconds
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -308,7 +314,8 @@ export function usePublishedProductShots() {
   return useQuery({
     queryKey: QUERY_KEYS.productShots({ status: 'published' }),
     queryFn: () => ProductService.getPublishedProducts(),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 5, // 5 seconds
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -317,7 +324,8 @@ export function useProductShot(id: string | null) {
     queryKey: QUERY_KEYS.productShot(id || ''),
     queryFn: () => (id ? ProductService.getProductById(id) : Promise.resolve(null)),
     enabled: Boolean(id),
-    staleTime: 1000 * 60 * 2,
+    staleTime: 1000 * 5,
+    refetchOnWindowFocus: true,
   });
 }
 

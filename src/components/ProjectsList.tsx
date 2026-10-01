@@ -285,79 +285,62 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
   const activeRows = React.useMemo<EditorialRowConfig[]>(() => {
     if (!projects || projects.length === 0) return [];
 
-    const activeSlugs = new Set(projects.map((p) => p.slug));
     const resultRows: EditorialRowConfig[] = [];
+    const rhythmPatterns: Array<{
+      type: EditorialRowConfig['type'];
+      count: number;
+    }> = [
+      { type: 'two-col-equal', count: 2 },
+      { type: 'two-col-1-to-2', count: 2 },
+      { type: 'full-width-landscape', count: 1 },
+      { type: 'three-col', count: 3 },
+      { type: 'two-col-2-to-1', count: 2 },
+      { type: 'four-col', count: 4 },
+      { type: 'two-col-equal', count: 2 },
+      { type: 'full-width-landscape', count: 1 },
+      { type: 'three-col', count: 3 },
+    ];
 
-    // 1. Filter curated rows for matching active projects
-    EDITORIAL_ROWS.forEach((row) => {
-      const validItems = row.items.filter((item) => activeSlugs.has(item.projectSlug));
-      if (validItems.length > 0) {
-        let type = row.type;
-        if (type === 'two-col-equal' || type === 'two-col-1-to-2' || type === 'two-col-2-to-1') {
-          if (validItems.length === 1) type = 'full-width-landscape';
-        } else if (type === 'three-col') {
-          if (validItems.length === 1) type = 'full-width-landscape';
-          else if (validItems.length === 2) type = 'two-col-equal';
-        }
-        resultRows.push({
-          ...row,
-          type,
-          items: validItems,
-        });
+    let pIdx = 0;
+    let patternIdx = 0;
+
+    while (pIdx < projects.length) {
+      const remaining = projects.length - pIdx;
+      const curPattern = rhythmPatterns[patternIdx % rhythmPatterns.length];
+      patternIdx++;
+
+      let takeCount = Math.min(curPattern.count, remaining);
+      let rowType = curPattern.type;
+
+      // Adaptively adjust layout type if fewer items remain
+      if (takeCount === 1) {
+        rowType = 'full-width-landscape';
+      } else if (takeCount === 2 && (rowType === 'three-col' || rowType === 'four-col')) {
+        rowType = 'two-col-equal';
+      } else if (takeCount === 3 && rowType === 'four-col') {
+        rowType = 'three-col';
       }
-    });
 
-    // 2. Identify newly created projects that are not in curated layout and add them dynamically
-    const curatedCoveredSlugs = new Set(resultRows.flatMap((r) => r.items.map((i) => i.projectSlug)));
-    const unplacedProjects = projects.filter((p) => !curatedCoveredSlugs.has(p.slug));
+      const rowProjects = projects.slice(pIdx, pIdx + takeCount);
+      resultRows.push({
+        id: `editorial-row-${pIdx}`,
+        type: rowType,
+        items: rowProjects.map((p) => ({
+          projectSlug: p.slug,
+          imageIndex: 0,
+          customTitle: p.title,
+        })),
+      });
 
-    let idx = 0;
-    while (idx < unplacedProjects.length) {
-      const remaining = unplacedProjects.length - idx;
-      if (remaining >= 3) {
-        resultRows.push({
-          id: `dyn-three-${idx}`,
-          type: 'three-col',
-          items: unplacedProjects.slice(idx, idx + 3).map((cp) => ({
-            projectSlug: cp.slug,
-            imageIndex: 0,
-            customTitle: cp.title,
-          })),
-        });
-        idx += 3;
-      } else if (remaining === 2) {
-        resultRows.push({
-          id: `dyn-two-${idx}`,
-          type: 'two-col-equal',
-          items: unplacedProjects.slice(idx, idx + 2).map((cp) => ({
-            projectSlug: cp.slug,
-            imageIndex: 0,
-            customTitle: cp.title,
-          })),
-        });
-        idx += 2;
-      } else {
-        resultRows.push({
-          id: `dyn-one-${idx}`,
-          type: 'full-width-landscape',
-          items: [
-            {
-              projectSlug: unplacedProjects[idx].slug,
-              imageIndex: 0,
-              customTitle: unplacedProjects[idx].title,
-            },
-          ],
-        });
-        idx += 1;
-      }
+      pIdx += takeCount;
     }
 
     return resultRows;
   }, [projects]);
 
-  const displayedRows = showAll
+  const displayedRows = showAll || activeRows.length <= 8
     ? activeRows
-    : activeRows.slice(0, INITIAL_ROWS_COUNT);
+    : activeRows.slice(0, 8);
 
   const handleToggleView = () => {
     if (showAll) {
@@ -382,15 +365,15 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
     if (!project) return null;
 
     const imgIndex = itemConfig.imageIndex ?? 0;
-    const projectImage = project.images?.[imgIndex];
+    const projectImage = project.images?.[imgIndex] || project.images?.[0];
     const previewImage = project.previewImages?.[imgIndex] || project.previewImages?.[0];
     const fallbackImage =
       projectImage?.fallbackUrl ||
       project.fallbackPreviewImages?.[imgIndex] ||
       project.fallbackPreviewImages?.[0] ||
-      '';
+      '/assets/gideon_boadi_portrait.png';
 
-    const src = projectImage?.url || previewImage || '';
+    const src = projectImage?.url || previewImage || '/assets/gideon_boadi_portrait.png';
     const title = itemConfig.customTitle || project.title;
     const is3x3Grid =
       itemConfig.forceGrid3x3 ||

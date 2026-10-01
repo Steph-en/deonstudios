@@ -163,7 +163,8 @@ export class PortfolioService {
       }
 
       const { data, error } = await query;
-      if (error || !data || data.length === 0) {
+      if (error || !data) {
+        console.warn('Notice fetching Supabase portfolio shots, using server/local cache:', error?.message);
         try {
           const serverShots = await ApiClient.get<DbPortfolioShot[]>('/portfolio');
           if (serverShots && serverShots.length > 0) {
@@ -175,6 +176,9 @@ export class PortfolioService {
         }
         return getLocalShots();
       }
+
+      // Supabase is authoritative source of truth across all devices
+      saveLocalShots(data as DbPortfolioShot[]);
       return data as DbPortfolioShot[];
     } catch {
       return getLocalShots();
@@ -277,7 +281,18 @@ export class PortfolioService {
           .single();
 
         if (!error && data) {
-          return data as DbPortfolioShot;
+          const created = data as DbPortfolioShot;
+          try {
+            await ApiClient.post('/portfolio', created);
+          } catch {
+            // ignore
+          }
+          const currentShots = getLocalShots();
+          const existingIdx = currentShots.findIndex((s) => s.id === created.id);
+          if (existingIdx >= 0) currentShots[existingIdx] = created;
+          else currentShots.unshift(created);
+          saveLocalShots(currentShots);
+          return created;
         }
       } catch (err) {
         console.warn('Supabase portfolio shot insert error:', err);

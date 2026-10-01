@@ -163,7 +163,8 @@ export class ProductService {
       }
 
       const { data, error } = await query;
-      if (error || !data || data.length === 0) {
+      if (error || !data) {
+        console.warn('Notice fetching Supabase products, using server/local cache:', error?.message);
         try {
           const serverProducts = await ApiClient.get<DbProductShot[]>('/products');
           if (serverProducts && serverProducts.length > 0) {
@@ -175,6 +176,9 @@ export class ProductService {
         }
         return getLocalProducts();
       }
+
+      // Supabase is authoritative source of truth across all devices
+      saveLocalProducts(data as DbProductShot[]);
       return data as DbProductShot[];
     } catch {
       return getLocalProducts();
@@ -277,7 +281,18 @@ export class ProductService {
           .single();
 
         if (!error && data) {
-          return data as DbProductShot;
+          const created = data as DbProductShot;
+          try {
+            await ApiClient.post('/products', created);
+          } catch {
+            // ignore
+          }
+          const currentProducts = getLocalProducts();
+          const existingIdx = currentProducts.findIndex((p) => p.id === created.id);
+          if (existingIdx >= 0) currentProducts[existingIdx] = created;
+          else currentProducts.unshift(created);
+          saveLocalProducts(currentProducts);
+          return created;
         }
       } catch (err) {
         console.warn('Supabase product shot insert error:', err);

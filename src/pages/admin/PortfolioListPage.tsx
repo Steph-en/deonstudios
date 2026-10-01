@@ -353,9 +353,8 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
                     />
                   </th>
                   <th className="py-3 px-3">Plate</th>
-                  <th className="py-3 px-4">Title & Client</th>
+                  <th className="py-3 px-4">Title</th>
                   <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Aspect Ratio</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-center">Featured</th>
                   <th className="py-3 px-4 text-right">Actions</th>
@@ -398,7 +397,7 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
                         </button>
                       </td>
 
-                      {/* Title & Client */}
+                      {/* Title */}
                       <td className="py-3 px-4 min-w-[200px]">
                         <button
                           type="button"
@@ -407,15 +406,6 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
                         >
                           {s.title}
                         </button>
-                        <div className="text-[11px] text-neutral-500 flex items-center gap-1.5 mt-0.5">
-                          <span>{s.client_or_brand || 'Studio Portrait'}</span>
-                          {s.tag && (
-                            <>
-                              <span>•</span>
-                              <span className="font-mono text-neutral-400">{s.tag}</span>
-                            </>
-                          )}
-                        </div>
                       </td>
 
                       {/* Category */}
@@ -423,11 +413,6 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
                         <span className="inline-block px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 text-[11px] font-medium border border-neutral-200">
                           {s.category || 'Portraiture'}
                         </span>
-                      </td>
-
-                      {/* Aspect Ratio Badge */}
-                      <td className="py-3 px-4 font-mono text-[11px] text-neutral-500 capitalize">
-                        {s.aspect_ratio || 'portrait'}
                       </td>
 
                       {/* Status Selector */}

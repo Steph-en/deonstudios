@@ -93,11 +93,11 @@ function getInitialDatabase(): DatabaseSchema {
         long_description: 'Cover feature for Guzangs Digital Issue 01 featuring NFL standout Jeremiah Owusu-Koramoah. An exploration of ancestral African lineage, warrior headpieces, and modern sportswear identity.',
         status: 'published',
         featured: true,
-        preview_image: '/assets/projects/guzangs-helmet-of-heritage-01.jpg',
+        preview_image: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
         preview_video: '/videos/hero-desktop.mp4',
-        hero_image: '/assets/projects/guzangs-helmet-of-heritage-01.jpg',
+        hero_image: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
         hero_video: '/videos/hero-desktop.mp4',
-        og_image: '/assets/projects/guzangs-helmet-of-heritage-01.jpg',
+        og_image: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
         seo_title: 'Helmet of Heritage — Guzangs Magazine | Deon Studios',
         seo_description: 'Cover feature for Guzangs Digital Issue 01 featuring NFL standout Jeremiah Owusu-Koramoah.',
         seo_keywords: 'Gideon Boadi, Guzangs Magazine, Editorial, Photography',
@@ -121,10 +121,10 @@ function getInitialDatabase(): DatabaseSchema {
             id: 'media-helmet-of-heritage-0',
             project_id: 'proj-1',
             media_type: 'image',
-            storage_path: '/assets/projects/guzangs-helmet-of-heritage-01.jpg',
-            media_url: '/assets/projects/guzangs-helmet-of-heritage-01.jpg',
-            thumbnail_path: '/assets/projects/guzangs-helmet-of-heritage-01.jpg',
-            thumbnail_url: '/assets/projects/guzangs-helmet-of-heritage-01.jpg',
+            storage_path: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
+            media_url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
+            thumbnail_path: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
+            thumbnail_url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
             file_name: 'helmet-of-heritage-0.jpg',
             file_size: null,
             mime_type: 'image/jpeg',
@@ -1081,6 +1081,83 @@ async function startServer() {
       saveDatabase(db);
     }
     res.json({ success: true, count: assets?.length || 0 });
+  });
+
+  // 7b. Universal Media Upload Proxy
+  api.post('/upload', async (req: Request, res: Response) => {
+    try {
+      const { fileName, mimeType, base64, destinationPath } = req.body;
+      if (!base64 || !fileName) {
+        return res.status(400).json({ error: 'Missing base64 data or fileName' });
+      }
+
+      const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, '');
+      const buffer = Buffer.from(cleanBase64, 'base64');
+      const fileExt = (path.extname(fileName) || '.jpg').toLowerCase().replace('.', '') || 'jpg';
+      const cleanBase = path.basename(fileName, path.extname(fileName)).toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const finalFileName = `${cleanBase}-${Date.now()}.${fileExt}`;
+      const destClean = (destinationPath || 'general').replace(/^\/+|\/+$/g, '');
+      const storagePath = `${destClean}/${finalFileName}`;
+
+      const targetMime = mimeType || (fileExt === 'png' ? 'image/png' : fileExt === 'webp' ? 'image/webp' : 'image/jpeg');
+
+      // 1. Upload to Supabase Storage bucket 'portfolio-media'
+      const sbUrl = process.env.VITE_SUPABASE_URL || 'https://oorbvpnuivsyfxftlqwr.supabase.co';
+      const sbAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
+
+      if (sbUrl && sbAnonKey) {
+        try {
+          const { createClient } = await import('@supabase/supabase-js');
+          const serverSupabase = createClient(sbUrl, sbAnonKey);
+          const { data, error } = await serverSupabase.storage
+            .from('portfolio-media')
+            .upload(storagePath, buffer, {
+              contentType: targetMime,
+              upsert: true,
+            });
+
+          if (!error && data?.path) {
+            const { data: urlData } = serverSupabase.storage
+              .from('portfolio-media')
+              .getPublicUrl(data.path);
+
+            return res.json({
+              success: true,
+              path: data.path,
+              url: urlData.publicUrl,
+              fileName: finalFileName,
+              fileSize: buffer.length,
+              mimeType: targetMime,
+            });
+          } else if (error) {
+            console.warn('Server Supabase upload error:', error.message);
+          }
+        } catch (supabaseErr: any) {
+          console.warn('Server Supabase upload exception:', supabaseErr?.message || supabaseErr);
+        }
+      }
+
+      // 2. High-reliability fallback: save to public/uploads directory
+      const uploadsDir = path.resolve(__dirname, 'public', 'uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const localFilePath = path.resolve(uploadsDir, finalFileName);
+      fs.writeFileSync(localFilePath, buffer);
+
+      const publicUrl = `/uploads/${finalFileName}`;
+      return res.json({
+        success: true,
+        path: storagePath,
+        url: publicUrl,
+        fileName: finalFileName,
+        fileSize: buffer.length,
+        mimeType: targetMime,
+      });
+    } catch (err: any) {
+      console.error('API /upload fatal error:', err);
+      res.status(500).json({ error: err.message || 'Media upload failed' });
+    }
   });
 
   // 8. Team & User Account Management API

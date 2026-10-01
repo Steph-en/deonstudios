@@ -78,7 +78,7 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
       role: 'Lead Photographer & Creative Director',
       description: '',
       long_description: '',
-      status: 'draft',
+      status: 'published',
       featured: false,
       preview_image: '/assets/gideon_boadi_portrait.png',
       preview_video: null,
