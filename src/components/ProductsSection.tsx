@@ -29,7 +29,7 @@ const getAspectRatioClass = (aspect?: string) => {
 };
 
 export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, theme }) => {
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const categories = ['All', ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))];

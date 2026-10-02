@@ -59,7 +59,7 @@ export const CategoryFilterDropdown: React.FC<CategoryFilterDropdownProps> = ({
         onClick={() => setIsOpen((prev) => !prev)}
         aria-haspopup="true"
         aria-expanded={isOpen}
-        className="group inline-flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-[13px] uppercase tracking-[0.2em] font-medium text-neutral-800 hover:text-black border-b border-neutral-800 group-hover:border-black pb-[3px] transition-colors duration-200 cursor-pointer focus:outline-hidden"
+        className="group inline-flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-[13px] uppercase tracking-[0.2em] font-medium text-neutral-800 hover:text-black pb-[3px] transition-colors duration-200 cursor-pointer focus:outline-hidden"
         title="Filter categories"
       >
         <span>{activeCategory}</span>

@@ -29,7 +29,7 @@ const getAspectRatioClass = (aspect?: string) => {
 };
 
 export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme }) => {
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const categories = ['All', ...Array.from(new Set(shots.map((s) => s.category).filter(Boolean)))];
