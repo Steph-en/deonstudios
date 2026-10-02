@@ -5,6 +5,13 @@
   "products": [],
   "media": [],
   "deleted_keys": [],
+  "site_settings": {
+    "hero_settings": {
+      "mediaType": "video",
+      "mediaUrl": "/videos/hero-desktop.mp4",
+      "scrollText": "SCROLL"
+    }
+  },
   "users": [
     {
       "id": "admin-appahstephen9",

@@ -24,6 +24,7 @@ interface DatabaseSchema {
   media: any[];
   deleted_keys: string[];
   users: any[];
+  site_settings?: Record<string, any>;
   config: {
     supabaseUrl?: string;
     supabaseAnonKey?: string;
@@ -80,355 +81,13 @@ function getInitialDatabase(): DatabaseSchema {
         updated_at: new Date().toISOString(),
       },
     ],
-    projects: [
-      {
-        id: 'proj-1',
-        title: 'Helmet of Heritage',
-        slug: 'helmet-of-heritage',
-        category_id: '11111111-1111-1111-1111-111111111111',
-        client: 'Guzangs Magazine',
-        year: '2025',
-        role: 'Creative Director',
-        description: 'Cover feature for Guzangs Digital Issue 01 featuring NFL standout Jeremiah Owusu-Koramoah. An exploration of ancestral African lineage, warrior headpieces, and modern sportswear identity.',
-        long_description: 'Cover feature for Guzangs Digital Issue 01 featuring NFL standout Jeremiah Owusu-Koramoah. An exploration of ancestral African lineage, warrior headpieces, and modern sportswear identity.',
-        status: 'published',
-        featured: true,
-        preview_image: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
-        preview_video: '/videos/hero-desktop.mp4',
-        hero_image: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
-        hero_video: '/videos/hero-desktop.mp4',
-        og_image: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
-        seo_title: 'Helmet of Heritage — Guzangs Magazine | Deon Studios',
-        seo_description: 'Cover feature for Guzangs Digital Issue 01 featuring NFL standout Jeremiah Owusu-Koramoah.',
-        seo_keywords: 'Gideon Boadi, Guzangs Magazine, Editorial, Photography',
-        published_at: new Date().toISOString(),
-        created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-        category: {
-          id: '11111111-1111-1111-1111-111111111111',
-          name: 'Editorial',
-          slug: 'editorial',
-          description: null,
-          color: '#e5e5e5',
-          icon: 'book-open',
-          display_order: 1,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        media: [
-          {
-            id: 'media-helmet-of-heritage-0',
-            project_id: 'proj-1',
-            media_type: 'image',
-            storage_path: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
-            media_url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
-            thumbnail_path: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
-            thumbnail_url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/general/preview/l1060844-2-1790795872815.jpg',
-            file_name: 'helmet-of-heritage-0.jpg',
-            file_size: null,
-            mime_type: 'image/jpeg',
-            width: 1200,
-            height: 1600,
-            alt_text: 'Cover Plate: Jeremiah Owusu-Koramoah with custom football helmet and traditional heritage drape',
-            display_order: 0,
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: 'media-helmet-of-heritage-1',
-            project_id: 'proj-1',
-            media_type: 'image',
-            storage_path: '/assets/projects/guzangs-helmet-of-heritage-02.jpg',
-            media_url: '/assets/projects/guzangs-helmet-of-heritage-02.jpg',
-            thumbnail_path: '/assets/projects/guzangs-helmet-of-heritage-02.jpg',
-            thumbnail_url: '/assets/projects/guzangs-helmet-of-heritage-02.jpg',
-            file_name: 'helmet-of-heritage-1.jpg',
-            file_size: null,
-            mime_type: 'image/jpeg',
-            width: 1200,
-            height: 1600,
-            alt_text: 'Warehouse Study: Green parachute trousers and knit cap framed against rustic crates',
-            display_order: 1,
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: 'media-helmet-of-heritage-2',
-            project_id: 'proj-1',
-            media_type: 'image',
-            storage_path: '/assets/projects/guzangs-helmet-of-heritage-03.jpg',
-            media_url: '/assets/projects/guzangs-helmet-of-heritage-03.jpg',
-            thumbnail_path: '/assets/projects/guzangs-helmet-of-heritage-03.jpg',
-            thumbnail_url: '/assets/projects/guzangs-helmet-of-heritage-03.jpg',
-            file_name: 'helmet-of-heritage-2.jpg',
-            file_size: null,
-            mime_type: 'image/jpeg',
-            width: 1200,
-            height: 1600,
-            alt_text: 'Ancestral Adornment: Profile study highlighting traditional cowrie embroidery',
-            display_order: 2,
-            created_at: new Date().toISOString(),
-          },
-        ],
-        sections: [
-          {
-            id: 'sec-helmet-of-heritage-1',
-            project_id: 'proj-1',
-            title: 'Concept & Narrative',
-            content: 'An exploration of ancestral African lineage, warrior headpieces, and modern sportswear identity.',
-            display_order: 0,
-            created_at: new Date().toISOString(),
-          },
-        ],
-        viewsCount: 520,
-      },
-      {
-        id: 'proj-2',
-        title: 'Daniel Duveprime Beauty',
-        slug: 'daniel-duveprime-beauty',
-        category_id: '33333333-3333-3333-3333-333333333333',
-        client: 'Daniel Duveprime Beauty',
-        year: '2025',
-        role: 'Art Director & Photographer',
-        description: 'High-end cosmetics commercial campaign celebrating dark skin luminosity, rich velvet liquid lipsticks, and intimate partner resonance in eveningwear.',
-        long_description: 'High-end cosmetics commercial campaign celebrating dark skin luminosity, rich velvet liquid lipsticks, and intimate partner resonance in eveningwear.',
-        status: 'published',
-        featured: true,
-        preview_image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1200&auto=format&fit=crop',
-        preview_video: null,
-        hero_image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1600&auto=format&fit=crop',
-        hero_video: null,
-        og_image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1200&auto=format&fit=crop',
-        seo_title: 'Daniel Duveprime Beauty | Deon Studios',
-        seo_description: 'High-end cosmetics commercial campaign celebrating dark skin luminosity.',
-        seo_keywords: 'Cosmetics, Beauty, Gideon Boadi, Luxury Beauty',
-        published_at: new Date().toISOString(),
-        created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-        category: {
-          id: '33333333-3333-3333-3333-333333333333',
-          name: 'Commercial',
-          slug: 'commercial',
-          description: null,
-          color: '#a3a3a3',
-          icon: 'briefcase',
-          display_order: 3,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        media: [
-          {
-            id: 'media-duveprime-0',
-            project_id: 'proj-2',
-            media_type: 'image',
-            storage_path: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1600&auto=format&fit=crop',
-            media_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1600&auto=format&fit=crop',
-            thumbnail_path: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop',
-            thumbnail_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600&auto=format&fit=crop',
-            file_name: 'duveprime-campaign-hero.jpg',
-            file_size: null,
-            mime_type: 'image/jpeg',
-            width: 1200,
-            height: 1600,
-            alt_text: 'Duveprime Velvet Lip campaign portrait',
-            display_order: 0,
-            created_at: new Date().toISOString(),
-          },
-        ],
-        sections: [],
-        viewsCount: 410,
-      },
-      {
-        id: 'proj-3',
-        title: 'Bottega Veneta Form',
-        slug: 'bottega-veneta-leather',
-        category_id: '22222222-2222-2222-2222-222222222222',
-        client: 'Bottega Veneta',
-        year: '2024',
-        role: 'Still Life & Editorial Director',
-        description: 'Sculptural leather still lifes and editorial movement showcasing handcrafted Intrecciato weaves in high-contrast architectural lighting.',
-        long_description: 'Sculptural leather still lifes and editorial movement showcasing handcrafted Intrecciato weaves in high-contrast architectural lighting.',
-        status: 'published',
-        featured: true,
-        preview_image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1200&auto=format&fit=crop',
-        preview_video: null,
-        hero_image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1600&auto=format&fit=crop',
-        hero_video: null,
-        og_image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1200&auto=format&fit=crop',
-        seo_title: 'Bottega Veneta Form | Deon Studios',
-        seo_description: 'Sculptural leather still lifes showcasing handcrafted Intrecciato weaves.',
-        seo_keywords: 'Bottega Veneta, Luxury Leather, Gideon Boadi',
-        published_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-        category: {
-          id: '22222222-2222-2222-2222-222222222222',
-          name: 'Fashion',
-          slug: 'fashion',
-          description: null,
-          color: '#d4d4d4',
-          icon: 'sparkles',
-          display_order: 2,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        media: [
-          {
-            id: 'media-bottega-0',
-            project_id: 'proj-3',
-            media_type: 'image',
-            storage_path: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1600&auto=format&fit=crop',
-            media_url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1600&auto=format&fit=crop',
-            thumbnail_path: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop',
-            thumbnail_url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop',
-            file_name: 'bottega-editorial-lead.jpg',
-            file_size: null,
-            mime_type: 'image/jpeg',
-            width: 1200,
-            height: 1600,
-            alt_text: 'Bottega Veneta Intrecciato still life study',
-            display_order: 0,
-            created_at: new Date().toISOString(),
-          },
-        ],
-        sections: [],
-        viewsCount: 380,
-      },
-    ],
-    portfolio: [
-      {
-        id: 'port-1',
-        title: 'Jeremiah Owusu-Koramoah — Guzangs Cover',
-        category: 'Portraiture',
-        url: '/assets/projects/guzangs-helmet-of-heritage-01.jpg',
-        fallback_url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1600&q=85',
-        aspect_ratio: 'tall',
-        caption: 'Cover Plate: Jeremiah Owusu-Koramoah with custom football helmet and traditional heritage drape',
-        client_or_brand: 'Guzangs Magazine',
-        tag: 'Cover Story',
-        camera: 'Hasselblad H6D',
-        lens: 'HC 100mm f/2.2',
-        iso: '100',
-        shutter: '1/250s',
-        status: 'published',
-        featured: true,
-        display_order: 0,
-        created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-      },
-      {
-        id: 'port-2',
-        title: 'The Heritage Tassel Study',
-        category: 'Editorial',
-        url: '/assets/projects/guzangs-helmet-of-heritage-03.jpg',
-        fallback_url: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=1200&q=85',
-        aspect_ratio: 'square',
-        caption: 'Ancestral Adornment: Profile study highlighting traditional cowrie and tassel embroidery',
-        client_or_brand: 'Guzangs Magazine',
-        tag: 'Editorial Plate',
-        camera: 'Hasselblad H6D',
-        lens: 'HC 120mm Macro',
-        iso: '100',
-        shutter: '1/320s',
-        status: 'published',
-        featured: true,
-        display_order: 1,
-        created_at: new Date(Date.now() - 2 * 3600000).toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-      },
-      {
-        id: 'port-3',
-        title: 'Velvet Noir Luminosity',
-        category: 'Portraiture',
-        url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1600&auto=format&fit=crop',
-        fallback_url: null,
-        aspect_ratio: 'portrait',
-        caption: 'Daniel Duveprime Beauty campaign — Dark skin radiance and deep crimson lip luster',
-        client_or_brand: 'Daniel Duveprime Beauty',
-        tag: 'Beauty Campaign',
-        camera: 'Leica SL2-S',
-        lens: 'Summilux-M 50mm f/1.4',
-        iso: '160',
-        shutter: '1/200s',
-        status: 'published',
-        featured: true,
-        display_order: 2,
-        created_at: new Date(Date.now() - 1 * 3600000).toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-      },
-    ],
-    products: [
-      {
-        id: 'prod-1',
-        title: 'Bottega Intrecciato Still Life',
-        category: 'Commercial',
-        url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1600&auto=format&fit=crop',
-        fallback_url: null,
-        aspect_ratio: 'square',
-        caption: 'Sculptural leather still life showcasing handcrafted Bottega Veneta Intrecciato weaves in high-contrast light',
-        client_or_brand: 'Bottega Veneta',
-        tag: 'Product Still Life',
-        camera: 'Phase One IQ4',
-        lens: 'Schneider 120mm Macro',
-        iso: '50',
-        shutter: '1/160s',
-        status: 'published',
-        featured: true,
-        display_order: 0,
-        created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-      },
-      {
-        id: 'prod-2',
-        title: 'Duveprime Velvet Liquid Lip',
-        category: 'Commercial',
-        url: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?q=80&w=1600&auto=format&fit=crop',
-        fallback_url: null,
-        aspect_ratio: 'portrait',
-        caption: 'Cosmetic glass component study — Velvet Matte formulation with obsidian cap',
-        client_or_brand: 'Daniel Duveprime Beauty',
-        tag: 'Luxury Still Life',
-        camera: 'Hasselblad H6D',
-        lens: 'HC 120mm f/4 Macro',
-        iso: '100',
-        shutter: '1/250s',
-        status: 'published',
-        featured: true,
-        display_order: 1,
-        created_at: new Date(Date.now() - 2 * 3600000).toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-      },
-      {
-        id: 'prod-3',
-        title: 'Architectural Amber Bottle Study',
-        category: 'Commercial',
-        url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=1600&auto=format&fit=crop',
-        fallback_url: null,
-        aspect_ratio: 'tall',
-        caption: 'Minimalist artisanal fragrance glass capture on polished concrete substrate',
-        client_or_brand: 'Maison Boadi',
-        tag: 'Fragrance',
-        camera: 'Leica SL2-S',
-        lens: 'Apo-Summicron 75mm',
-        iso: '100',
-        shutter: '1/180s',
-        status: 'published',
-        featured: true,
-        display_order: 2,
-        created_at: new Date(Date.now() - 1 * 3600000).toISOString(),
-        updated_at: new Date().toISOString(),
-        deleted_at: null,
-      },
-    ],
+    projects: [],
+    portfolio: [],
+    products: [],
     // Clean media: starts with NO zombie sample placeholders
     media: [],
     deleted_keys: [],
+    site_settings: {},
     users: [
       {
         id: 'admin-appahstephen9',
@@ -686,23 +345,7 @@ async function startServer() {
   });
 
   api.post('/projects/seed', (_req: Request, res: Response) => {
-    const initial = getInitialDatabase();
-    db.projects = initial.projects;
-    if (Array.isArray(db.deleted_keys)) {
-      const seedKeys = new Set(
-        initial.projects.flatMap((p: any) => [
-          p.id?.toLowerCase(),
-          p.slug?.toLowerCase(),
-          p.preview_image?.toLowerCase(),
-          p.hero_image?.toLowerCase(),
-          ...(p.media || []).map((m: any) => m.id?.toLowerCase()),
-          ...(p.media || []).map((m: any) => m.media_url?.toLowerCase()),
-        ]).filter(Boolean)
-      );
-      db.deleted_keys = db.deleted_keys.filter((k: string) => !seedKeys.has(k.toLowerCase()));
-    }
-    saveDatabase(db);
-    res.json({ success: true, count: db.projects.length, projects: db.projects });
+    res.json({ success: true, count: 0, message: 'Sample seed feature removed' });
   });
 
   // 4. Portfolio Shots API
@@ -803,21 +446,7 @@ async function startServer() {
   });
 
   api.post('/portfolio/seed', (_req: Request, res: Response) => {
-    const initial = getInitialDatabase();
-    db.portfolio = initial.portfolio;
-    if (Array.isArray(db.deleted_keys)) {
-      const seedKeys = new Set(
-        initial.portfolio.flatMap((s: any) => [
-          s.id?.toLowerCase(),
-          s.url?.toLowerCase(),
-          s.fallback_url?.toLowerCase(),
-          s.title?.toLowerCase(),
-        ]).filter(Boolean)
-      );
-      db.deleted_keys = db.deleted_keys.filter((k: string) => !seedKeys.has(k.toLowerCase()));
-    }
-    saveDatabase(db);
-    res.json({ success: true, count: db.portfolio.length, portfolio: db.portfolio });
+    res.json({ success: true, count: 0, message: 'Sample seed feature removed' });
   });
 
   // 5. Products API
@@ -918,21 +547,24 @@ async function startServer() {
   });
 
   api.post('/products/seed', (_req: Request, res: Response) => {
-    const initial = getInitialDatabase();
-    db.products = initial.products;
-    if (Array.isArray(db.deleted_keys)) {
-      const seedKeys = new Set(
-        initial.products.flatMap((p: any) => [
-          p.id?.toLowerCase(),
-          p.url?.toLowerCase(),
-          p.fallback_url?.toLowerCase(),
-          p.title?.toLowerCase(),
-        ]).filter(Boolean)
-      );
-      db.deleted_keys = db.deleted_keys.filter((k: string) => !seedKeys.has(k.toLowerCase()));
-    }
+    res.json({ success: true, count: 0, message: 'Sample seed feature removed' });
+  });
+
+  // 6b. Site Settings API (Hero & About Dynamic Configuration)
+  api.get('/settings/:key', (req: Request, res: Response) => {
+    const key = req.params.key;
+    if (!db.site_settings) db.site_settings = {};
+    const value = db.site_settings[key] || null;
+    res.json({ success: true, key, value });
+  });
+
+  api.post('/settings/:key', (req: Request, res: Response) => {
+    const key = req.params.key;
+    const { value } = req.body;
+    if (!db.site_settings) db.site_settings = {};
+    db.site_settings[key] = value;
     saveDatabase(db);
-    res.json({ success: true, count: db.products.length, products: db.products });
+    res.json({ success: true, key, value });
   });
 
   // 6. Categories API

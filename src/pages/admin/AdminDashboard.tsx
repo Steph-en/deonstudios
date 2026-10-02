@@ -6,6 +6,7 @@ import {
   Package,
   Tag,
   Users,
+  Sparkles,
   ArrowRight,
   TrendingUp,
   BarChart3,
@@ -162,6 +163,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="mt-2 text-[11px] text-neutral-600 truncate">
             Active taxonomies
           </div>
+        </div>
+      </div>
+
+      {/* CMS Quick Management Banners */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div
+          onClick={() => onNavigateTab('hero')}
+          className="bg-white border border-neutral-200 rounded-xl p-5 shadow-xs hover:border-neutral-900 transition cursor-pointer group flex items-center justify-between"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 bg-neutral-900 text-white rounded-md">
+                <Sparkles className="w-3.5 h-3.5" />
+              </span>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-neutral-900">
+                Hero Section CMS
+              </h4>
+            </div>
+            <p className="text-xs text-neutral-500">
+              Update landing cover background with dynamic video or full-bleed responsive photo.
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 group-hover:translate-x-1 transition shrink-0 ml-4" />
+        </div>
+
+        <div
+          onClick={() => onNavigateTab('about')}
+          className="bg-white border border-neutral-200 rounded-xl p-5 shadow-xs hover:border-neutral-900 transition cursor-pointer group flex items-center justify-between"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 bg-neutral-900 text-white rounded-md">
+                <Users className="w-3.5 h-3.5" />
+              </span>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-neutral-900">
+                About Section CMS
+              </h4>
+            </div>
+            <p className="text-xs text-neutral-500">
+              Manage artist portrait/video, biography, social links, bookings link, and clients roster.
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 group-hover:translate-x-1 transition shrink-0 ml-4" />
         </div>
       </div>
 

@@ -1,79 +1,79 @@
 import React from 'react';
-import gideonPortrait from '../assets/images/gideon_boadi_portrait.png';
-import { STUDIO_INFO, CLIENT_LIST, SOCIAL_LINKS } from '../data/portfolioData';
+import { useAboutSettings } from '../hooks/usePortfolioQueries';
+import { DEFAULT_ABOUT_SETTINGS } from '../services/siteSettingsService';
 import { SEOHead } from './SEOHead';
 
 interface AboutViewProps {
   onOpenContact: () => void;
 }
 
-export const AboutView: React.FC<AboutViewProps> = ({ onOpenContact }) => {
+export const AboutView: React.FC<AboutViewProps> = () => {
+  const { data: settings } = useAboutSettings();
+  const config = settings || DEFAULT_ABOUT_SETTINGS;
+
+  const isVideo =
+    config.mediaType === 'video' ||
+    (config.mediaUrl &&
+      (config.mediaUrl.endsWith('.mp4') || config.mediaUrl.endsWith('.webm')));
+
   return (
     <div
       id="about-studio-page"
       className="min-h-screen pt-24 sm:pt-28 md:pt-36 pb-20 md:pb-28 px-4 sm:px-6 md:px-8 bg-neutral-50 text-neutral-900 transition-colors duration-300"
     >
       <SEOHead
-        title="About Gideon Boadi — Founder & Creative Director | Deon Studios"
-        description="Learn about Gideon Boadi, Ghanaian fashion photographer, visual storyteller, and founder of Deon Studios. Studio philosophy, client roster, awards, and representation in Accra."
+        title={`About ${config.artistName} — Founder & Creative Director | Deon Studios`}
+        description={`Learn about ${config.artistName}, Ghanaian fashion photographer, visual storyteller, and founder of Deon Studios. Studio philosophy, client roster, awards, and representation.`}
         canonicalUrl="/#about"
         ogType="profile"
-        ogImage="/assets/gideon_boadi_portrait.png"
-        imageAlt="Gideon Boadi - Photographer & Creative Director"
-        author="Gideon Boadi"
-        schema={{
-          '@context': 'https://schema.org',
-          '@type': 'AboutPage',
-          name: 'About Gideon Boadi — Deon Studios',
-          description:
-            'Learn about Gideon Boadi, Ghanaian fashion photographer, visual storyteller, and founder of Deon Studios. Studio philosophy, client roster, awards, and representation in Accra.',
-          mainEntity: {
-            '@type': 'Person',
-            name: 'Gideon Boadi',
-            jobTitle: 'Photographer & Creative Director',
-            worksFor: {
-              '@type': 'Organization',
-              name: 'Deon Studios',
-            },
-            nationality: 'Ghanaian',
-            address: {
-              '@type': 'PostalAddress',
-              addressLocality: 'Accra',
-              addressCountry: 'Ghana',
-            },
-          },
-        }}
+        ogImage={config.mediaUrl || '/assets/images/gideon_boadi_portrait.png'}
+        imageAlt={`${config.artistName} - ${config.roleTagline || 'Photographer'}`}
+        author={config.artistName}
       />
+
       <div className="max-w-7xl mx-auto">
         {/* 
-          Two-column editorial layout matching garrettnaccarato.com/info:
-          - Left: High-contrast photographic portrait of photographer in film frame with photo credit
-          - Right: Clean editorial narrative, social links, inquiries, awards, and clients
+          Two-column editorial layout:
+          - Left: High-contrast photographic portrait / looping video of photographer in film frame with credit
+          - Right: Dynamic editorial narrative, social links, bookings, and select clients list
         */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 sm:gap-12 lg:gap-16 items-start">
-          {/* Left Column: Portrait */}
+          {/* Left Column: Portrait / Media */}
           <div className="lg:col-span-5 xl:col-span-5">
             <div className="relative overflow-hidden border border-neutral-900/80 bg-neutral-100 shadow-sm">
-              <img
-                src={gideonPortrait}
-                alt="Gideon Boadi — Photographer & Creative Director"
-                className="w-full h-auto aspect-3/4 object-cover grayscale contrast-105 block"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  if (!target.dataset.tried) {
-                    target.dataset.tried = '1';
-                    target.src = '/assets/gideon_boadi_portrait.png';
-                  } else if (target.dataset.tried === '1') {
-                    target.dataset.tried = '2';
-                    target.src = '/assets/gideon-boadi.jpg';
-                  }
-                }}
-              />
+              {isVideo ? (
+                <video
+                  src={config.mediaUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-auto aspect-3/4 object-cover grayscale contrast-105 block"
+                />
+              ) : (
+                <img
+                  src={config.mediaUrl || '/assets/images/gideon_boadi_portrait.png'}
+                  alt={`${config.artistName} — ${config.artistTitle}`}
+                  className="w-full h-auto aspect-3/4 object-cover grayscale contrast-105 block"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.dataset.tried) {
+                      target.dataset.tried = '1';
+                      target.src = '/assets/images/gideon_boadi_portrait.png';
+                    }
+                  }}
+                />
+              )}
             </div>
-            <p className="mt-2 text-[9px] text-neutral-500 font-sans-clean tracking-wider">
-              Photo by <span className="underline underline-offset-2 decoration-neutral-400">Nana K. Boakye</span>
-            </p>
+            {config.mediaCredit && (
+              <p className="mt-2 text-[9px] text-neutral-500 font-sans-clean tracking-wider">
+                Photo by{' '}
+                <span className="underline underline-offset-2 decoration-neutral-400">
+                  {config.mediaCredit}
+                </span>
+              </p>
+            )}
           </div>
 
           {/* Right Column: Editorial Text */}
@@ -81,94 +81,83 @@ export const AboutView: React.FC<AboutViewProps> = ({ onOpenContact }) => {
             {/* Header & Disciplines Tagline */}
             <div className="border-b border-neutral-200 pb-5 mb-2">
               <h1 className="font-display text-[22px] sm:text-[28px] uppercase tracking-tight text-neutral-950 font-normal">
-                Gideon Boadi
+                {config.artistName}
               </h1>
               <p className="mt-1 text-[10px] sm:text-[12px] uppercase tracking-[0.2em] text-neutral-500 font-medium">
-                Photographer · Visual Storyteller · Founder of Deon Studios
+                {config.artistTitle}
               </p>
             </div>
 
-            {/* Opening Statement */}
-            <p className="text-neutral-900 text-[14px] sm:text-[16px] font-light leading-relaxed">
-              Gideon Boadi is an image creative, photographer, and visual storyteller based in Accra, Ghana. Working at the intersection of fashion, culture, and contemporary art, he crafts distinctive visual narratives that transform ideas, identities, and emotions into evocative, enduring imagery.
-            </p>
-
-            {/* Studio Philosophy & Deon Studios Reference */}
-            <p className="text-neutral-700 font-light leading-relaxed">
-              Through his creative practice and studio banner, Deon Studios, Gideon collaborates with brands and cultural institutions across fashion, beauty, lifestyle, and editorial publishing. Every project is approached with disciplined intentionality—from initial conceptualization and narrative architecture to cinematographic lighting, mood, composition, and final execution. His work sits at the confluence of African heritage and global contemporary aesthetics, creating imagery that feels considered, authentic, and unforgettable.
-            </p>
-
-            {/* Creative Process & Vision */}
-            <p className="text-neutral-700 font-light leading-relaxed">
-              Gideon plays an active, hands-on role throughout the entire creative continuum—directing pre-production, set atmosphere, and cinematographic lighting through to post-production color grading and art direction. Drawing inspiration from architectural form, natural textures, and human vulnerability, he pursues visual resonance by introducing a timeless stillness into dynamic modern settings.
-            </p>
-
-            {/* Collaborations & Core Belief */}
-            <p className="text-neutral-700 font-light leading-relaxed">
-              His work has been commissioned and featured by prominent international titles and brands, including Vogue, Vlisco, Dazed, and Guzangs Magazine, among others. Whether developing an expansive commercial campaign, defining a brand’s visual identity, or capturing intimate editorial portraits, Gideon is driven by a singular belief: cultivating genuine emotional connections through unique, relevant, and resonant visual storytelling.
-            </p>
-
-            {/* Global Availability */}
-            <p className="text-neutral-700 font-light leading-relaxed">
-              Available worldwide for editorial commissions, runway documentation, commercial campaigns, and creative direction.
-            </p>
+            {/* Dynamic Bio Paragraphs */}
+            {config.bioParagraphs && config.bioParagraphs.length > 0 ? (
+              config.bioParagraphs.map((paragraph, idx) => (
+                <p
+                  key={idx}
+                  className={`leading-relaxed ${
+                    idx === 0
+                      ? 'text-neutral-900 text-[14px] sm:text-[16px] font-light'
+                      : 'text-neutral-700 font-light'
+                  }`}
+                >
+                  {paragraph}
+                </p>
+              ))
+            ) : (
+              <p className="text-neutral-700 font-light leading-relaxed">
+                Visual storyteller and photographer based in Accra, Ghana.
+              </p>
+            )}
 
             {/* Social Links */}
-            <div className="pt-2 flex flex-wrap items-center gap-x-6 gap-y-2.5 text-[10px] sm:text-[12px] uppercase tracking-[0.16em] font-medium text-neutral-900">
-              {SOCIAL_LINKS.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-4 decoration-neutral-400 hover:decoration-black hover:text-black transition-all"
-                >
-                  {link.name}
-                </a>
-              ))}
-            </div>
-
-            {/* Bookings & General Inquiries */}
-            <div className="pt-4 sm:pt-6 border-t border-neutral-200">
-              <h3 className="font-sans-clean text-[10px] sm:text-[12px] font-bold uppercase tracking-[0.16em] text-neutral-950 mb-2">
-                Bookings &amp; General Inquiries
-              </h3>
-              <a
-                href="https://deon-studios.easyweek.de/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[10px] sm:text-[12px] text-neutral-700 underline underline-offset-4 decoration-neutral-400 hover:text-black hover:decoration-black transition-colors break-all"
-              >
-                https://deon-studios.easyweek.de/
-              </a>
-            </div>
-
-            {/* Features & Recognition */}
-            <div className="pt-4 sm:pt-6 border-t border-neutral-200 space-y-3">
-              {/* <h3 className="font-sans-clean text-[10px] sm:text-[12px] font-bold uppercase tracking-[0.16em] text-neutral-950 mb-2">
-                Features &amp; Recognition
-              </h3>
-              <div className="space-y-1.5 text-[10px] sm:text-[12px] text-neutral-700 leading-normal">
-                {STUDIO_INFO.awards.map((award, idx) => (
-                  <p key={idx} className="underline underline-offset-2 decoration-neutral-300">
-                    {award.year} {award.title}
-                  </p>
-                ))}
-              </div> */}
-
-              {/* Selected Clients inline list */}
-              <div className="pt-2 text-[10px] sm:text-[12px] text-neutral-600 leading-relaxed">
-                <span className="font-medium text-neutral-900">Select Clients: </span>
-                {CLIENT_LIST.slice(0, 10).map((client, idx, arr) => (
-                  <span key={idx}>
-                    <span className="underline underline-offset-2 decoration-neutral-300 hover:text-neutral-900 transition-colors">
-                      {client}
-                    </span>
-                    {idx < arr.length - 1 ? ' | ' : ''}
-                  </span>
+            {config.socialLinks && config.socialLinks.length > 0 && (
+              <div className="pt-2 flex flex-wrap items-center gap-x-6 gap-y-2.5 text-[10px] sm:text-[12px] uppercase tracking-[0.16em] font-medium text-neutral-900">
+                {config.socialLinks.map((link, idx) => (
+                  <a
+                    key={`${link.name}-${idx}`}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-4 decoration-neutral-400 hover:decoration-black hover:text-black transition-all"
+                  >
+                    {link.name}
+                  </a>
                 ))}
               </div>
-            </div>
+            )}
+
+            {/* Bookings & General Inquiries */}
+            {config.bookingUrl && (
+              <div className="pt-4 sm:pt-6 border-t border-neutral-200">
+                <h3 className="font-sans-clean text-[10px] sm:text-[12px] font-bold uppercase tracking-[0.16em] text-neutral-950 mb-2">
+                  {config.bookingLabel || 'Bookings & General Inquiries'}
+                </h3>
+                <a
+                  href={config.bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] sm:text-[12px] text-neutral-700 underline underline-offset-4 decoration-neutral-400 hover:text-black hover:decoration-black transition-colors break-all"
+                >
+                  {config.bookingUrl}
+                </a>
+              </div>
+            )}
+
+            {/* Selected Clients inline list */}
+            {config.clients && config.clients.length > 0 && (
+              <div className="pt-4 sm:pt-6 border-t border-neutral-200">
+                <div className="text-[10px] sm:text-[12px] text-neutral-600 leading-relaxed">
+                  <span className="font-medium text-neutral-900">Select Clients: </span>
+                  {config.clients.map((client, idx, arr) => (
+                    <span key={idx}>
+                      <span className="underline underline-offset-2 decoration-neutral-300 hover:text-neutral-900 transition-colors">
+                        {client}
+                      </span>
+                      {idx < arr.length - 1 ? ' | ' : ''}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

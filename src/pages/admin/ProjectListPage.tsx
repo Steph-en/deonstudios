@@ -38,7 +38,6 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [isSeeding, setIsSeeding] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -192,20 +191,6 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
     }
   };
 
-  const handleSeedProjects = async () => {
-    try {
-      setIsSeeding(true);
-      await ProjectService.seedProjectsToDatabase();
-      await queryClient.invalidateQueries({ queryKey: ['projects'] });
-      await queryClient.refetchQueries({ queryKey: ['projects'] });
-      toast.success('Sample editorial projects restored successfully.', 'PROJECTS SEEDED');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to seed sample projects', 'SEED ERROR');
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -218,22 +203,6 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {(!projects || projects.length === 0) && (
-            <button
-              type="button"
-              onClick={handleSeedProjects}
-              disabled={isSeeding}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-300 bg-white text-neutral-700 text-xs font-medium hover:bg-neutral-50 transition shadow-sm cursor-pointer disabled:opacity-50"
-            >
-              {isSeeding ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
-              )}
-              Seed 3 Sample Works
-            </button>
-          )}
-
           <button
             type="button"
             onClick={onNewProject}
@@ -306,19 +275,6 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
             </div>
 
             <div className="flex items-center justify-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleSeedProjects}
-                disabled={isSeeding}
-                className="inline-flex items-center gap-2 px-3.5 py-2 border border-neutral-300 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition cursor-pointer disabled:opacity-50"
-              >
-                {isSeeding ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
-                )}
-                Seed 3 Sample Projects
-              </button>
               <button
                 type="button"
                 onClick={onNewProject}
