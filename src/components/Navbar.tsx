@@ -137,7 +137,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             title={`${artistName} — ${roleTagline}`}
           >
             <span
-              className={`font-editorial text-[30px] sm:text-[26px] md:text-[29px] tracking-tight font-light leading-none transition-colors ${
+              className={`font-editorial text-[26px] sm:text-[26px] md:text-[36px] tracking-tight font-light leading-none transition-colors ${
                 isLightHeader
                   ? 'text-neutral-900 group-hover:text-black'
                   : 'text-white group-hover:text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]'
