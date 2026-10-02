@@ -20,6 +20,12 @@
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
+/* Dynamic see-through inverted logo matching reference video */
+.navbar-logo-difference {
+  mix-blend-mode: difference !important;
+  isolation: auto !important;
+}
+
 /* Custom smooth masonry column grid */
 .masonry-columns-3 {
   column-count: 1;

@@ -14,6 +14,8 @@ import {
   User,
   Menu,
   X,
+  Sparkles,
+  UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import { DeonLogo } from '../DeonLogo';
@@ -21,6 +23,8 @@ import { SEOHead } from '../SEOHead';
 
 export type AdminTab =
   | 'overview'
+  | 'hero'
+  | 'about'
   | 'projects'
   | 'portfolio'
   | 'products'
@@ -66,6 +70,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
   const navItems: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
+    { id: 'hero', label: 'Hero CMS', icon: <Sparkles className="w-4 h-4" /> },
+    { id: 'about', label: 'About CMS', icon: <UserCheck className="w-4 h-4" /> },
     { id: 'portfolio', label: 'Portfolio', icon: <Camera className="w-4 h-4" /> },
     { id: 'projects', label: 'Projects', icon: <FolderKanban className="w-4 h-4" /> },
     { id: 'products', label: 'Products', icon: <Package className="w-4 h-4" /> },
@@ -98,6 +104,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
   const tabTitles: Record<AdminTab, string> = {
     overview: 'Dashboard Overview',
+    hero: 'Hero Section CMS',
+    about: 'About Section CMS',
     projects: 'Projects Manager',
     portfolio: 'Portraits & Editorial Shoots',
     products: 'Product Imagery',

@@ -84,28 +84,36 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
           - Frameless edge-to-edge presentation with no text labels under images
           - Grab/hand cursor with high-resolution lightbox expansion
         */}
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-[8px] select-none">
-          {filteredShots.map((shot, idx) => (
-            <div key={shot.id} className="break-inside-avoid mb-[8px]">
-              <article
-                id={`portfolio-shot-${shot.id}`}
-                onClick={() => setLightboxIndex(idx)}
-                className="group relative overflow-hidden bg-neutral-200 cursor-hover-hand cursor-grab active:cursor-grabbing hover:cursor-grab w-full"
-                title={`Click to view ${shot.title} in lightbox`}
-              >
-                <div className={`w-full ${getAspectRatioClass(shot.aspectRatio)} relative overflow-hidden bg-neutral-100`}>
-                  <ResilientImage
-                    src={shot.url}
-                    fallbackSrc={shot.fallbackUrl}
-                    alt={shot.title}
-                    lazy={true}
-                    className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025]"
-                  />
-                </div>
-              </article>
-            </div>
-          ))}
-        </div>
+        {filteredShots.length === 0 ? (
+          <div className="py-24 sm:py-32 text-center border border-dashed border-neutral-300/80 rounded-lg my-4">
+            <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-neutral-400 font-mono">
+              No published portraits in portfolio
+            </p>
+          </div>
+        ) : (
+          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-[8px] select-none">
+            {filteredShots.map((shot, idx) => (
+              <div key={shot.id} className="break-inside-avoid mb-[8px]">
+                <article
+                  id={`portfolio-shot-${shot.id}`}
+                  onClick={() => setLightboxIndex(idx)}
+                  className="group relative overflow-hidden bg-neutral-200 cursor-hover-hand cursor-grab active:cursor-grabbing hover:cursor-grab w-full"
+                  title={`Click to view ${shot.title} in lightbox`}
+                >
+                  <div className={`w-full ${getAspectRatioClass(shot.aspectRatio)} relative overflow-hidden bg-neutral-100`}>
+                    <ResilientImage
+                      src={shot.url}
+                      fallbackSrc={shot.fallbackUrl}
+                      alt={shot.title}
+                      lazy={true}
+                      className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025]"
+                    />
+                  </div>
+                </article>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Lightbox Modal for Portfolio */}

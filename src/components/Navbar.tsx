@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AnimatedNavbarLogo } from './AnimatedNavbarLogo';
 import { ThemeMode, PageView } from '../types';
+import { useAboutSettings } from '../hooks/usePortfolioQueries';
 
 interface NavbarProps {
   theme: ThemeMode;
@@ -29,6 +30,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isBreadcrumbOpen, setIsBreadcrumbOpen] = useState(false);
   const breadcrumbRef = useRef<HTMLDivElement>(null);
   const isLightHeader = activePage !== 'home';
+
+  const { data: aboutSettings } = useAboutSettings();
+  const artistName = aboutSettings?.artistName || 'Gideon Boadi';
+  const roleTagline = aboutSettings?.roleTagline || 'Photographer';
 
   const handlePortfolioClick = () => {
     setIsBreadcrumbOpen(false);
@@ -93,7 +98,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') onNavigateHome();
         }}
-        className="fixed top-6 md:top-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto cursor-pointer select-none transition-all duration-300 hover:opacity-90 active:scale-95"
+        style={{
+          mixBlendMode: 'difference',
+        }}
+        className="fixed top-6 md:top-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto cursor-pointer select-none navbar-logo-difference text-white transition-transform duration-150 active:scale-95"
         title="Deon Studios"
         aria-label="Deon Studios Home"
       >
@@ -112,16 +120,53 @@ export const Navbar: React.FC<NavbarProps> = ({
         id="main-top-navigation"
         className="absolute top-0 left-0 right-0 z-40 w-full pointer-events-none"
       >
-        <div className="w-full px-5 sm:px-6 md:px-10 py-5 sm:py-6 md:py-8 flex items-center justify-end">
+        <div className="w-full px-5 sm:px-6 md:px-10 py-5 sm:py-6 md:py-8 flex items-center justify-between">
           {/* 
-            1. Desktop Nav Links (hidden on smaller displays, visible on md+):
-            - Portfolio, Projects, Products, About, Contact on the far right corner
+            Top-Left Identity:
+            - Photographer Name & Discipline Role
+            - Placed cleanly in the top-left corner
           */}
-          <nav
-            id="desktop-nav-links"
-            className="hidden md:flex pointer-events-auto items-center gap-6 lg:gap-7"
-            aria-label="Primary navigation"
+          <div
+            onClick={onNavigateHome}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') onNavigateHome();
+            }}
+            className="flex flex-col items-start pointer-events-auto cursor-pointer select-none group"
+            title={`${artistName} — ${roleTagline}`}
           >
+            <span
+              className={`font-editorial text-[30px] sm:text-[26px] md:text-[29px] tracking-tight font-light leading-none transition-colors ${
+                isLightHeader
+                  ? 'text-neutral-900 group-hover:text-black'
+                  : 'text-white group-hover:text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]'
+              }`}
+            >
+              {artistName}
+            </span>
+            <span
+              className={`text-[8px] sm:text-[9.5px] uppercase tracking-[0.26em] font-sans-clean mt-1 font-medium transition-colors ${
+                isLightHeader
+                  ? 'text-neutral-500 group-hover:text-neutral-700'
+                  : 'text-white/80 group-hover:text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.8)]'
+              }`}
+            >
+              {roleTagline}
+            </span>
+          </div>
+
+          {/* 
+            Right Container:
+            - Desktop Nav Links on md+
+            - Mobile Three-Dash Breadcrumb Menu on mobile
+          */}
+          <div className="flex items-center gap-4">
+            <nav
+              id="desktop-nav-links"
+              className="hidden md:flex pointer-events-auto items-center gap-6 lg:gap-7"
+              aria-label="Primary navigation"
+            >
             <button
               type="button"
               onClick={handlePortfolioClick}
@@ -329,7 +374,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
         </div>
-      </header>
+      </div>
+    </header>
     </>
   );
 };

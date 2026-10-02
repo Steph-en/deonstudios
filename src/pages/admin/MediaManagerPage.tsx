@@ -26,7 +26,6 @@ export const MediaManagerPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -127,19 +126,6 @@ export const MediaManagerPage: React.FC = () => {
     }
   };
 
-  const handleSeedSamples = async () => {
-    try {
-      setIsSeeding(true);
-      await MediaService.seedSampleAssets();
-      await queryClient.invalidateQueries({ queryKey: ['media-library'] });
-      toast.success('Sample media assets loaded successfully.', 'MEDIA SEEDED');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to seed sample assets', 'SEED ERROR');
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -152,22 +138,6 @@ export const MediaManagerPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {assets.length === 0 && (
-            <button
-              type="button"
-              onClick={handleSeedSamples}
-              disabled={isSeeding}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-300 bg-white text-neutral-700 text-xs font-medium hover:bg-neutral-50 transition shadow-sm cursor-pointer disabled:opacity-50"
-            >
-              {isSeeding ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
-              )}
-              Seed Sample Media
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => setShowUpload(!showUpload)}
@@ -255,19 +225,6 @@ export const MediaManagerPage: React.FC = () => {
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={handleSeedSamples}
-              disabled={isSeeding}
-              className="inline-flex items-center gap-2 px-3.5 py-2 border border-neutral-300 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition cursor-pointer disabled:opacity-50"
-            >
-              {isSeeding ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
-              )}
-              Seed Sample Media
-            </button>
             <button
               type="button"
               onClick={() => setShowUpload(true)}

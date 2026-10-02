@@ -34,7 +34,6 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [previewShot, setPreviewShot] = useState<DbPortfolioShot | null>(null);
-  const [isSeeding, setIsSeeding] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -190,20 +189,6 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
     }
   };
 
-  const handleSeedShots = async () => {
-    try {
-      setIsSeeding(true);
-      await PortfolioService.seedShotsToDatabase();
-      await queryClient.invalidateQueries({ queryKey: ['portfolio-shots'] });
-      await queryClient.refetchQueries({ queryKey: ['portfolio-shots'] });
-      toast.success('Sample portraits restored successfully.', 'PORTRAITS SEEDED');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to seed sample portraits', 'SEED ERROR');
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -216,22 +201,6 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5">
-          {(!shots || shots.length === 0) && (
-            <button
-              type="button"
-              onClick={handleSeedShots}
-              disabled={isSeeding}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-300 bg-white text-neutral-700 text-xs font-medium hover:bg-neutral-50 transition shadow-sm cursor-pointer disabled:opacity-50"
-            >
-              {isSeeding ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
-              )}
-              Seed 3 Sample Portraits
-            </button>
-          )}
-
           {onViewPublicPortfolio && (
             <button
               type="button"
@@ -312,19 +281,6 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
             </div>
 
             <div className="flex items-center justify-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleSeedShots}
-                disabled={isSeeding}
-                className="inline-flex items-center gap-2 px-3.5 py-2 border border-neutral-300 rounded-lg text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition cursor-pointer disabled:opacity-50"
-              >
-                {isSeeding ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-500" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-neutral-500" />
-                )}
-                Seed 3 Sample Portraits
-              </button>
               <button
                 type="button"
                 onClick={onNewShot}

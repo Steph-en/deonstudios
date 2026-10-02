@@ -33,6 +33,8 @@ import { CategoryManagerPage } from './pages/admin/CategoryManagerPage';
 import { MediaManagerPage } from './pages/admin/MediaManagerPage';
 import { AnalyticsPage } from './pages/admin/AnalyticsPage';
 import { ProfilePage } from './pages/admin/ProfilePage';
+import { HeroCmsPage } from './pages/admin/HeroCmsPage';
+import { AboutCmsPage } from './pages/admin/AboutCmsPage';
 import { usePublishedProjects, usePortfolioShots, useProductShots } from './hooks/usePortfolioQueries';
 import { AnalyticsService } from './features/analytics/services/analyticsService';
 import { dbProjectToPortfolioProject } from './features/projects/utils/projectAdapter';
@@ -196,6 +198,16 @@ export default function App() {
 
         if (adminRoute === '#admin' || adminRoute === '#admin/' || adminRoute === '#admin/overview') {
           setAdminTab('overview');
+          setEditingProjectId(null);
+          setEditingPortfolioShotId(null);
+          setEditingProductId(null);
+        } else if (adminRoute === '#admin/hero') {
+          setAdminTab('hero');
+          setEditingProjectId(null);
+          setEditingPortfolioShotId(null);
+          setEditingProductId(null);
+        } else if (adminRoute === '#admin/about') {
+          setAdminTab('about');
           setEditingProjectId(null);
           setEditingPortfolioShotId(null);
           setEditingProductId(null);
@@ -526,6 +538,10 @@ export default function App() {
             onNavigateToNewPortfolio={handleAdminNewPortfolio}
             onNavigateToNewProduct={handleAdminNewProduct}
           />
+        ) : adminTab === 'hero' ? (
+          <HeroCmsPage />
+        ) : adminTab === 'about' ? (
+          <AboutCmsPage />
         ) : adminTab === 'projects' ? (
           <ProjectListPage
             onEditProject={handleAdminEditProject}
@@ -604,7 +620,7 @@ export default function App() {
       />
 
       {/* Main View Area with Framer Motion Fade-In Transition */}
-      <main className="w-full overflow-hidden">
+      <main className="w-full relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={activePage === 'project' && selectedProject ? `project-${selectedProject.slug}` : activePage}

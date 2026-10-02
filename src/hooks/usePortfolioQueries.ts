@@ -7,6 +7,13 @@ import { AnalyticsService } from '../features/analytics/services/analyticsServic
 import { PortfolioService } from '../features/portfolio/services/portfolioService';
 import { ProductService } from '../features/products/services/productService';
 import {
+  SiteSettingsService,
+  HeroSettings,
+  AboutSettings,
+  DEFAULT_HERO_SETTINGS,
+  DEFAULT_ABOUT_SETTINGS,
+} from '../services/siteSettingsService';
+import {
   DbProject,
   DbCategory,
   DbProjectMedia,
@@ -28,6 +35,7 @@ export const QUERY_KEYS = {
   projectSections: (projectId: string) => ['project-sections', projectId] as const,
   dashboardStats: ['dashboard-stats'] as const,
   detailedAnalytics: ['detailed-analytics'] as const,
+  siteSettings: (key: string) => ['site-settings', key] as const,
 };
 
 export function useProjects(options?: {
@@ -402,4 +410,51 @@ export function useProductMutations() {
     updateMultipleProductsFeatured,
   };
 }
+
+// ----------------------------------------------------------------------------
+// SITE SETTINGS (HERO & ABOUT DYNAMIC CMS HOOKS)
+// ----------------------------------------------------------------------------
+
+export function useHeroSettings() {
+  return useQuery<HeroSettings>({
+    queryKey: QUERY_KEYS.siteSettings('hero_settings'),
+    queryFn: () => SiteSettingsService.getSettings<HeroSettings>('hero_settings', DEFAULT_HERO_SETTINGS),
+    staleTime: 1000 * 5,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useUpdateHeroSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (newSettings: HeroSettings) =>
+      SiteSettingsService.updateSettings<HeroSettings>('hero_settings', newSettings),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(QUERY_KEYS.siteSettings('hero_settings'), saved);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.siteSettings('hero_settings') });
+    },
+  });
+}
+
+export function useAboutSettings() {
+  return useQuery<AboutSettings>({
+    queryKey: QUERY_KEYS.siteSettings('about_settings'),
+    queryFn: () => SiteSettingsService.getSettings<AboutSettings>('about_settings', DEFAULT_ABOUT_SETTINGS),
+    staleTime: 1000 * 5,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useUpdateAboutSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (newSettings: AboutSettings) =>
+      SiteSettingsService.updateSettings<AboutSettings>('about_settings', newSettings),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(QUERY_KEYS.siteSettings('about_settings'), saved);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.siteSettings('about_settings') });
+    },
+  });
+}
+
 
