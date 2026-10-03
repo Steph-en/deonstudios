@@ -8,6 +8,9 @@ export interface HeroSettings {
   fallbackPosterUrl?: string;
   overlayOpacity?: number; // 0 to 1
   scrollText?: string;
+  mobileScale?: number; // 0.6 to 1.2, default 0.88
+  mobileFocalX?: number; // 0 to 100%, default 58%
+  mobileFocalY?: number; // 0 to 100%, default 48%
 }
 
 export interface AboutSettings {
@@ -31,6 +34,9 @@ export const DEFAULT_HERO_SETTINGS: HeroSettings = {
   fallbackPosterUrl: '',
   overlayOpacity: 0.2,
   scrollText: 'SCROLL',
+  mobileScale: 0.88,
+  mobileFocalX: 58,
+  mobileFocalY: 48,
 };
 
 export const DEFAULT_ABOUT_SETTINGS: AboutSettings = {

@@ -99,9 +99,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           if (e.key === 'Enter' || e.key === ' ') onNavigateHome();
         }}
         style={{
+          top: 'max(env(safe-area-inset-top, 0px) + 0.85rem, 1.75rem)',
           mixBlendMode: 'difference',
         }}
-        className="fixed top-6 md:top-8 left-1/2 -translate-x-1/2 z-50 pointer-events-auto cursor-pointer select-none navbar-logo-difference text-white transition-transform duration-150 active:scale-95"
+        className="fixed left-1/2 -translate-x-1/2 z-50 pointer-events-auto cursor-pointer select-none navbar-logo-difference text-white transition-transform duration-150 active:scale-95"
         title="Deon Studios"
         aria-label="Deon Studios Home"
       >
@@ -120,7 +121,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         id="main-top-navigation"
         className="absolute top-0 left-0 right-0 z-40 w-full pointer-events-none"
       >
-        <div className="w-full px-5 sm:px-6 md:px-10 py-5 sm:py-6 md:py-8 flex items-center justify-between">
+        <div
+          className="w-full px-5 sm:px-6 md:px-10 flex items-center justify-between"
+          style={{
+            paddingTop: 'max(env(safe-area-inset-top, 0px) + 0.75rem, 1.5rem)',
+            paddingBottom: '1.25rem',
+          }}
+        >
           {/* 
             Top-Left Identity:
             - Photographer Name & Discipline Role

@@ -379,6 +379,98 @@ export const HeroCmsPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Section 6: Mobile Framing & Focal Centering */}
+          <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider font-mono">
+                6. Mobile Subject Centering &amp; Scale
+              </h2>
+              <span className="text-[10px] font-mono bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded">
+                iPhone / Portrait Display
+              </span>
+            </div>
+            <p className="text-xs text-neutral-500">
+              When 16:9 or landscape photos are displayed on mobile, use these controls to zoom out/scale down and center the subject so all aspects of their silhouette (head, arms, knees, shoes) remain fully visible.
+            </p>
+
+            <div className="space-y-4 pt-1">
+              <div>
+                <div className="flex justify-between items-center text-xs text-neutral-700 mb-1.5">
+                  <span>Mobile Scale / Zoom</span>
+                  <span className="font-mono font-medium">
+                    {Math.round((formData.mobileScale ?? 0.88) * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0.70"
+                  max="1.15"
+                  step="0.02"
+                  value={formData.mobileScale ?? 0.88}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      mobileScale: parseFloat(e.target.value),
+                    }))
+                  }
+                  className="w-full accent-neutral-950"
+                />
+                <span className="text-[10px] text-neutral-400">
+                  Scale down below 100% to reveal more of the subject and surroundings on mobile.
+                </span>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center text-xs text-neutral-700 mb-1.5">
+                  <span>Horizontal Center Position</span>
+                  <span className="font-mono font-medium">
+                    {formData.mobileFocalX ?? 58}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="20"
+                  max="80"
+                  step="1"
+                  value={formData.mobileFocalX ?? 58}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      mobileFocalX: parseInt(e.target.value, 10),
+                    }))
+                  }
+                  className="w-full accent-neutral-950"
+                />
+                <span className="text-[10px] text-neutral-400">
+                  Adjust left / right so the subject sits perfectly centered in the mobile frame.
+                </span>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center text-xs text-neutral-700 mb-1.5">
+                  <span>Vertical Center Position</span>
+                  <span className="font-mono font-medium">
+                    {formData.mobileFocalY ?? 48}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="20"
+                  max="80"
+                  step="1"
+                  value={formData.mobileFocalY ?? 48}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      mobileFocalY: parseInt(e.target.value, 10),
+                    }))
+                  }
+                  className="w-full accent-neutral-950"
+                />
+              </div>
+            </div>
+          </div>
         </form>
 
         {/* Right Preview Column */}
@@ -439,13 +531,35 @@ export const HeroCmsPage: React.FC = () => {
                   loop
                   muted
                   playsInline
-                  className="w-full h-full object-cover object-center"
+                  style={{
+                    objectPosition:
+                      previewMode === 'mobile'
+                        ? `${formData.mobileFocalX ?? 58}% ${formData.mobileFocalY ?? 48}%`
+                        : 'center center',
+                    transform:
+                      previewMode === 'mobile'
+                        ? `scale(${formData.mobileScale ?? 0.88})`
+                        : 'none',
+                    transformOrigin: `${formData.mobileFocalX ?? 58}% ${formData.mobileFocalY ?? 48}%`,
+                  }}
+                  className="w-full h-full object-cover transition-all duration-300"
                 />
               ) : currentMediaUrl ? (
                 <img
                   src={currentMediaUrl}
                   alt="Hero Preview"
-                  className="w-full h-full object-cover object-center"
+                  style={{
+                    objectPosition:
+                      previewMode === 'mobile'
+                        ? `${formData.mobileFocalX ?? 58}% ${formData.mobileFocalY ?? 48}%`
+                        : 'center center',
+                    transform:
+                      previewMode === 'mobile'
+                        ? `scale(${formData.mobileScale ?? 0.88})`
+                        : 'none',
+                    transformOrigin: `${formData.mobileFocalX ?? 58}% ${formData.mobileFocalY ?? 48}%`,
+                  }}
+                  className="w-full h-full object-cover transition-all duration-300"
                 />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center text-neutral-600 text-xs font-mono p-4 text-center">

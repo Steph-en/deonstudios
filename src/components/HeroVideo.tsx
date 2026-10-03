@@ -42,6 +42,11 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
     };
   }, []);
 
+  // Framing values for centering the subject and scaling on mobile
+  const mobileScale = config.mobileScale ?? 1;
+  const mobileFocalX = config.mobileFocalX ?? 58;
+  const mobileFocalY = config.mobileFocalY ?? 48;
+
   // Determine media URL based on viewport
   const activeMediaUrl =
     isMobileOrPortrait && config.mobileMediaUrl
@@ -117,9 +122,9 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
       className="relative w-full h-[100dvh] min-h-[100dvh] flex items-center justify-center overflow-hidden select-none bg-neutral-950"
     >
       {/* 
-        RESPONSIVE VIEWPORT COVER HERO:
-        - Image or Video fills full viewport on mobile & desktop
-        - Uses object-cover + object-center to eliminate black letterbox bars
+        RESPONSIVE HERO:
+        Pure image or video centered with CMS focal point and scale controls.
+        Zero ambient backdrop gradient or bleed distortion layers.
       */}
       <div className="absolute inset-0 w-full h-full min-h-[100dvh] overflow-hidden bg-neutral-950">
         {/* Fallback Poster (always present behind video or as primary image) */}
@@ -127,9 +132,16 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
           <img
             src={posterFallback}
             alt="Deon Studios Cover"
-            className={`absolute inset-0 w-full h-full min-h-[100dvh] object-cover object-center transition-opacity duration-700 ${
+            className={`absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-opacity duration-700 ${
               isVideoFormat && videoLoaded && !hasVideoError ? 'opacity-0' : 'opacity-100'
             }`}
+            style={{
+              objectPosition: isMobileOrPortrait
+                ? `${mobileFocalX}% ${mobileFocalY}%`
+                : 'center center',
+              transform: isMobileOrPortrait ? `scale(${mobileScale})` : 'scale(1)',
+              transformOrigin: `${mobileFocalX}% ${mobileFocalY}%`,
+            }}
             loading="eager"
             decoding="async"
             referrerPolicy="no-referrer"
@@ -155,16 +167,30 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
               console.warn('Hero video failed to load, falling back to image');
               setHasVideoError(true);
             }}
-            className={`absolute inset-0 w-full h-full min-h-[100dvh] object-cover object-center transition-opacity duration-700 ${
+            style={{
+              objectPosition: isMobileOrPortrait
+                ? `${mobileFocalX}% ${mobileFocalY}%`
+                : 'center center',
+              transform: isMobileOrPortrait ? `scale(${mobileScale})` : 'scale(1)',
+              transformOrigin: `${mobileFocalX}% ${mobileFocalY}%`,
+            }}
+            className={`absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-opacity duration-700 ${
               videoLoaded && !hasVideoError ? 'opacity-100' : 'opacity-0'
             }`}
           />
         ) : (
-          /* Pure Full-Bleed Image Mode */
+          /* Pure Image Mode — clean, centered, no gradient bleed */
           <img
             src={activeMediaUrl}
             alt="Deon Studios Editorial Cover"
-            className="absolute inset-0 w-full h-full min-h-[100dvh] object-cover object-center transition-opacity duration-700 opacity-100"
+            className="absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-transform duration-500 opacity-100"
+            style={{
+              objectPosition: isMobileOrPortrait
+                ? `${mobileFocalX}% ${mobileFocalY}%`
+                : 'center center',
+              transform: isMobileOrPortrait ? `scale(${mobileScale})` : 'scale(1)',
+              transformOrigin: `${mobileFocalX}% ${mobileFocalY}%`,
+            }}
             loading="eager"
             decoding="async"
             referrerPolicy="no-referrer"
@@ -180,7 +206,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
         />
       </div>
 
-      {/* Centered Scroll Indicator at bottom edge */}
+      {/* Centered Scroll Indicator */}
       <div
         role="button"
         tabIndex={0}
