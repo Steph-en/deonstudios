@@ -55,7 +55,7 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
   return (
     <section
       id="portfolio-section"
-      className="relative w-full py-12 sm:py-16 md:py-24 px-4 sm:px-6 md:px-10 lg:px-14 bg-neutral-50 text-neutral-950 transition-colors duration-300"
+      className="relative w-full py-10 sm:py-10 md:py-10 px-4 sm:px-6 md:px-10 lg:px-14 bg-neutral-50 text-neutral-950 transition-colors duration-300"
     >
       <div className="w-full max-w-[1880px] mx-auto">
         {/* Section Header */}

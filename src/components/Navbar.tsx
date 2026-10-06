@@ -144,7 +144,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             title={`${artistName} — ${roleTagline}`}
           >
             <span
-              className={`font-editorial text-[26px] sm:text-[26px] md:text-[36px] tracking-tight font-light leading-none transition-colors ${
+              className={`font-sans-clean text-[26px] sm:text-[26px] md:text-[36px] uppercase tracking-[.001em] font-light leading-none transition-colors ${
                 isLightHeader
                   ? 'text-neutral-900 group-hover:text-black'
                   : 'text-white group-hover:text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]'
@@ -153,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {artistName}
             </span>
             <span
-              className={`text-[8px] sm:text-[9.5px] uppercase tracking-[0.26em] font-sans-clean mt-1 font-medium transition-colors ${
+              className={`text-[8px] sm:text-[9.5px] uppercase tracking-[0.24em] mt-1 ml-1 font-medium transition-colors ${
                 isLightHeader
                   ? 'text-neutral-500 group-hover:text-neutral-700'
                   : 'text-white/80 group-hover:text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.8)]'

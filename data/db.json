@@ -7,9 +7,15 @@
   "deleted_keys": [],
   "site_settings": {
     "hero_settings": {
-      "mediaType": "video",
-      "mediaUrl": "/videos/hero-desktop.mp4",
-      "scrollText": "SCROLL"
+      "mediaType": "image",
+      "mediaUrl": "https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/l1060844-2-1790909528392.jpg",
+      "mobileMediaUrl": "",
+      "fallbackPosterUrl": "",
+      "overlayOpacity": 0.15,
+      "scrollText": "SCROLL",
+      "mobileScale": 1,
+      "mobileFocalX": 54,
+      "mobileFocalY": 50
     }
   },
   "users": [
@@ -26,7 +32,7 @@
   "config": {
     "supabaseUrl": "https://oorbvpnuivsyfxftlqwr.supabase.co",
     "supabaseAnonKey": "sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV",
-    "siteUrl": "https://www.gideonboadi.com",
+    "siteUrl": "https://gideonboadi.com",
     "allowedOrigins": [
       "https://www.gideonboadi.com",
       "https://gideonboadi.com",
