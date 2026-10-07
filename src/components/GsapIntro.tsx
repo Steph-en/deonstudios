@@ -50,8 +50,8 @@ export const GsapIntro: React.FC<GsapIntroProps> = ({ onComplete, targetLogoRef,
         duration: 1.0,
         ease: 'power2.out',
       })
-      // 3. Poise/Wait for 3 full seconds in the center with complete stability
-      .to({}, { duration: 3.0 })
+      // 3. Poise/Wait for 2 full seconds in the center with complete stability
+      .to({}, { duration: 2.0 })
       // 4. Glide smoothly into the centered navigation bar logo
       .to(logoWrapperRef.current, {
         x: () => {
