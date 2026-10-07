@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroVideo } from './components/HeroVideo';
 import { PortfolioSection } from './components/PortfolioSection';
@@ -393,6 +393,10 @@ export default function App() {
     }
   };
 
+  const handleIntroComplete = useCallback(() => {
+    setIntroActive(false);
+  }, []);
+
   const handleReplayIntro = () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
     setIntroActive(true);
@@ -597,7 +601,7 @@ export default function App() {
         <GsapIntro
           theme={theme}
           targetLogoRef={navbarLogoRef}
-          onComplete={() => setIntroActive(false)}
+          onComplete={handleIntroComplete}
         />
       )}
 
