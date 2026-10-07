@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { DeonLogo } from './DeonLogo';
 
 interface GsapIntroProps {
   onComplete: () => void;
@@ -24,9 +23,9 @@ export const GsapIntro: React.FC<GsapIntroProps> = ({ onComplete, targetLogoRef,
         },
       });
 
-      // 1. Initial State: Centered, small, zero opacity
+      // 1. Initial State: Centered, scaled down, zero opacity
       gsap.set(logoWrapperRef.current, {
-        scale: 0.5,
+        scale: 0.65,
         opacity: 0,
         x: 0,
         y: 0,
@@ -37,37 +36,41 @@ export const GsapIntro: React.FC<GsapIntroProps> = ({ onComplete, targetLogoRef,
         scale: 1,
         opacity: 1,
         duration: 1.1,
-        ease: 'power3.out',
+        ease: 'power2.out',
       })
-      // 3. Poise in the center
-      .to({}, { duration: 0.5 });
-
-      // 4. Calculate target position of the centered navbar logo
-      let targetX = 0;
-      let targetY = -window.innerHeight / 2 + 50;
-      let targetScale = 0.38;
-
-      if (targetLogoRef.current && logoWrapperRef.current) {
-        const logoRect = logoWrapperRef.current.getBoundingClientRect();
-        const targetRect = targetLogoRef.current.getBoundingClientRect();
-
-        targetX = targetRect.left + targetRect.width / 2 - (logoRect.left + logoRect.width / 2);
-        targetY = targetRect.top + targetRect.height / 2 - (logoRect.top + logoRect.height / 2);
-        targetScale = (targetRect.height || 32) / (logoRect.height || 84);
-      }
-
-      // 5. Glide straight into the centered navigation bar logo
-      tl.to(
-        logoWrapperRef.current,
-        {
-          x: targetX,
-          y: targetY,
-          scale: targetScale,
-          duration: 0.9,
-          ease: 'power3.inOut',
-        }
-      )
-      // 6. Fade out overlay
+      // 3. Poise/Wait for 3 full seconds in the center as requested
+      .to({}, { duration: 3.0 })
+      // 4. Glide smoothly into the centered navigation bar logo
+      .to(logoWrapperRef.current, {
+        x: () => {
+          if (targetLogoRef.current && logoWrapperRef.current) {
+            const targetRect = targetLogoRef.current.getBoundingClientRect();
+            const logoRect = logoWrapperRef.current.getBoundingClientRect();
+            const currentX = (gsap.getProperty(logoWrapperRef.current, 'x') as number) || 0;
+            return currentX + (targetRect.left + targetRect.width / 2 - (logoRect.left + logoRect.width / 2));
+          }
+          return 0;
+        },
+        y: () => {
+          if (targetLogoRef.current && logoWrapperRef.current) {
+            const targetRect = targetLogoRef.current.getBoundingClientRect();
+            const logoRect = logoWrapperRef.current.getBoundingClientRect();
+            const currentY = (gsap.getProperty(logoWrapperRef.current, 'y') as number) || 0;
+            return currentY + (targetRect.top + targetRect.height / 2 - (logoRect.top + logoRect.height / 2));
+          }
+          return -window.innerHeight / 2 + 50;
+        },
+        scale: () => {
+          if (targetLogoRef.current && logoWrapperRef.current) {
+            const targetRect = targetLogoRef.current.getBoundingClientRect();
+            return (targetRect.height || 38) / 100;
+          }
+          return 0.38;
+        },
+        duration: 1.35,
+        ease: 'power3.inOut',
+      })
+      // 5. Fade out overlay
       .to(
         containerRef.current,
         {
@@ -75,7 +78,7 @@ export const GsapIntro: React.FC<GsapIntroProps> = ({ onComplete, targetLogoRef,
           duration: 0.45,
           ease: 'power2.out',
         },
-        '-=0.3'
+        '-=0.35'
       );
     }, containerRef);
 
@@ -98,16 +101,18 @@ export const GsapIntro: React.FC<GsapIntroProps> = ({ onComplete, targetLogoRef,
       aria-label="Deon Studios intro animation"
     >
       {/* 
-        Centered Logo ONLY — no writing, no text, no lines, pure geometric mark 
+        Client's original logo image — exact dimensions, pure geometry mark 
       */}
       <div
         ref={logoWrapperRef}
         id="intro-logo-element"
-        className="origin-center pointer-events-none"
+        className="origin-center pointer-events-none flex items-center justify-center"
       >
-        <DeonLogo
-          size={84}
-          fillColor="#FFFFFF"
+        <img
+          src="/assets/logo.png"
+          alt="Deon Studios"
+          className="w-[100px] h-[100px] max-w-[100px] max-h-[100px] object-contain drop-shadow-2xl select-none pointer-events-none"
+          draggable={false}
         />
       </div>
     </div>

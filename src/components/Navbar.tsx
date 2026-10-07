@@ -144,7 +144,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             title={`${artistName} — ${roleTagline}`}
           >
             <span
-              className={`font-sans-clean text-[26px] sm:text-[26px] md:text-[36px] uppercase tracking-[.001em] font-light leading-none transition-colors ${
+              className={`font-sans-clean text-[16px] sm:text-[20px] md:text-[32px] uppercase tracking-[.001em] font-light leading-none transition-colors ${
                 isLightHeader
                   ? 'text-neutral-900 group-hover:text-black'
                   : 'text-white group-hover:text-white/90 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]'
@@ -165,13 +165,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* 
             Right Container:
-            - Desktop Nav Links on md+
-            - Mobile Three-Dash Breadcrumb Menu on mobile
+            - Desktop Nav Links on lg+
+            - Three-Dash Breadcrumb Menu on Mobile & Tablets (< lg)
           */}
           <div className="flex items-center gap-4">
             <nav
               id="desktop-nav-links"
-              className="hidden md:flex pointer-events-auto items-center gap-6 lg:gap-7"
+              className="hidden lg:flex pointer-events-auto items-center gap-6 lg:gap-8"
               aria-label="Primary navigation"
             >
             <button
@@ -240,7 +240,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* 
-            2. Mobile Three-Dash Breadcrumb Icon (visible on smaller displays, hidden on md+):
+            2. Three-Dash Breadcrumb Icon (visible on Mobile & Tablet viewports, hidden on lg+):
             - Three-layered dashes breadcrumb icon (pure icon, no circle outline, no background)
             - When clicked: animates smoothly into an "X" close button
             - When closed: animates back into the three horizontal dashes
@@ -248,7 +248,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div
             ref={breadcrumbRef}
             id="mobile-nav-breadcrumb"
-            className="md:hidden relative pointer-events-auto select-none"
+            className="lg:hidden relative pointer-events-auto select-none"
           >
             {/* Animated Three-Dash to X Trigger Button (No background, No circle border) */}
             <button
@@ -259,7 +259,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-label={isBreadcrumbOpen ? 'Close navigation menu' : 'Open navigation menu'}
               className="p-2 flex items-center justify-center transition-opacity duration-300 hover:opacity-75 focus:outline-hidden cursor-pointer"
             >
-              <div className="relative w-5 h-4 flex flex-col justify-between items-center">
+              <div className="relative w-5 sm:w-5.5 h-4 flex flex-col justify-between items-center">
                 {/* Dash 1 (Top Dash -> 45deg X arm) */}
                 <span
                   className={`h-[1.5px] w-full rounded-full transition-all duration-300 ease-out origin-center ${
@@ -295,12 +295,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </button>
 
-            {/* Breadcrumb Menu Dropdown (Clean, unnumbered) */}
+            {/* Breadcrumb Menu Dropdown for Mobile & Tablets (Clean, unnumbered) */}
             {isBreadcrumbOpen && (
               <div
                 role="menu"
                 aria-orientation="vertical"
-                className={`absolute right-0 mt-3 w-44 p-2 rounded-2xl border shadow-2xl z-50 animate-fade-in backdrop-blur-2xl ${
+                className={`absolute right-0 mt-3 w-48 sm:w-56 p-2 sm:p-2.5 rounded-2xl border shadow-2xl z-50 animate-fade-in backdrop-blur-2xl ${
                   theme === 'dark'
                     ? 'bg-neutral-950/95 border-neutral-800 text-white shadow-black/80'
                     : 'bg-white/95 border-neutral-200 text-neutral-900 shadow-neutral-500/20'
@@ -312,7 +312,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     role="menuitem"
                     onClick={handlePortfolioClick}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
+                    className={`w-full text-left px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] uppercase tracking-[0.22em] font-medium transition-colors ${
                       theme === 'dark'
                         ? 'hover:bg-white/10 text-neutral-200 hover:text-white'
                         : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'
@@ -325,7 +325,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     role="menuitem"
                     onClick={handleProjectsClick}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
+                    className={`w-full text-left px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] uppercase tracking-[0.22em] font-medium transition-colors ${
                       theme === 'dark'
                         ? 'hover:bg-white/10 text-neutral-200 hover:text-white'
                         : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'
@@ -338,7 +338,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     role="menuitem"
                     onClick={handleProductsClick}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
+                    className={`w-full text-left px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] uppercase tracking-[0.22em] font-medium transition-colors ${
                       theme === 'dark'
                         ? 'hover:bg-white/10 text-neutral-200 hover:text-white'
                         : 'hover:bg-neutral-100 text-neutral-800 hover:text-black'
@@ -351,7 +351,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     role="menuitem"
                     onClick={handleAboutClick}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
+                    className={`w-full text-left px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] uppercase tracking-[0.22em] font-medium transition-colors ${
                       activePage === 'about'
                         ? 'font-semibold underline underline-offset-4 decoration-1 text-black bg-neutral-100'
                         : theme === 'dark'
@@ -366,7 +366,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     role="menuitem"
                     onClick={handleContactClick}
-                    className={`w-full text-left px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-[0.22em] font-medium transition-colors ${
+                    className={`w-full text-left px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl text-[9px] sm:text-[10px] uppercase tracking-[0.22em] font-medium transition-colors ${
                       activePage === 'contact'
                         ? 'font-semibold underline underline-offset-4 decoration-1 text-black bg-neutral-100'
                         : theme === 'dark'

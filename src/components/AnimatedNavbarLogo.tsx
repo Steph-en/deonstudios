@@ -18,25 +18,19 @@ export const AnimatedNavbarLogo: React.FC<AnimatedNavbarLogoProps> = ({
       aria-label="Deon Studios"
     >
       {/* 
-        Transparent Dynamic See-Through Vector Logo:
-        - Fill is pure white (#ffffff)
+        Transparent Dynamic See-Through Original Client Logo:
+        - Pure white (#ffffff) on transparent alpha
         - Blended via parent container with mix-blend-mode: difference
         - Inverts to black on white sections, inverts to white on black sections
         - Splices seamlessly across text and media boundaries during scroll
       */}
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 200 200"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full block"
-      >
-        <path
-          d="M 36 16 L 105 16 A 84 84 0 0 1 189 100 A 84 84 0 0 1 105 184 L 36 184 L 36 106 L 55 106 A 45 45 0 1 0 55 94 L 36 94 L 36 16 Z"
-          fill="#ffffff"
-        />
-      </svg>
+      <img
+        src="/assets/logo-white.png"
+        alt="Deon Studios"
+        className="w-full h-full object-contain block select-none pointer-events-none"
+        style={{ width: size, height: size }}
+        draggable={false}
+      />
     </div>
   );
 };
