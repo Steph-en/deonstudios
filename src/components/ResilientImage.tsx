@@ -4,6 +4,7 @@ interface ResilientImageProps extends React.ImgHTMLAttributes<HTMLImageElement> 
   src: string;
   fallbackSrc?: string;
   lazy?: boolean;
+  priority?: boolean;
   rootMargin?: string;
 }
 
@@ -16,20 +17,22 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
   alt = '',
   className = '',
   lazy = true,
-  rootMargin = '250px 0px',
+  priority = false,
+  rootMargin = '800px 0px',
   style,
   onLoad,
   onError,
   ...props
 }) => {
-  const [isInView, setIsInView] = useState(!lazy);
-  const [imgSrc, setImgSrc] = useState(lazy ? TRANSPARENT_PIXEL : src);
+  const isEager = priority || !lazy;
+  const [isInView, setIsInView] = useState(isEager);
+  const [imgSrc, setImgSrc] = useState(isEager ? src : TRANSPARENT_PIXEL);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasTriedFallback, setHasTriedFallback] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
-    if (!lazy) {
+    if (isEager) {
       setIsInView(true);
       setImgSrc(src);
       return;
@@ -68,13 +71,12 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
     return () => {
       observer.disconnect();
     };
-  }, [src, lazy, rootMargin, isInView]);
+  }, [src, isEager, rootMargin, isInView]);
 
   useEffect(() => {
     if (isInView) {
       setImgSrc(src);
       setHasTriedFallback(false);
-      setIsLoaded(false);
     }
   }, [src, isInView]);
 
@@ -99,15 +101,15 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
       {...props}
       src={imgSrc}
       alt={alt}
-      loading="lazy"
+      loading={isEager ? 'eager' : 'lazy'}
       decoding="async"
       onLoad={handleLoad}
       onError={handleError}
       className={className}
       style={{
         ...style,
-        opacity: !lazy || isLoaded ? 1 : 0,
-        transition: 'opacity 0.45s ease-out',
+        opacity: isEager || isLoaded ? 1 : 0.4,
+        transition: 'opacity 0.3s ease-out',
       }}
       referrerPolicy="no-referrer"
     />

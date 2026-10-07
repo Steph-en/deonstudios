@@ -29,15 +29,15 @@ const getAspectRatioClass = (aspect?: string) => {
 };
 
 export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, theme }) => {
-  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const categories = ['All', ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))];
 
   const filteredProducts =
-    activeCategory === 'All'
+    !activeCategory || activeCategory === 'All'
       ? products
-      : products.filter((p) => p.category === activeCategory);
+      : products.filter((p) => (p.category || '').toLowerCase() === activeCategory.toLowerCase());
 
   // Convert SingleShot[] to ProjectImage[] for LightboxModal compatibility
   const lightboxImages: ProjectImage[] = filteredProducts.map((p) => ({
@@ -105,7 +105,9 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, them
                       src={product.url}
                       fallbackSrc={product.fallbackUrl}
                       alt={product.title}
-                      lazy={true}
+                      priority={idx < 4}
+                      lazy={idx >= 4}
+                      rootMargin="1000px 0px"
                       className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025]"
                     />
                   </div>

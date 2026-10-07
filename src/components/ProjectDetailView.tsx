@@ -258,17 +258,20 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           {/* Masonry Columns */}
           <div className="masonry-columns-3">
             {project.images.map((image, index) => {
+              const isPriority = index < 4;
               return (
                 <div
                   key={image.id}
                   onClick={() => openLightbox(index)}
-                  className="masonry-break group relative overflow-hidden rounded-xl cursor-pointer bg-neutral-900/10 shadow-sm transition-all duration-300 hover:shadow-2xl"
+                  className="masonry-break group relative overflow-hidden rounded-xl cursor-pointer bg-neutral-100 dark:bg-neutral-800/80 shadow-xs transition-all duration-300 hover:shadow-2xl"
                 >
                   <ResilientImage
                     src={image.url}
                     fallbackSrc={image.fallbackUrl}
                     alt={image.caption || `${project.title} image ${index + 1}`}
-                    loading="lazy"
+                    priority={isPriority}
+                    lazy={!isPriority}
+                    rootMargin="1000px 0px"
                     className="w-full h-auto object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
                   />
 

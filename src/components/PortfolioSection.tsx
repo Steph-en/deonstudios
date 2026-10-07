@@ -29,15 +29,15 @@ const getAspectRatioClass = (aspect?: string) => {
 };
 
 export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme }) => {
-  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const categories = ['All', ...Array.from(new Set(shots.map((s) => s.category).filter(Boolean)))];
 
   const filteredShots =
-    activeCategory === 'All'
+    !activeCategory || activeCategory === 'All'
       ? shots
-      : shots.filter((s) => s.category === activeCategory);
+      : shots.filter((s) => (s.category || '').toLowerCase() === activeCategory.toLowerCase());
 
   // Convert SingleShot[] to ProjectImage[] for LightboxModal compatibility
   const lightboxImages: ProjectImage[] = filteredShots.map((s) => ({
@@ -105,7 +105,9 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
                       src={shot.url}
                       fallbackSrc={shot.fallbackUrl}
                       alt={shot.title}
-                      lazy={true}
+                      priority={idx < 4}
+                      lazy={idx >= 4}
+                      rootMargin="1000px 0px"
                       className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025]"
                     />
                   </div>
