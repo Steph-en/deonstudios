@@ -98,7 +98,7 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
                   id={`portfolio-shot-${shot.id}`}
                   onClick={() => setLightboxIndex(idx)}
                   className="group relative overflow-hidden bg-neutral-200 cursor-hover-hand cursor-grab active:cursor-grabbing hover:cursor-grab w-full"
-                  title={`Click to view ${shot.title} in lightbox`}
+                  title={`Click to view ${shot.title}`}
                 >
                   <div className={`w-full ${getAspectRatioClass(shot.aspectRatio)} relative overflow-hidden bg-neutral-100`}>
                     <ResilientImage
@@ -108,7 +108,7 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
                       priority={idx < 4}
                       lazy={idx >= 4}
                       rootMargin="1000px 0px"
-                      className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025]"
+                      className="w-full h-full object-fit object-center transition-transform duration-700 ease-out group-hover:scale-[1.025]"
                     />
                   </div>
                 </article>

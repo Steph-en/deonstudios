@@ -108,7 +108,7 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, them
                       priority={idx < 4}
                       lazy={idx >= 4}
                       rootMargin="1000px 0px"
-                      className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025]"
+                      className="w-full h-full object-fit object-center transition-transform duration-700 ease-out group-hover:scale-[1.025]"
                     />
                   </div>
                 </article>
