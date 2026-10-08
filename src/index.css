@@ -31,12 +31,11 @@
 
 /* Safari WebKit Hardware Acceleration & Hover Glitch Prevention */
 .safari-clip-fix {
-  -webkit-mask-image: -webkit-radial-gradient(white, black);
-  mask-image: radial-gradient(white, black);
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
   isolation: isolate;
-  contain: paint;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .safari-scale-smooth {
@@ -86,7 +85,6 @@ img {
   -webkit-transform: translateZ(0);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  contain: paint;
   margin-bottom: 1.75rem;
 }
 
@@ -101,7 +99,6 @@ img {
   -webkit-transform: translateZ(0);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-  contain: paint;
 }
 
 /* Custom subtle scrollbar */
@@ -145,15 +142,13 @@ img {
   animation: scrollIndicatorDown 2.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
-/* Hover Hand Cursor for Gallery Plates */
+/* Pointer Cursor for Gallery Items */
 .cursor-hover-hand {
-  cursor: grab;
-  cursor: -webkit-grab;
+  cursor: pointer;
 }
 
 .cursor-hover-hand:active {
-  cursor: grabbing;
-  cursor: -webkit-grabbing;
+  cursor: pointer;
 }
 
 /* Fluid Water Rocking in a Bowl Animations (Unpredictable, Multi-Directional & Silky Smooth) */

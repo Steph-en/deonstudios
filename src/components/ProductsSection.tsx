@@ -91,16 +91,16 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, them
             </p>
           </div>
         ) : (
-          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-[8px] select-none">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-[8px] select-none">
             {filteredProducts.map((product, idx) => (
-              <div key={product.id} className="break-inside-avoid inline-block w-full align-top mb-[8px]">
+              <div key={product.id} className="w-full">
                 <article
                   id={`product-shot-${product.id}`}
                   onClick={() => setLightboxIndex(idx)}
-                  className="group relative overflow-hidden bg-neutral-200 cursor-hover-hand cursor-grab active:cursor-grabbing hover:cursor-grab w-full safari-clip-fix"
+                  className="group relative overflow-hidden bg-neutral-200 cursor-pointer w-full"
                   title={`Click to view ${product.title} in lightbox`}
                 >
-                  <div className={`w-full ${getAspectRatioClass(product.aspectRatio)} relative overflow-hidden bg-neutral-100 safari-clip-fix`}>
+                  <div className={`w-full ${getAspectRatioClass(product.aspectRatio)} relative overflow-hidden bg-neutral-100`}>
                     <ResilientImage
                       src={product.url}
                       fallbackSrc={product.fallbackUrl}
@@ -108,7 +108,7 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, them
                       priority={idx < 4}
                       lazy={idx >= 4}
                       rootMargin="1000px 0px"
-                      className="w-full h-full object-fit object-center transition-transform duration-700 ease-out group-hover:scale-[1.025] pointer-events-none safari-scale-smooth"
+                      className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025] pointer-events-none safari-scale-smooth"
                     />
                   </div>
                 </article>

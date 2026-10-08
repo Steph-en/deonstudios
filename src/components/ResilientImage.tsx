@@ -8,9 +8,6 @@ interface ResilientImageProps extends React.ImgHTMLAttributes<HTMLImageElement> 
   rootMargin?: string;
 }
 
-const TRANSPARENT_PIXEL =
-  'data:image/svg+xml;charset=utf-8,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3C/svg%3E';
-
 export const ResilientImage: React.FC<ResilientImageProps> = ({
   src,
   fallbackSrc,
@@ -18,79 +15,40 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
   className = '',
   lazy = true,
   priority = false,
-  rootMargin = '800px 0px',
+  rootMargin,
   style,
   onLoad,
   onError,
   ...props
 }) => {
   const isEager = priority || !lazy;
-  const [isInView, setIsInView] = useState(isEager);
-  const [imgSrc, setImgSrc] = useState(isEager ? src : TRANSPARENT_PIXEL);
+  const [currentSrc, setCurrentSrc] = useState(src);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasTriedFallback, setHasTriedFallback] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
+  // Synchronize src if prop changes
   useEffect(() => {
-    if (isEager) {
-      setIsInView(true);
-      setImgSrc(src);
-      return;
-    }
+    setCurrentSrc(src);
+    setHasTriedFallback(false);
+  }, [src]);
 
-    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
-      setIsInView(true);
-      setImgSrc(src);
-      return;
-    }
-
-    const node = imgRef.current;
-    if (!node) return;
-
-    if (isInView) {
-      setImgSrc(src);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsInView(true);
-          setImgSrc(src);
-          observer.disconnect();
-        }
-      },
-      {
-        rootMargin,
-        threshold: 0.01,
-      }
-    );
-
-    observer.observe(node);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [src, isEager, rootMargin, isInView]);
-
+  // Check if image is already cached/complete on mount
   useEffect(() => {
-    if (isInView) {
-      setImgSrc(src);
-      setHasTriedFallback(false);
-    }
-  }, [src, isInView]);
-
-  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    if (imgSrc !== TRANSPARENT_PIXEL) {
+    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
       setIsLoaded(true);
     }
+  }, [currentSrc]);
+
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    setIsLoaded(true);
     if (onLoad) onLoad(e);
   };
 
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    if (fallbackSrc && imgSrc !== fallbackSrc && !hasTriedFallback) {
+    if (fallbackSrc && currentSrc !== fallbackSrc && !hasTriedFallback) {
       setHasTriedFallback(true);
-      setImgSrc(fallbackSrc);
+      setCurrentSrc(fallbackSrc);
     }
     if (onError) onError(e);
   };
@@ -99,7 +57,7 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
     <img
       ref={imgRef}
       {...props}
-      src={imgSrc}
+      src={currentSrc}
       alt={alt}
       draggable={false}
       loading={isEager ? 'eager' : 'lazy'}
@@ -109,7 +67,7 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
       className={`transition-opacity duration-300 ${className}`}
       style={{
         ...style,
-        opacity: isEager || isLoaded ? 1 : 0.4,
+        opacity: isLoaded || isEager ? 1 : 0.85,
       }}
       referrerPolicy="no-referrer"
     />

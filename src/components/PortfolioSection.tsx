@@ -91,16 +91,16 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
             </p>
           </div>
         ) : (
-          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-[8px] select-none">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-[8px] select-none">
             {filteredShots.map((shot, idx) => (
-              <div key={shot.id} className="break-inside-avoid inline-block w-full align-top mb-[8px]">
+              <div key={shot.id} className="w-full">
                 <article
                   id={`portfolio-shot-${shot.id}`}
                   onClick={() => setLightboxIndex(idx)}
-                  className="group relative overflow-hidden bg-neutral-200 cursor-hover-hand cursor-grab active:cursor-grabbing hover:cursor-grab w-full safari-clip-fix"
+                  className="group relative overflow-hidden bg-neutral-200 cursor-pointer w-full"
                   title={`Click to view ${shot.title} in lightbox`}
                 >
-                  <div className={`w-full ${getAspectRatioClass(shot.aspectRatio)} relative overflow-hidden bg-neutral-100 safari-clip-fix`}>
+                  <div className={`w-full ${getAspectRatioClass(shot.aspectRatio)} relative overflow-hidden bg-neutral-100`}>
                     <ResilientImage
                       src={shot.url}
                       fallbackSrc={shot.fallbackUrl}
@@ -108,7 +108,7 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
                       priority={idx < 4}
                       lazy={idx >= 4}
                       rootMargin="1000px 0px"
-                      className="w-full h-full object-fit object-center transition-transform duration-700 ease-out group-hover:scale-[1.025] pointer-events-none safari-scale-smooth"
+                      className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025] pointer-events-none safari-scale-smooth"
                     />
                   </div>
                 </article>
