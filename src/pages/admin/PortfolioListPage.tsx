@@ -196,7 +196,7 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
         <div>
           <h1 className="text-2xl font-serif text-neutral-950 font-normal">Portfolio Directory</h1>
           <p className="text-xs sm:text-sm text-neutral-500 mt-1">
-            Manage, publish, duplicate, and curate portraits and single editorial plates.
+            Manage, publish, duplicate, and curate portraits and single editorial.
           </p>
         </div>
 
@@ -308,7 +308,7 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
                       title={isAllSelected ? 'Deselect all' : 'Select all'}
                     />
                   </th>
-                  <th className="py-3 px-3">Plate</th>
+                  <th className="py-3 px-3">Assets</th>
                   <th className="py-3 px-4">Title</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">Status</th>

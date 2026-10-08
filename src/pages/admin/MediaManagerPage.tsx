@@ -152,7 +152,7 @@ export const MediaManagerPage: React.FC = () => {
         <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm">
           <MediaUploader
             label="Upload Media Asset"
-            description="Upload high-resolution photography plates or video clips"
+            description="Upload high-resolution photography or video clips"
             accept="both"
             projectId="general"
             folder="uploads"
@@ -221,7 +221,7 @@ export const MediaManagerPage: React.FC = () => {
           <div className="space-y-1">
             <p className="text-sm font-medium text-neutral-800">No media assets in library</p>
             <p className="text-xs text-neutral-500 max-w-md mx-auto">
-              Your storage bucket is clean and has zero media assets. You can upload bespoke photography plates or seed sample assets.
+              Your storage bucket is clean and has zero media assets. You can upload bespoke photography or sample assets.
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">

@@ -315,7 +315,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
                       title={isAllSelected ? 'Deselect all' : 'Select all'}
                     />
                   </th>
-                  <th className="py-3 px-3">Plate</th>
+                  <th className="py-3 px-3">Assets</th>
                   <th className="py-3 px-4">Product & Brand</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">Aspect Ratio</th>

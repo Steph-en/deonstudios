@@ -229,7 +229,7 @@ export const AboutCmsPage: React.FC = () => {
               </h2>
             </div>
             <p className="text-xs text-neutral-500">
-              Upload an artist portrait photograph or loop video plate to feature on the left column of the About page.
+              Upload an artist portrait photograph or loop video to feature on the left column of the About page.
             </p>
 
             {/* Media Type Switch */}

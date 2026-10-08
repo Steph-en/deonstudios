@@ -60,7 +60,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span className="text-xl sm:text-2xl font-serif font-medium text-neutral-950">
               {statsLoading ? '—' : stats?.totalProjects ?? 0}
             </span>
-            <span className="text-[10px] text-neutral-500 font-mono">case studies</span>
           </div>
           <div className="mt-2 text-[11px] text-emerald-700 font-medium truncate">
             {stats?.publishedProjects ?? 0} published
@@ -80,7 +79,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span className="text-xl sm:text-2xl font-serif font-medium text-neutral-950">
               {statsLoading ? '—' : stats?.totalPortfolioShots ?? 0}
             </span>
-            <span className="text-[10px] text-neutral-500 font-mono">plates</span>
           </div>
           <div className="mt-2 text-[11px] text-neutral-600 truncate">
             Editorial portraiture
@@ -100,7 +98,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span className="text-xl sm:text-2xl font-serif font-medium text-neutral-950">
               {statsLoading ? '—' : stats?.totalProductShots ?? 0}
             </span>
-            <span className="text-[10px] text-neutral-500 font-mono">commercial</span>
           </div>
           <div className="mt-2 text-[11px] text-neutral-600 truncate">
             Still life & beauty
@@ -138,7 +135,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span className="text-xl sm:text-2xl font-serif font-medium text-neutral-950">
               {statsLoading ? '—' : uniqueVisitors.toLocaleString()}
             </span>
-            <span className="text-[10px] text-neutral-500 font-mono">sessions</span>
           </div>
           <div className="mt-2 text-[11px] text-neutral-600 truncate">
             {uniqueVisitors > 0 ? 'Unique engagements' : 'No visitors yet'}
@@ -158,7 +154,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span className="text-xl sm:text-2xl font-serif font-medium text-neutral-950">
               {statsLoading ? '—' : stats?.totalCategories ?? 0}
             </span>
-            <span className="text-[10px] text-neutral-500 font-mono">taxonomies</span>
           </div>
           <div className="mt-2 text-[11px] text-neutral-600 truncate">
             Active taxonomies

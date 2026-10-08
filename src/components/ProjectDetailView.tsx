@@ -139,7 +139,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Camera className="w-3.5 h-3.5 text-amber-600" />
-                {project.images.length} Plates
+                {project.images.length}
               </span>
             </div>
           </div>
@@ -226,7 +226,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                         ) : (
                           <img
                             src={sec.media_url}
-                            alt={sec.title || 'Case study plate'}
+                            alt={sec.title || 'Case study'}
                             className="w-full h-auto max-h-[500px] object-cover"
                             referrerPolicy="no-referrer"
                           />
@@ -248,10 +248,10 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
         <section className="mt-14">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-xs uppercase tracking-[0.25em] font-sans-clean font-semibold opacity-70">
-              Project Archive Plates ({project.images.length})
+              Project Archive ({project.images.length})
             </h2>
             <span className="text-[11px] uppercase tracking-[0.2em] opacity-50">
-              Click plate to expand
+              Click to expand
             </span>
           </div>
 
@@ -272,7 +272,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                     priority={isPriority}
                     lazy={!isPriority}
                     rootMargin="1000px 0px"
-                    className="w-full h-auto object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 pointer-events-none safari-scale-smooth select-none"
+                    className="w-full h-auto object-fit object-center transition-transform duration-700 ease-out group-hover:scale-105 pointer-events-none safari-scale-smooth select-none"
                   />
 
                   {/* Dark subtle gradient on hover */}
@@ -283,17 +283,6 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                     <span className="p-2.5 rounded-full bg-black/75 text-white border border-white/20 inline-flex items-center justify-center safari-scale-smooth">
                       <Maximize2 className="w-4 h-4" />
                     </span>
-                  </div>
-
-                  {/* Bottom Caption & Number Plate on hover */}
-                  <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 text-white pointer-events-none">
-                    <div className="flex items-center justify-between text-[11px] font-mono tracking-wider mb-1 text-amber-400">
-                      <span>PLATE 0{index + 1}</span>
-                      {image.tag && <span className="uppercase">{image.tag}</span>}
-                    </div>
-                    <p className="font-editorial text-sm italic line-clamp-2 text-neutral-200">
-                      {image.caption}
-                    </p>
                   </div>
                 </div>
               );

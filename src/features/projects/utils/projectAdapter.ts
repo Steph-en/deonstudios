@@ -21,9 +21,9 @@ export function dbProjectToPortfolioProject(db: DbProject): Project {
       id: m.id,
       url: m.media_url,
       fallbackUrl: m.media_url,
-      caption: m.alt_text || `${db.title} — Plate 0${idx + 1}`,
+      caption: m.alt_text || `${db.title} — 0${idx + 1}`,
       aspectRatio: idx % 2 === 0 ? 'portrait' : 'tall',
-      tag: idx === 0 ? 'Lead Plate' : 'Editorial Plate',
+      tag: idx === 0 ? 'Lead' : 'Editorial',
     }));
   } else if (matchingStatic && matchingStatic.images) {
     images = matchingStatic.images;

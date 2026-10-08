@@ -302,7 +302,7 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
                       title={isAllSelected ? 'Deselect all' : 'Select all'}
                     />
                   </th>
-                  <th className="py-3 px-3">Plate</th>
+                  <th className="py-3 px-3">Assets</th>
                   <th className="py-3 px-4">Title & Client</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">Status</th>
