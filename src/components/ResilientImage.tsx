@@ -101,15 +101,15 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
       {...props}
       src={imgSrc}
       alt={alt}
+      draggable={false}
       loading={isEager ? 'eager' : 'lazy'}
       decoding="async"
       onLoad={handleLoad}
       onError={handleError}
-      className={className}
+      className={`transition-opacity duration-300 ${className}`}
       style={{
         ...style,
         opacity: isEager || isLoaded ? 1 : 0.4,
-        transition: 'opacity 0.3s ease-out',
       }}
       referrerPolicy="no-referrer"
     />

@@ -24,6 +24,35 @@
 .navbar-logo-difference {
   mix-blend-mode: difference !important;
   isolation: auto !important;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform-style: flat;
+}
+
+/* Safari WebKit Hardware Acceleration & Hover Glitch Prevention */
+.safari-clip-fix {
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  isolation: isolate;
+  contain: paint;
+}
+
+.safari-scale-smooth {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-perspective: 1000px;
+  perspective: 1000px;
+  will-change: transform;
+}
+
+/* Global Safari WebKit image and cursor stabilization */
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
 }
 
 /* Custom smooth masonry column grid */
@@ -47,8 +76,32 @@
 }
 
 .masonry-break {
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
   break-inside: avoid;
+  break-inside: avoid-column;
+  display: inline-block;
+  width: 100%;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: paint;
   margin-bottom: 1.75rem;
+}
+
+.break-inside-avoid {
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  break-inside: avoid-column;
+  display: inline-block;
+  width: 100%;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: paint;
 }
 
 /* Custom subtle scrollbar */

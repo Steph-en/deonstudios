@@ -410,7 +410,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
       >
         {/* Massive Picture Frame / Canvas Container */}
         <div
-          className={`relative w-full overflow-hidden bg-neutral-100 ${aspectRatioClasses}`}
+          className={`relative w-full overflow-hidden bg-neutral-100 safari-clip-fix ${aspectRatioClasses}`}
         >
           {is3x3Grid && project.gridImages && project.gridImages.length > 0 ? (
             /* 3x3 Photo Matrix Contact Sheet (French Kiwis Eyewear reference) */
@@ -418,7 +418,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
               {project.gridImages.slice(0, 9).map((imgUrl, idx) => (
                 <div
                   key={idx}
-                  className="relative w-full h-full overflow-hidden bg-neutral-200"
+                  className="relative w-full h-full overflow-hidden bg-neutral-200 safari-clip-fix"
                 >
                   <ResilientImage
                     src={imgUrl}
@@ -428,7 +428,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
                     }
                     alt={`${title} tile ${idx + 1}`}
                     loading="lazy"
-                    className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105"
+                    className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 pointer-events-none safari-scale-smooth"
                   />
                 </div>
               ))}
@@ -440,7 +440,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
               fallbackSrc={fallbackSrc}
               alt={title}
               loading="lazy"
-              className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.015]"
+              className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.015] pointer-events-none safari-scale-smooth"
             />
           )}
         </div>

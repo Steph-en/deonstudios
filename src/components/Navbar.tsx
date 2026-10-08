@@ -101,8 +101,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         style={{
           top: 'max(env(safe-area-inset-top, 0px) + 0.85rem, 1.75rem)',
           mixBlendMode: 'difference',
+          WebkitBackfaceVisibility: 'hidden',
+          backfaceVisibility: 'hidden',
+          transform: 'translate3d(-50%, 0, 0)',
+          WebkitTransform: 'translate3d(-50%, 0, 0)',
         }}
-        className="fixed left-1/2 -translate-x-1/2 z-50 pointer-events-auto cursor-pointer select-none navbar-logo-difference text-white transition-transform duration-150 active:scale-95"
+        className="fixed left-1/2 z-50 pointer-events-auto cursor-pointer select-none navbar-logo-difference text-white transition-transform duration-150 active:scale-95 safari-scale-smooth"
         title="Deon Studios"
         aria-label="Deon Studios Home"
       >

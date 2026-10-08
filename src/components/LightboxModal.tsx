@@ -310,6 +310,14 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
           <span className="text-[10px] sm:text-[11px] font-mono tracking-wider text-neutral-500">
             {currentIndex + 1} / {images.length}
           </span>
+          <span className="text-[9px] sm:text-[10px] font-sans text-neutral-400">
+            {clientName || projectTitle}
+          </span>
+          {currentImage.caption && (
+            <span className="text-[9px] sm:text-[10px] font-sans text-neutral-500 hidden sm:inline">
+              — {currentImage.caption}
+            </span>
+          )}
         </div>
 
         <a

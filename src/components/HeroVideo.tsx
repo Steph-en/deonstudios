@@ -214,7 +214,13 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') onExploreClick();
         }}
-        className="absolute bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center cursor-pointer group select-none pointer-events-auto transition-opacity duration-300 hover:opacity-100 opacity-90"
+        style={{
+          WebkitTransform: 'translate3d(-50%, 0, 0)',
+          transform: 'translate3d(-50%, 0, 0)',
+          WebkitBackfaceVisibility: 'hidden',
+          backfaceVisibility: 'hidden',
+        }}
+        className="absolute bottom-5 sm:bottom-6 left-1/2 z-30 flex flex-col items-center cursor-pointer group select-none pointer-events-auto transition-opacity duration-300 hover:opacity-100 opacity-90"
         title="Scroll down"
         aria-label="Scroll down to explore projects"
       >

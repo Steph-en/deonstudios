@@ -139,7 +139,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Camera className="w-3.5 h-3.5 text-amber-600" />
-                {project.images.length}
+                {project.images.length} Plates
               </span>
             </div>
           </div>
@@ -248,10 +248,10 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
         <section className="mt-14">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-xs uppercase tracking-[0.25em] font-sans-clean font-semibold opacity-70">
-              Project Archive ({project.images.length})
+              Project Archive Plates ({project.images.length})
             </h2>
             <span className="text-[11px] uppercase tracking-[0.2em] opacity-50">
-              Click to expand
+              Click plate to expand
             </span>
           </div>
 
@@ -263,7 +263,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                 <div
                   key={image.id}
                   onClick={() => openLightbox(index)}
-                  className="masonry-break group relative overflow-hidden rounded-xl cursor-pointer bg-neutral-100 dark:bg-neutral-800/80 shadow-xs transition-all duration-300 hover:shadow-2xl"
+                  className="masonry-break group relative overflow-hidden rounded-xl cursor-pointer bg-neutral-100 dark:bg-neutral-800/80 shadow-xs transition-all duration-300 hover:shadow-2xl safari-clip-fix"
                 >
                   <ResilientImage
                     src={image.url}
@@ -272,21 +272,29 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                     priority={isPriority}
                     lazy={!isPriority}
                     rootMargin="1000px 0px"
-                    className="w-full h-auto object-fit object-center transition-transform duration-700 ease-out group-hover:scale-105"
+                    className="w-full h-auto object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 pointer-events-none safari-scale-smooth select-none"
                   />
 
                   {/* Dark subtle gradient on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-5" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-5 pointer-events-none" />
 
                   {/* Top-right zoom action icon on hover */}
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0">
-                    <span className="p-2.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 inline-flex items-center justify-center">
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 pointer-events-none">
+                    <span className="p-2.5 rounded-full bg-black/75 text-white border border-white/20 inline-flex items-center justify-center safari-scale-smooth">
                       <Maximize2 className="w-4 h-4" />
                     </span>
                   </div>
 
                   {/* Bottom Caption & Number Plate on hover */}
-
+                  <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 text-white pointer-events-none">
+                    <div className="flex items-center justify-between text-[11px] font-mono tracking-wider mb-1 text-amber-400">
+                      <span>PLATE 0{index + 1}</span>
+                      {image.tag && <span className="uppercase">{image.tag}</span>}
+                    </div>
+                    <p className="font-editorial text-sm italic line-clamp-2 text-neutral-200">
+                      {image.caption}
+                    </p>
+                  </div>
                 </div>
               );
             })}
