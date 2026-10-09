@@ -51,7 +51,7 @@ export const STUDIO_INFO = {
   whatsapp: 'https://api.whatsapp.com/send/?phone=%2B233208667252',
   youtube: 'https://www.youtube.com/@deonboadi',
   pinterest: 'https://www.pinterest.com/deonboadi/',
-  email: 'contact@gideonboadi.com',
+  email: 'studio@gideonboadi.com',
   booking: 'https://deon-studios.easyweek.de/',
   bookingUrl: 'https://deon-studios.easyweek.de/',
   location: 'Accra • Available Worldwide',
