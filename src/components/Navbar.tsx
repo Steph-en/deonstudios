@@ -111,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         aria-label="Deon Studios Home"
       >
         <AnimatedNavbarLogo
-          size={44}
+          size={36}
           isLightHeader={isLightHeader}
         />
       </div>

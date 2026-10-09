@@ -132,7 +132,7 @@ export const GsapIntro: React.FC<GsapIntroProps> = ({ onComplete, targetLogoRef,
           alt="Deon Studios"
           width={100}
           height={100}
-          className="w-[100px] h-[100px] max-w-[100px] max-h-[100px] object-contain drop-shadow-2xl select-none pointer-events-none"
+          className="w-[60px] h-[60px] max-w-[100px] max-h-[100px] object-contain drop-shadow-2xl select-none pointer-events-none"
           draggable={false}
           loading="eager"
         />
