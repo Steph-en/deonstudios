@@ -77,7 +77,7 @@ export const AboutView: React.FC<AboutViewProps> = () => {
           </div>
 
           {/* Right Column: Editorial Text */}
-          <div className="lg:col-span-7 xl:col-span-7 text-neutral-800 space-y-6 sm:space-y-7 leading-relaxed font-sans-clean text-[12px] sm:text-[14px]">
+          <div className="lg:col-span-7 xl:col-span-5 text-neutral-800 space-y-6 sm:space-y-7 leading-relaxed font-sans-clean text-[12px] sm:text-[14px]">
             {/* Header & Disciplines Tagline */}
             <div className="border-b border-neutral-200 pb-5 mb-2">
               <h1 className="font-display text-[22px] sm:text-[28px] uppercase tracking-tight text-neutral-950 font-normal">
