@@ -11,21 +11,51 @@ interface PortfolioSectionProps {
 
 /**
  * Maps editorial aspect ratio types to precise CSS aspect ratio classes.
- * Preserves organic staggered editorial column rhythm matching luxury campaign grids.
+ * Mixes portrait, landscape, and square shapes with varied heights (some smaller, some larger)
+ * to create a true organic luxury editorial masonry waterfall grid with a 3-column maximum.
  */
-const getAspectRatioClass = (aspect?: string) => {
-  switch (aspect) {
-    case 'tall':
-      return 'aspect-[2/3]';
-    case 'portrait':
-      return 'aspect-[3/4]';
-    case 'square':
-      return 'aspect-square';
-    case 'landscape':
-      return 'aspect-[4/3]';
-    default:
-      return 'aspect-[3/4]';
+const PORTFOLIO_MASONRY_RHYTHMS = [
+  'aspect-[3/4]',    // 0: Classic portrait rectangle (prominent)
+  'aspect-[4/3]',    // 1: Editorial landscape rectangle (smaller, compact height)
+  'aspect-square',   // 2: Clean balanced square
+  'aspect-[2/3]',    // 3: Tall editorial portrait (large & prominent)
+  'aspect-[16/10]',  // 4: Wide cinematic landscape (compact / smaller)
+  'aspect-square',   // 5: Modern square
+  'aspect-[4/5]',    // 6: Medium portrait rectangle
+  'aspect-[4/3]',    // 7: Smaller landscape rectangle
+  'aspect-[2/3]',    // 8: Tall editorial portrait
+  'aspect-square',   // 9: Square
+  'aspect-[3/4]',    // 10: Portrait rectangle
+  'aspect-[16/9]',   // 11: Cinematic wide rectangle (smaller)
+];
+
+const getAspectRatioClass = (aspect?: string, index: number = 0, id?: string) => {
+  if (aspect && aspect !== 'portrait') {
+    switch (aspect) {
+      case 'tall':
+        return 'aspect-[2/3]';
+      case 'square':
+        return 'aspect-square';
+      case 'landscape':
+        return 'aspect-[4/3]';
+      case 'wide':
+        return 'aspect-[16/10]';
+      default:
+        break;
+    }
   }
+
+  // Stable pseudo-random seed based on id or index to create intentional visual variety
+  let seed = index;
+  if (id) {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.charCodeAt(i)) & 0xffffffff;
+    }
+    seed = Math.abs(hash) + index;
+  }
+
+  return PORTFOLIO_MASONRY_RHYTHMS[seed % PORTFOLIO_MASONRY_RHYTHMS.length];
 };
 
 export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme }) => {
@@ -76,13 +106,12 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
         </div>
 
         {/* 
-          Editorial 4-Column Masonry Grid System:
-          - Analyzed & styled after the reference luxury editorial layout
-          - 4-column responsive layout (1 col mobile, 2 col sm, 3 col md, 4 col lg)
-          - Exact 8px margins horizontally and vertically between all images (gap-[8px] + mb-[8px])
-          - Natural varied aspect ratios (tall 2:3, portrait 3:4, square 1:1, landscape 4:3)
-          - Frameless edge-to-edge presentation with no text labels under images
-          - Grab/hand cursor with high-resolution lightbox expansion
+          Editorial 3-Column Maximum Masonry Grid System:
+          - Maximum 3-column responsive layout (1 col mobile, 2 col sm, 3 col md/lg)
+          - Images are significantly larger, bolder, and more prominent
+          - True masonry waterfall with mixed rectangle and square shapes, portrait and landscape
+          - Exact gap margins (gap-[8px] sm:gap-[10px] md:gap-[12px]) between all images
+          - Frameless edge-to-edge presentation with pointer cursor and lightbox expansion
         */}
         {filteredShots.length === 0 ? (
           <div className="py-24 sm:py-32 text-center border border-dashed border-neutral-300/80 rounded-lg my-4">
@@ -91,16 +120,16 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-[8px] select-none">
+          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-3 gap-[8px] sm:gap-[10px] md:gap-[12px] select-none">
             {filteredShots.map((shot, idx) => (
-              <div key={shot.id} className="w-full">
+              <div key={shot.id} className="break-inside-avoid inline-block w-full align-top mb-[8px] sm:mb-[10px] md:mb-[12px]">
                 <article
                   id={`portfolio-shot-${shot.id}`}
                   onClick={() => setLightboxIndex(idx)}
-                  className="group relative overflow-hidden bg-neutral-200 cursor-pointer w-full"
+                  className="group relative overflow-hidden bg-neutral-200 cursor-pointer w-full safari-clip-fix"
                   title={`Click to view ${shot.title} in lightbox`}
                 >
-                  <div className={`w-full ${getAspectRatioClass(shot.aspectRatio)} relative overflow-hidden bg-neutral-100`}>
+                  <div className={`w-full ${getAspectRatioClass(shot.aspectRatio, idx, shot.id)} relative overflow-hidden bg-neutral-100 safari-clip-fix`}>
                     <ResilientImage
                       src={shot.url}
                       fallbackSrc={shot.fallbackUrl}

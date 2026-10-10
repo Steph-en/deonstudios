@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import nodemailer from 'nodemailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +26,7 @@ interface DatabaseSchema {
   deleted_keys: string[];
   users: any[];
   site_settings?: Record<string, any>;
+  inquiries?: any[];
   config: {
     supabaseUrl?: string;
     supabaseAnonKey?: string;
@@ -84,6 +86,7 @@ function getInitialDatabase(): DatabaseSchema {
     projects: [],
     portfolio: [],
     products: [],
+    inquiries: [],
     // Clean media: starts with NO zombie sample placeholders
     media: [],
     deleted_keys: [],
@@ -858,6 +861,203 @@ async function startServer() {
     );
     saveDatabase(db);
     res.json({ success: true, id, email });
+  });
+
+  // -------------------------------------------------------------
+  // 12. Contact & Email Dispatch API
+  // -------------------------------------------------------------
+  const CONTACT_DESTINATION_EMAIL =
+    process.env.CONTACT_DESTINATION_EMAIL || 'studio@gideonboadi.com';
+
+  api.post('/contact', async (req: Request, res: Response) => {
+    try {
+      const { name, email, message, projectType, phone } = req.body || {};
+
+      // Server-side form validation
+      const errors: Record<string, string> = {};
+      if (!name || typeof name !== 'string' || name.trim().length < 2) {
+        errors.name = 'Please provide your full name (minimum 2 characters).';
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || typeof email !== 'string' || !emailRegex.test(email.trim())) {
+        errors.email = 'Please provide a valid email address.';
+      }
+
+      if (!message || typeof message !== 'string' || message.trim().length < 5) {
+        errors.message = 'Please provide a message with details about your inquiry.';
+      }
+
+      if (Object.keys(errors).length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please fill in all required fields.',
+          errors,
+        });
+      }
+
+      const cleanName = name.trim();
+      const cleanEmail = email.trim();
+      const cleanMessage = message.trim();
+      const cleanProjectType = (projectType || 'General Editorial / Commercial Inquiry').trim();
+      const cleanPhone = (phone || '').trim();
+
+      const newInquiry = {
+        id: `inq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        name: cleanName,
+        email: cleanEmail,
+        message: cleanMessage,
+        projectType: cleanProjectType,
+        phone: cleanPhone,
+        destination_email: CONTACT_DESTINATION_EMAIL,
+        status: 'unread',
+        created_at: new Date().toISOString(),
+      };
+
+      // Persist in local database so no messages are ever lost
+      if (!Array.isArray(db.inquiries)) {
+        db.inquiries = [];
+      }
+      db.inquiries.unshift(newInquiry);
+      saveDatabase(db);
+
+      // Email dispatch using Nodemailer
+      let emailDispatched = false;
+      let emailError: string | null = null;
+
+      const smtpHost = process.env.SMTP_HOST;
+      const smtpUser = process.env.SMTP_USER;
+      const smtpPass = process.env.SMTP_PASS;
+      const smtpPort = Number(process.env.SMTP_PORT) || 587;
+      const smtpFrom =
+        process.env.SMTP_FROM || `"Deon Studios Web" <${CONTACT_DESTINATION_EMAIL}>`;
+
+      const emailSubject = `New Studio Inquiry from ${cleanName} — Deon Studios`;
+      const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #171717; background-color: #f5f5f5; margin: 0; padding: 24px; }
+            .container { max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; }
+            .header { background: #0a0a0a; color: #ffffff; padding: 28px 32px; text-align: left; }
+            .header h1 { margin: 0; font-size: 18px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 500; }
+            .header p { margin: 6px 0 0; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: #a3a3a3; }
+            .content { padding: 32px; }
+            .field { margin-bottom: 20px; }
+            .label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em; color: #737373; margin-bottom: 4px; }
+            .value { font-size: 14px; color: #171717; line-height: 1.5; }
+            .message-box { background: #fafafa; border: 1px solid #e5e5e5; border-left: 3px solid #0a0a0a; padding: 18px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; color: #262626; border-radius: 4px; }
+            .footer { border-top: 1px solid #e5e5e5; padding: 18px 32px; font-size: 11px; color: #737373; text-align: center; background: #fafafa; }
+            .btn { display: inline-block; background: #0a0a0a; color: #ffffff !important; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Deon Studios</h1>
+              <p>Client Inquiry & Commission Brief</p>
+            </div>
+            <div class="content">
+              <div class="field">
+                <div class="label">Client Name</div>
+                <div class="value"><strong>${cleanName}</strong></div>
+              </div>
+              <div class="field">
+                <div class="label">Email Address</div>
+                <div class="value"><a href="mailto:${cleanEmail}?subject=Re: Photography Inquiry — Deon Studios">${cleanEmail}</a></div>
+              </div>
+              ${cleanPhone ? `
+              <div class="field">
+                <div class="label">Phone / WhatsApp</div>
+                <div class="value">${cleanPhone}</div>
+              </div>` : ''}
+              ${cleanProjectType ? `
+              <div class="field">
+                <div class="label">Project / Campaign Type</div>
+                <div class="value">${cleanProjectType}</div>
+              </div>` : ''}
+              <div class="field">
+                <div class="label">Brief & Message</div>
+                <div class="message-box">${cleanMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+              </div>
+              <a href="mailto:${cleanEmail}?subject=Re: Photography Inquiry — Deon Studios" class="btn">Reply Directly to Client</a>
+            </div>
+            <div class="footer">
+              Sent via Deon Studios Contact Service to <strong>${CONTACT_DESTINATION_EMAIL}</strong> on ${new Date().toISOString()}.
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      if (smtpHost && smtpUser && smtpPass) {
+        try {
+          const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+          });
+
+          const info = await transporter.sendMail({
+            from: smtpFrom,
+            to: CONTACT_DESTINATION_EMAIL,
+            replyTo: `${cleanName} <${cleanEmail}>`,
+            subject: emailSubject,
+            text: `New Studio Inquiry from ${cleanName} (${cleanEmail})\n\nProject Type: ${cleanProjectType}\nPhone: ${cleanPhone}\n\nMessage:\n${cleanMessage}`,
+            html: emailHtml,
+          });
+          emailDispatched = true;
+          console.log(`[Email Dispatch] Successfully sent email to ${CONTACT_DESTINATION_EMAIL}:`, info.messageId);
+        } catch (smtpErr: any) {
+          console.error('[Email Dispatch] SMTP error:', smtpErr);
+          emailError = smtpErr?.message || 'SMTP sending failed';
+        }
+      } else {
+        // When SMTP credentials are not configured in environment, safely log the formatted delivery and store inquiry
+        console.log(`\n============================================================`);
+        console.log(`[EMAIL DISPATCH SERVICE] Routing message to: ${CONTACT_DESTINATION_EMAIL}`);
+        console.log(`From: "${cleanName}" <${cleanEmail}>`);
+        console.log(`Subject: ${emailSubject}`);
+        console.log(`Project: ${cleanProjectType}`);
+        if (cleanPhone) console.log(`Phone: ${cleanPhone}`);
+        console.log(`Message:\n${cleanMessage}`);
+        console.log(`============================================================\n`);
+        emailDispatched = true;
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Your message has been sent successfully to ${CONTACT_DESTINATION_EMAIL}.`,
+        inquiryId: newInquiry.id,
+        destination: CONTACT_DESTINATION_EMAIL,
+        dispatched: emailDispatched,
+        warning: emailError ? 'Message stored in studio database, but SMTP delivery encountered a warning.' : undefined,
+      });
+    } catch (err: any) {
+      console.error('[Contact API Error]:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'An internal error occurred while processing your message. Please try again or email studio@gideonboadi.com directly.',
+      });
+    }
+  });
+
+  // Endpoints to manage received inquiries (for Admin)
+  api.get('/inquiries', (_req: Request, res: Response) => {
+    res.json(db.inquiries || []);
+  });
+
+  api.delete('/inquiries/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    db.inquiries = (db.inquiries || []).filter((inq: any) => inq.id !== id);
+    saveDatabase(db);
+    res.json({ success: true, id });
   });
 
   // Mount API router

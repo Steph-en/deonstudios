@@ -33,6 +33,7 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
   const [url, setUrl] = useState('/assets/gideon_boadi_portrait.png');
   const [status, setStatus] = useState<ProjectStatus>('published');
   const [featured, setFeatured] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState<'portrait' | 'landscape' | 'tall' | 'square' | 'wide'>('portrait');
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -45,6 +46,7 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
       setUrl(existingShot.url || '/assets/gideon_boadi_portrait.png');
       setStatus(existingShot.status || 'published');
       setFeatured(existingShot.featured ?? false);
+      setAspectRatio(existingShot.aspect_ratio || 'portrait');
     }
   }, [existingShot]);
 
@@ -69,7 +71,7 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
         url: url.trim(),
         status,
         featured,
-        aspect_ratio: 'portrait',
+        aspect_ratio: aspectRatio,
         client_or_brand: null,
         tag: null,
         caption: null,
@@ -247,6 +249,26 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
                 <option value="Commercial">Commercial</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-xs font-medium text-neutral-700 mb-1">
+                Masonry Frame Geometry (Aspect Ratio)
+              </label>
+              <select
+                value={aspectRatio}
+                onChange={(e) => setAspectRatio(e.target.value as any)}
+                className="w-full text-xs px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900 font-medium"
+              >
+                <option value="portrait">Portrait Rectangle (3:4)</option>
+                <option value="tall">Tall Editorial (2:3)</option>
+                <option value="square">Balanced Square (1:1)</option>
+                <option value="landscape">Landscape Rectangle (4:3)</option>
+                <option value="wide">Cinematic Wide (16:10)</option>
+              </select>
+              <p className="text-[10px] text-neutral-500 mt-1">
+                Mix portrait, square, and landscape shapes for an organic editorial masonry waterfall.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -296,11 +318,23 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
               Live Preview
             </h3>
             <p className="text-[11px] text-neutral-500">
-              How this portrait appears in the public gallery.
+              How this portrait appears in the public 3-column gallery.
             </p>
 
             <div className="bg-neutral-900 rounded-lg overflow-hidden border border-neutral-800">
-              <div className="relative w-full aspect-[3/4] overflow-hidden bg-neutral-950">
+              <div
+                className={`relative w-full overflow-hidden bg-neutral-950 ${
+                  aspectRatio === 'tall'
+                    ? 'aspect-[2/3]'
+                    : aspectRatio === 'square'
+                    ? 'aspect-square'
+                    : aspectRatio === 'landscape'
+                    ? 'aspect-[4/3]'
+                    : aspectRatio === 'wide'
+                    ? 'aspect-[16/10]'
+                    : 'aspect-[3/4]'
+                }`}
+              >
                 <img
                   src={url || '/assets/gideon_boadi_portrait.png'}
                   alt={title || 'Preview'}

@@ -3,6 +3,41 @@
   "projects": [],
   "portfolio": [],
   "products": [],
+  "inquiries": [
+    {
+      "id": "inq-1791665164292-653da",
+      "name": "Campaign Director",
+      "email": "director@campaign.com",
+      "message": "We would like to book a commercial still-life shoot.",
+      "projectType": "Luxury Product",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-10T20:46:04.292Z"
+    },
+    {
+      "id": "inq-1791560739840-p6bjl",
+      "name": "Vogue Editorial Team",
+      "email": "editor@vogue.com",
+      "message": "We would like to book Gideon Boadi for an upcoming editorial cover feature in Accra.",
+      "projectType": "Editorial Fashion",
+      "phone": "+1 212 555 0199",
+      "destination_email": "contact@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-09T15:45:39.840Z"
+    },
+    {
+      "id": "inq-1791560721932-hsnlu",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "message": "Hello Gideon, we would like to book a commercial photoshoot with you.",
+      "projectType": "General Editorial / Commercial Inquiry",
+      "phone": "",
+      "destination_email": "contact@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-09T15:45:21.932Z"
+    }
+  ],
   "media": [],
   "deleted_keys": [],
   "site_settings": {
@@ -32,7 +67,7 @@
   "config": {
     "supabaseUrl": "https://oorbvpnuivsyfxftlqwr.supabase.co",
     "supabaseAnonKey": "sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV",
-    "siteUrl": "https://gideonboadi.com",
+    "siteUrl": "https://gideonboadi.vercel.app/",
     "allowedOrigins": [
       "https://www.gideonboadi.com",
       "https://gideonboadi.com",

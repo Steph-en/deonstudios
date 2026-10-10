@@ -1,31 +1,206 @@
-import React, { useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
-import { STUDIO_INFO, SOCIAL_LINKS } from '../data/portfolioData';
+import React, { useState, useRef } from 'react';
+import { CheckCircle2, AlertCircle, Send, ArrowRight, Mail } from 'lucide-react';
+import { STUDIO_INFO } from '../data/portfolioData';
 import { SEOHead } from './SEOHead';
 
+interface FormValues {
+  name: string;
+  email: string;
+  phone: string;
+  projectType: string;
+  message: string;
+}
+
+interface FormErrors {
+  name?: string;
+  email?: string;
+  message?: string;
+}
+
+const PROJECT_TYPE_OPTIONS = [
+  'Editorial Fashion',
+  'Commercial Campaign',
+  'Luxury Product / Still Life',
+  'Portraiture Session',
+  'Lookbook / Runway',
+  'General Inquiry',
+];
+
 export const ContactView: React.FC = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormValues>({
     name: '',
     email: '',
+    phone: '',
+    projectType: 'Editorial Fashion',
     message: '',
   });
-  const [submitted, setSubmitted] = useState(false);
+
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  const email = STUDIO_INFO.email || 'contact@gideonboadi.com';
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const destinationEmail = STUDIO_INFO.email || 'studio@gideonboadi.com';
+
+  // Validation function for each form control
+  const validateField = (field: keyof FormValues, value: string): string | undefined => {
+    switch (field) {
+      case 'name':
+        if (!value.trim()) {
+          return 'Please provide your full name.';
+        }
+        if (value.trim().length < 2) {
+          return 'Name must be at least 2 characters.';
+        }
+        return undefined;
+
+      case 'email':
+        if (!value.trim()) {
+          return 'Please provide your email address.';
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
+          return 'Please enter a valid email address (e.g. name@domain.com).';
+        }
+        return undefined;
+
+      case 'message':
+        if (!value.trim()) {
+          return 'Please provide a message or brief description.';
+        }
+        if (value.trim().length < 10) {
+          return 'Please provide a little more detail (minimum 10 characters).';
+        }
+        return undefined;
+
+      default:
+        return undefined;
+    }
+  };
+
+  // Run full validation on all required fields
+  const validateAll = (): FormErrors => {
+    const newErrors: FormErrors = {};
+    const nameErr = validateField('name', formData.name);
+    if (nameErr) newErrors.name = nameErr;
+
+    const emailErr = validateField('email', formData.email);
+    if (emailErr) newErrors.email = emailErr;
+
+    const msgErr = validateField('message', formData.message);
+    if (msgErr) newErrors.message = msgErr;
+
+    return newErrors;
+  };
+
+  const handleBlur = (field: keyof FormValues) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const err = validateField(field, formData[field]);
+    setErrors((prev) => ({
+      ...prev,
+      [field]: err,
+    }));
+  };
+
+  const handleChange = (field: keyof FormValues, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setServerError(null);
+
+    // If submit was attempted or field was already touched, validate live
+    if (submitAttempted || touched[field]) {
+      const err = validateField(field, value);
+      setErrors((prev) => ({
+        ...prev,
+        [field]: err,
+      }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitAttempted(true);
+    setServerError(null);
+
+    const validationErrors = validateAll();
+    setErrors(validationErrors);
+    setTouched({
+      name: true,
+      email: true,
+      message: true,
+    });
+
+    // If there are errors, focus the first invalid field and prevent sending
+    if (Object.keys(validationErrors).length > 0) {
+      if (validationErrors.name) {
+        nameInputRef.current?.focus();
+      } else if (validationErrors.email) {
+        emailInputRef.current?.focus();
+      } else if (validationErrors.message) {
+        messageInputRef.current?.focus();
+      }
+      return;
+    }
+
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          projectType: formData.projectType,
+          message: formData.message,
+          destinationEmail,
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        if (result?.errors) {
+          setErrors(result.errors);
+        }
+        throw new Error(
+          result?.error ||
+            `Unable to dispatch message. Please try again or email ${destinationEmail} directly.`
+        );
+      }
+
       setSubmitted(true);
-    }, 500);
+    } catch (err: any) {
+      console.error('Contact submission error:', err);
+      setServerError(
+        err.message ||
+          'A transmission error occurred. Please try again or contact us directly via email.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
-    setFormData({ name: '', email: '', message: '' });
+    setFormData({
+      name: '',
+      email: '',
+      phone: '',
+      projectType: 'Editorial Fashion',
+      message: '',
+    });
+    setErrors({});
+    setTouched({});
+    setSubmitAttempted(false);
     setSubmitted(false);
+    setServerError(null);
   };
 
   return (
@@ -50,116 +225,316 @@ export const ContactView: React.FC = () => {
           mainEntity: {
             '@type': 'Organization',
             name: 'Deon Studios',
-            email,
+            email: destinationEmail,
             url: typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://www.gideonboadi.com',
             contactPoint: {
               '@type': 'ContactPoint',
               contactType: 'editorial & commercial booking',
-              email,
+              email: destinationEmail,
               availableLanguage: ['English'],
             },
           },
         }}
       />
+
       <div className="w-full max-w-2xl mx-auto flex-1 flex flex-col justify-center">
         {/* Header & Introductory Note */}
-        <div className="text-center space-y-3 mb-10 sm:mb-12">
+        <div className="text-center space-y-3 mb-8 sm:mb-10">
           <h1 className="text-[11px] sm:text-[12px] uppercase tracking-[0.28em] font-medium text-neutral-900">
-            Contact
+            Contact & Commissions
           </h1>
 
           <p className="text-neutral-700 font-light text-[13px] sm:text-[14px] leading-relaxed max-w-md mx-auto">
-            Based in Accra and available for projects internationally.
+            Based in Accra and available for campaigns and commissions worldwide.
           </p>
 
           <p className="text-neutral-500 font-light text-[12px] sm:text-[13px] leading-relaxed max-w-md mx-auto">
-            For photoshoot enquiries please fill out the form below
+            Please fill out the inquiry form below to contact the studio directly,
             <span className="block mt-1">
               or email{' '}
               <a
-                href={`mailto:${email}`}
-                className="text-neutral-900 underline underline-offset-4 decoration-neutral-300 hover:decoration-black transition-colors font-normal"
+                href={`mailto:${destinationEmail}`}
+                className="text-neutral-900 underline underline-offset-4 decoration-neutral-300 hover:decoration-black transition-colors font-medium"
               >
-                {email}
+                {destinationEmail}
               </a>
             </span>
           </p>
         </div>
 
-        {/* Clean Editorial Enclosed Form (Reflects Classic Gallery Layout) */}
+        {/* Form Container */}
         <div className="w-full">
           {submitted ? (
-            <div className="border border-neutral-300 p-8 sm:p-12 text-center space-y-3 bg-neutral-50/50">
-              <CheckCircle2 className="w-5 h-5 text-neutral-900 mx-auto" />
-              <h2 className="text-sm font-medium uppercase tracking-[0.16em] text-neutral-950">
-                Message Dispatched
-              </h2>
+            /* Success Confirmation Screen */
+            <div className="border border-neutral-300 p-8 sm:p-12 text-center space-y-4 bg-neutral-50/60 shadow-xs">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              
+              <div className="space-y-1.5">
+                <h2 className="text-sm sm:text-base font-medium uppercase tracking-[0.18em] text-neutral-950 font-display">
+                  Message Dispatched
+                </h2>
+                <p className="text-xs text-neutral-500 uppercase tracking-wider font-mono">
+                  Delivered to {destinationEmail}
+                </p>
+              </div>
+
               <p className="text-xs sm:text-[13px] text-neutral-600 font-light max-w-sm mx-auto leading-relaxed">
-                Thank you for reaching out. Your enquiry has been received and Gideon will be in touch shortly.
+                Thank you, <strong className="font-medium text-neutral-900">{formData.name}</strong>. Your inquiry has been received and Gideon Boadi will review your project brief and get in touch within 24–48 hours.
               </p>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="mt-4 px-5 py-2 border border-neutral-300 hover:border-neutral-900 text-[11px] uppercase tracking-[0.16em] text-neutral-800 hover:text-black transition-colors cursor-pointer"
-              >
-                Send Another Message
-              </button>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="px-6 py-2.5 border border-neutral-300 hover:border-neutral-900 text-[11px] uppercase tracking-[0.16em] text-neutral-800 hover:text-black transition-colors cursor-pointer bg-white"
+                >
+                  Send Another Message
+                </button>
+              </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="border border-neutral-300 divide-y divide-neutral-300 bg-white focus-within:border-neutral-600 transition-colors">
-                <div>
+            <form onSubmit={handleSubmit} noValidate className="space-y-6">
+              {/* Form Control Alert Banner if user clicked submit with empty/invalid fields */}
+              {submitAttempted && Object.keys(errors).length > 0 && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-3 p-3.5 bg-rose-50/90 border border-rose-200 text-rose-900 text-xs rounded-none transition-all"
+                >
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-medium block">
+                      Please complete the required sections below:
+                    </span>
+                    <span className="text-[11px] text-rose-700 font-light">
+                      {Object.values(errors).join(' ')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Server-Side Error Alert */}
+              {serverError && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-3 p-3.5 bg-amber-50 border border-amber-300 text-amber-900 text-xs rounded-none"
+                >
+                  <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium">{serverError}</p>
+                    <p className="mt-1 text-[11px]">
+                      You can also reach Gideon directly at{' '}
+                      <a href={`mailto:${destinationEmail}`} className="underline font-semibold">
+                        {destinationEmail}
+                      </a>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Form Controls Enclosure */}
+              <div className="border border-neutral-300 divide-y divide-neutral-300 bg-white">
+                {/* 1. Full Name Input Control */}
+                <div className={`p-4 sm:p-5 transition-colors ${errors.name ? 'bg-rose-50/20' : ''}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label
+                      htmlFor="contact-name"
+                      className="text-[10px] uppercase tracking-[0.24em] font-medium text-neutral-600 flex items-center gap-1"
+                    >
+                      <span>Full Name</span>
+                      <span className="text-rose-500 font-bold" aria-hidden="true">*</span>
+                    </label>
+                    {errors.name && (
+                      <span id="name-error" className="text-[11px] text-rose-600 font-normal">
+                        {errors.name}
+                      </span>
+                    )}
+                  </div>
                   <input
+                    ref={nameInputRef}
+                    id="contact-name"
+                    name="name"
                     type="text"
                     required
-                    placeholder="Name"
+                    autoComplete="name"
+                    placeholder="e.g. Ama Mensah or Studio Representative"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none font-light"
+                    onChange={(e) => handleChange('name', e.target.value)}
+                    onBlur={() => handleBlur('name')}
+                    aria-required="true"
+                    aria-invalid={Boolean(errors.name)}
+                    aria-describedby={errors.name ? 'name-error' : undefined}
+                    className={`w-full text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none font-light py-1 transition-colors ${
+                      errors.name ? 'text-rose-950 placeholder:text-rose-300' : ''
+                    }`}
                   />
                 </div>
-                <div>
+
+                {/* 2. Email Address Input Control */}
+                <div className={`p-4 sm:p-5 transition-colors ${errors.email ? 'bg-rose-50/20' : ''}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label
+                      htmlFor="contact-email"
+                      className="text-[10px] uppercase tracking-[0.24em] font-medium text-neutral-600 flex items-center gap-1"
+                    >
+                      <span>Email Address</span>
+                      <span className="text-rose-500 font-bold" aria-hidden="true">*</span>
+                    </label>
+                    {errors.email && (
+                      <span id="email-error" className="text-[11px] text-rose-600 font-normal">
+                        {errors.email}
+                      </span>
+                    )}
+                  </div>
                   <input
+                    ref={emailInputRef}
+                    id="contact-email"
+                    name="email"
                     type="email"
                     required
-                    placeholder="Email"
+                    autoComplete="email"
+                    placeholder="e.g. client@brand.com"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none font-light"
+                    onChange={(e) => handleChange('email', e.target.value)}
+                    onBlur={() => handleBlur('email')}
+                    aria-required="true"
+                    aria-invalid={Boolean(errors.email)}
+                    aria-describedby={errors.email ? 'email-error' : undefined}
+                    className={`w-full text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none font-light py-1 transition-colors ${
+                      errors.email ? 'text-rose-950 placeholder:text-rose-300' : ''
+                    }`}
                   />
                 </div>
-                <div>
+
+                {/* 3. Phone / WhatsApp (Optional) */}
+                <div className="p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label
+                      htmlFor="contact-phone"
+                      className="text-[10px] uppercase tracking-[0.24em] font-medium text-neutral-600"
+                    >
+                      <span>Phone / WhatsApp</span>
+                      <span className="text-neutral-400 text-[9px] font-normal lowercase tracking-normal ml-1">
+                        (optional)
+                      </span>
+                    </label>
+                  </div>
+                  <input
+                    id="contact-phone"
+                    name="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    placeholder="e.g. +233 20 866 7252"
+                    value={formData.phone}
+                    onChange={(e) => handleChange('phone', e.target.value)}
+                    className="w-full text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none font-light py-1"
+                  />
+                </div>
+
+                {/* 4. Project / Commission Type */}
+                <div className="p-4 sm:p-5">
+                  <label
+                    htmlFor="contact-project-type"
+                    className="text-[10px] uppercase tracking-[0.24em] font-medium text-neutral-600 block mb-2"
+                  >
+                    Project / Campaign Scope
+                  </label>
+                  <select
+                    id="contact-project-type"
+                    name="projectType"
+                    value={formData.projectType}
+                    onChange={(e) => handleChange('projectType', e.target.value)}
+                    className="w-full text-xs sm:text-sm text-neutral-900 bg-transparent focus:outline-none font-light cursor-pointer py-1"
+                  >
+                    {PROJECT_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 5. Message / Brief Textarea Control */}
+                <div className={`p-4 sm:p-5 transition-colors ${errors.message ? 'bg-rose-50/20' : ''}`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label
+                      htmlFor="contact-message"
+                      className="text-[10px] uppercase tracking-[0.24em] font-medium text-neutral-600 flex items-center gap-1"
+                    >
+                      <span>Project Brief & Message</span>
+                      <span className="text-rose-500 font-bold" aria-hidden="true">*</span>
+                    </label>
+                    {errors.message ? (
+                      <span id="message-error" className="text-[11px] text-rose-600 font-normal">
+                        {errors.message}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-mono text-neutral-400">
+                        {formData.message.length} chars
+                      </span>
+                    )}
+                  </div>
                   <textarea
-                    rows={7}
+                    ref={messageInputRef}
+                    id="contact-message"
+                    name="message"
+                    rows={6}
                     required
-                    placeholder="Message"
+                    placeholder="Please share timing, campaign deliverables, references, or specific questions..."
                     value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    className="w-full px-4 sm:px-5 py-3.5 sm:py-4 text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none font-light resize-y min-h-[160px]"
+                    onChange={(e) => handleChange('message', e.target.value)}
+                    onBlur={() => handleBlur('message')}
+                    aria-required="true"
+                    aria-invalid={Boolean(errors.message)}
+                    aria-describedby={errors.message ? 'message-error' : undefined}
+                    className={`w-full text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none font-light py-1 resize-y min-h-[140px] leading-relaxed transition-colors ${
+                      errors.message ? 'text-rose-950 placeholder:text-rose-300' : ''
+                    }`}
                   />
                 </div>
               </div>
 
-              {/* Submit Action */}
-              <div className="pt-1 flex items-center justify-between">
+              {/* Form Action & Direct Booking Links */}
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-6 py-2.5 border border-neutral-300 hover:border-neutral-900 text-neutral-900 hover:text-black text-[11px] sm:text-xs tracking-[0.06em] font-normal transition-colors cursor-pointer bg-white disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2.5 px-7 py-3 border border-neutral-950 bg-neutral-950 text-white hover:bg-neutral-800 text-[11px] sm:text-xs uppercase tracking-[0.18em] font-medium transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
                 >
-                  {isSubmitting ? 'Sending...' : 'Send Message'}
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Transmitting Brief...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send Message</span>
+                    </>
+                  )}
                 </button>
 
-                {STUDIO_INFO.booking && (
-                  <a
-                    href={STUDIO_INFO.booking}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] text-neutral-500 hover:text-neutral-900 underline underline-offset-4 decoration-neutral-300 hover:decoration-black transition-colors"
-                  >
-                    Bookings & General Inquiries ↗
-                  </a>
-                )}
+                <div className="flex items-center gap-4 text-[11px] text-neutral-500">
+                  <span className="inline-flex items-center gap-1.5 font-light">
+                    <Mail className="w-3.5 h-3.5 text-neutral-400" />
+                    Sent to: <span className="font-mono text-neutral-800">{destinationEmail}</span>
+                  </span>
+
+                  {STUDIO_INFO.booking && (
+                    <>
+                      <span className="text-neutral-300">•</span>
+                      <a
+                        href={STUDIO_INFO.booking}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-neutral-600 hover:text-neutral-950 underline underline-offset-4 decoration-neutral-300 hover:decoration-black transition-colors"
+                      >
+                        Calendar Booking ↗
+                      </a>
+                    </>
+                  )}
+                </div>
               </div>
             </form>
           )}

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, CheckCircle2, AlertCircle, Send } from 'lucide-react';
 import { STUDIO_INFO } from '../data/portfolioData';
 import { ThemeMode } from '../types';
 
@@ -9,17 +9,42 @@ interface ContactModalProps {
   onClose: () => void;
 }
 
+interface FormValues {
+  name: string;
+  email: string;
+  projectType: string;
+  message: string;
+}
+
+interface FormErrors {
+  name?: string;
+  email?: string;
+  message?: string;
+}
+
 export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) => {
   const [isRendered, setIsRendered] = useState(isOpen);
   const [isVisible, setIsVisible] = useState(isOpen);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormValues>({
     name: '',
     email: '',
     projectType: '',
     message: '',
   });
+
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
+
+  const destinationEmail = STUDIO_INFO.email || 'studio@gideonboadi.com';
 
   // Handle smooth bi-directional slide animation
   useEffect(() => {
@@ -66,9 +91,98 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
 
   if (!isRendered) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateField = (field: keyof FormValues, value: string): string | undefined => {
+    switch (field) {
+      case 'name':
+        if (!value.trim()) return 'Please enter your full name.';
+        if (value.trim().length < 2) return 'Name must be at least 2 characters.';
+        return undefined;
+      case 'email':
+        if (!value.trim()) return 'Please enter your email address.';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
+          return 'Please enter a valid email address.';
+        }
+        return undefined;
+      case 'message':
+        if (!value.trim()) return 'Please provide your message or project brief.';
+        if (value.trim().length < 10) return 'Message must be at least 10 characters.';
+        return undefined;
+      default:
+        return undefined;
+    }
+  };
+
+  const validateAll = (): FormErrors => {
+    const errs: FormErrors = {};
+    const n = validateField('name', formData.name);
+    if (n) errs.name = n;
+    const e = validateField('email', formData.email);
+    if (e) errs.email = e;
+    const m = validateField('message', formData.message);
+    if (m) errs.message = m;
+    return errs;
+  };
+
+  const handleBlur = (field: keyof FormValues) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const err = validateField(field, formData[field]);
+    setErrors((prev) => ({ ...prev, [field]: err }));
+  };
+
+  const handleChange = (field: keyof FormValues, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setServerError(null);
+    if (submitAttempted || touched[field]) {
+      const err = validateField(field, value);
+      setErrors((prev) => ({ ...prev, [field]: err }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setSubmitAttempted(true);
+    setServerError(null);
+
+    const valErrors = validateAll();
+    setErrors(valErrors);
+    setTouched({ name: true, email: true, message: true });
+
+    if (Object.keys(valErrors).length > 0) {
+      if (valErrors.name) nameRef.current?.focus();
+      else if (valErrors.email) emailRef.current?.focus();
+      else if (valErrors.message) messageRef.current?.focus();
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          projectType: formData.projectType || 'Studio Inquiry',
+          message: formData.message,
+          destinationEmail,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        if (data?.errors) setErrors(data.errors);
+        throw new Error(data?.error || `Unable to send to ${destinationEmail}.`);
+      }
+
+      setSubmitted(true);
+    } catch (err: any) {
+      console.error('Contact modal submit error:', err);
+      setServerError(err.message || 'Transmission failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -78,11 +192,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
       aria-modal="true"
       className="fixed inset-0 z-50 overflow-hidden select-none"
     >
-      {/* 
-        Blurred Backdrop:
-        Takes over the left/remaining side of the screen.
-        Clicking anywhere in this blurred region animates the drawer back off to the right.
-      */}
+      {/* Blurred Backdrop */}
       <div
         onClick={onClose}
         aria-label="Dismiss contact panel"
@@ -91,10 +201,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
         }`}
       />
 
-      {/* 
-        Slide-Over Drawer (Takes ~1/3 to 1/2 of the screen):
-        Animates in smoothly from the right edge with high-end editorial styling in light theme.
-      */}
+      {/* Slide-Over Drawer */}
       <div
         className={`fixed top-0 right-0 bottom-0 h-full w-full sm:w-[500px] md:w-[560px] lg:w-[46%] xl:w-[40%] max-w-2xl bg-[#fafafa] text-neutral-900 border-l border-neutral-200 shadow-2xl z-10 flex flex-col justify-between overflow-y-auto transition-transform duration-500 ease-out ${
           isVisible ? 'translate-x-0' : 'translate-x-full'
@@ -104,7 +211,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
         <div className="flex items-center justify-between gap-4 pt-8 sm:pt-10 px-6 sm:px-12">
           <div className="flex items-center gap-4 flex-1">
             <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.25em] text-neutral-500 font-medium whitespace-nowrap">
-              Contact
+              Contact & Inquiries
             </span>
             <div className="h-[1px] bg-neutral-200 flex-1 max-w-md" />
           </div>
@@ -133,13 +240,13 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
 
             <div className="mt-6 sm:mt-8">
               <span className="block text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium mb-1.5">
-                Bookings & General Inquiries
+                Direct Studio Destination
               </span>
               <a
-                href="https://deon-studios.easyweek.de/"
-                className="text-[12px] sm:text-[14px] md:text-[14px] text-neutral-950 hover:text-neutral-600 transition-colors font-sans-clean font-normal tracking-wide break-all underline-offset-4 hover:underline"
+                href={`mailto:${destinationEmail}`}
+                className="text-[12px] sm:text-[14px] md:text-[14px] text-neutral-950 hover:text-neutral-600 transition-colors font-sans-clean font-medium tracking-wide underline underline-offset-4"
               >
-                {STUDIO_INFO.booking}
+                {destinationEmail}
               </a>
             </div>
           </div>
@@ -152,48 +259,92 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                 Message Dispatched
               </h3>
               <p className="text-sm font-light text-neutral-600 max-w-md">
-                Thank you for getting in touch. Your project details have been received and our studio will review and reply within 24–48 hours.
+                Thank you, <strong className="font-medium text-neutral-900">{formData.name}</strong>. Your project brief has been sent to <strong>{destinationEmail}</strong>. Gideon Boadi and our studio will review and reply within 24–48 hours.
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSubmitted(false);
-                  onClose();
-                }}
-                className="mt-4 px-6 py-2.5 rounded-lg border border-neutral-300 hover:border-neutral-900 text-xs uppercase tracking-[0.2em] text-neutral-900 transition-colors cursor-pointer bg-white"
-              >
-                Close Window
-              </button>
+              <div className="flex items-center gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmitted(false);
+                    setFormData({ name: '', email: '', projectType: '', message: '' });
+                    setSubmitAttempted(false);
+                    setErrors({});
+                  }}
+                  className="px-5 py-2.5 rounded-lg border border-neutral-300 hover:border-neutral-900 text-xs uppercase tracking-[0.16em] text-neutral-900 transition-colors cursor-pointer bg-white"
+                >
+                  Send Another
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2.5 rounded-lg border border-neutral-900 bg-neutral-900 text-white text-xs uppercase tracking-[0.16em] transition-colors cursor-pointer"
+                >
+                  Close Window
+                </button>
+              </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="px-6 sm:px-12 pb-10 flex flex-col gap-7 sm:gap-9 flex-1">
+            <form onSubmit={handleSubmit} noValidate className="px-6 sm:px-12 pb-10 flex flex-col gap-6 sm:gap-7 flex-1">
+              {/* Alert banner if invalid fields */}
+              {submitAttempted && Object.keys(errors).length > 0 && (
+                <div className="flex items-center gap-2.5 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>Please fill out all required sections marked below.</span>
+                </div>
+              )}
+
+              {serverError && (
+                <div className="flex items-center gap-2.5 p-3 bg-amber-50 border border-amber-300 text-amber-900 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-700" />
+                  <span>{serverError}</span>
+                </div>
+              )}
+
               {/* Full Name & Email Address Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                 <div className="flex flex-col">
-                  <label className="text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium mb-1">
-                    Full Name
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium">
+                      Full Name *
+                    </label>
+                    {errors.name && (
+                      <span className="text-[10px] text-rose-600 font-normal">{errors.name}</span>
+                    )}
+                  </div>
                   <input
+                    ref={nameRef}
                     type="text"
                     required
-                    placeholder=""
+                    placeholder="Your Name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full bg-transparent border-b border-neutral-300 py-2 text-sm sm:text-base text-neutral-900 outline-none focus:border-neutral-950 transition-colors"
+                    onChange={(e) => handleChange('name', e.target.value)}
+                    onBlur={() => handleBlur('name')}
+                    className={`w-full bg-transparent border-b py-2 text-sm text-neutral-900 outline-none transition-colors ${
+                      errors.name ? 'border-rose-500' : 'border-neutral-300 focus:border-neutral-950'
+                    }`}
                   />
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium mb-1">
-                    Email Address
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium">
+                      Email Address *
+                    </label>
+                    {errors.email && (
+                      <span className="text-[10px] text-rose-600 font-normal">{errors.email}</span>
+                    )}
+                  </div>
                   <input
+                    ref={emailRef}
                     type="email"
                     required
-                    placeholder=""
+                    placeholder="email@domain.com"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-transparent border-b border-neutral-300 py-2 text-sm sm:text-base text-neutral-900 outline-none focus:border-neutral-950 transition-colors"
+                    onChange={(e) => handleChange('email', e.target.value)}
+                    onBlur={() => handleBlur('email')}
+                    className={`w-full bg-transparent border-b py-2 text-sm text-neutral-900 outline-none transition-colors ${
+                      errors.email ? 'border-rose-500' : 'border-neutral-300 focus:border-neutral-950'
+                    }`}
                   />
                 </div>
               </div>
@@ -205,40 +356,56 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                 </label>
                 <input
                   type="text"
-                  placeholder=""
+                  placeholder="e.g. Editorial Fashion, Lookbook, Advertising"
                   value={formData.projectType}
-                  onChange={(e) => setFormData({ ...formData, projectType: e.target.value })}
-                  className="w-full bg-transparent border-b border-neutral-300 py-2 text-sm sm:text-base text-neutral-900 outline-none focus:border-neutral-950 transition-colors"
+                  onChange={(e) => handleChange('projectType', e.target.value)}
+                  className="w-full bg-transparent border-b border-neutral-300 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-950 transition-colors"
                 />
               </div>
 
               {/* Tell Me About Your Project */}
               <div className="flex flex-col">
-                <label className="text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium mb-1">
-                  Tell Me About Your Project
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] uppercase tracking-[0.25em] text-neutral-500 font-medium">
+                    Project Brief & Message *
+                  </label>
+                  {errors.message && (
+                    <span className="text-[10px] text-rose-600 font-normal">{errors.message}</span>
+                  )}
+                </div>
                 <textarea
-                  rows={3}
+                  ref={messageRef}
+                  rows={4}
                   required
-                  placeholder=""
+                  placeholder="Tell Gideon about the concept, date, deliverables, or questions..."
                   value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full bg-transparent border-b border-neutral-300 py-2 text-sm sm:text-base text-neutral-900 outline-none focus:border-neutral-950 transition-colors resize-none"
+                  onChange={(e) => handleChange('message', e.target.value)}
+                  onBlur={() => handleBlur('message')}
+                  className={`w-full bg-transparent border-b py-2 text-sm text-neutral-900 outline-none resize-none leading-relaxed transition-colors ${
+                    errors.message ? 'border-rose-500' : 'border-neutral-300 focus:border-neutral-950'
+                  }`}
                 />
               </div>
 
               {/* Bottom Row: Response Time Notice + Send Message Button */}
               <div className="pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-auto">
-                <span className="text-[8px] uppercase tracking-[0.2em] text-neutral-500 font-medium">
-                  I usually respond within 24–48 hours.
+                <span className="text-[9px] uppercase tracking-[0.2em] text-neutral-500 font-medium">
+                  Sent directly to {destinationEmail}
                 </span>
 
                 <button
                   type="submit"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 py-3 rounded-lg border border-neutral-900 bg-neutral-fff text-black hover:bg-neutral-900 hover:text-white text-xs uppercase tracking-[0.22em] font-medium transition-all duration-200 cursor-pointer shadow-xs"
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 py-3 rounded-lg border border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800 text-xs uppercase tracking-[0.22em] font-medium transition-all duration-200 cursor-pointer shadow-xs disabled:opacity-50"
                 >
-                  <span>Send Message</span>
-                  <span className="tracking-tighter">──</span>
+                  {isSubmitting ? (
+                    <span>Transmitting...</span>
+                  ) : (
+                    <>
+                      <span>Send Message</span>
+                      <Send className="w-3.5 h-3.5" />
+                    </>
+                  )}
                 </button>
               </div>
             </form>

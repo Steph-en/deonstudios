@@ -10,22 +10,52 @@ interface ProductsSectionProps {
 }
 
 /**
- * Maps editorial aspect ratio types to precise CSS aspect ratio classes.
- * Preserves organic staggered editorial column rhythm matching luxury campaign grids.
+ * Maps product aspect ratio types to precise CSS aspect ratio classes.
+ * Mixes square, portrait, and landscape shapes with varied heights (some smaller, some larger)
+ * to create a true organic luxury editorial masonry waterfall grid with a 3-column maximum.
  */
-const getAspectRatioClass = (aspect?: string) => {
-  switch (aspect) {
-    case 'tall':
-      return 'aspect-[2/3]';
-    case 'portrait':
-      return 'aspect-[3/4]';
-    case 'square':
-      return 'aspect-square';
-    case 'landscape':
-      return 'aspect-[4/3]';
-    default:
-      return 'aspect-[3/4]';
+const PRODUCT_MASONRY_RHYTHMS = [
+  'aspect-square',   // 0: Clean luxury still-life square
+  'aspect-[3/4]',    // 1: Portrait rectangle (prominent)
+  'aspect-[4/3]',    // 2: Editorial landscape rectangle (smaller)
+  'aspect-[2/3]',    // 3: Tall editorial still-life (prominent)
+  'aspect-square',   // 4: Clean square
+  'aspect-[16/10]',  // 5: Wide product flatlay (compact / smaller)
+  'aspect-[3/4]',    // 6: Portrait rectangle
+  'aspect-square',   // 7: Square
+  'aspect-[4/3]',    // 8: Landscape rectangle (smaller)
+  'aspect-[2/3]',    // 9: Tall product portrait
+  'aspect-[4/5]',    // 10: Soft portrait rectangle
+  'aspect-square',   // 11: Square
+];
+
+const getAspectRatioClass = (aspect?: string, index: number = 0, id?: string) => {
+  if (aspect && aspect !== 'portrait') {
+    switch (aspect) {
+      case 'tall':
+        return 'aspect-[2/3]';
+      case 'square':
+        return 'aspect-square';
+      case 'landscape':
+        return 'aspect-[4/3]';
+      case 'wide':
+        return 'aspect-[16/10]';
+      default:
+        break;
+    }
   }
+
+  // Stable pseudo-random seed based on id or index to create intentional visual variety
+  let seed = index;
+  if (id) {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.charCodeAt(i)) & 0xffffffff;
+    }
+    seed = Math.abs(hash) + index;
+  }
+
+  return PRODUCT_MASONRY_RHYTHMS[seed % PRODUCT_MASONRY_RHYTHMS.length];
 };
 
 export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, theme }) => {
@@ -76,13 +106,12 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, them
         </div>
 
         {/* 
-          Editorial 4-Column Masonry Grid System:
-          - Analyzed & styled after the reference luxury editorial layout
-          - 4-column responsive layout (1 col mobile, 2 col sm, 3 col md, 4 col lg)
-          - Exact 8px margins horizontally and vertically between all images (gap-[8px] + mb-[8px])
-          - Natural varied aspect ratios (tall 2:3, portrait 3:4, square 1:1, landscape 4:3)
-          - Frameless edge-to-edge presentation with no text labels under images
-          - Grab/hand cursor with high-resolution lightbox expansion
+          Editorial 3-Column Maximum Masonry Grid System:
+          - Maximum 3-column responsive layout (1 col mobile, 2 col sm, 3 col md/lg)
+          - Images are significantly larger, bolder, and more prominent
+          - True masonry waterfall with mixed rectangle and square shapes, portrait and landscape
+          - Exact gap margins (gap-[8px] sm:gap-[10px] md:gap-[12px]) between all images
+          - Frameless edge-to-edge presentation with pointer cursor and lightbox expansion
         */}
         {filteredProducts.length === 0 ? (
           <div className="py-24 sm:py-32 text-center border border-dashed border-neutral-300/80 rounded-lg my-4">
@@ -91,16 +120,16 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, them
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-[8px] select-none">
+          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-3 gap-[8px] sm:gap-[10px] md:gap-[12px] select-none">
             {filteredProducts.map((product, idx) => (
-              <div key={product.id} className="w-full">
+              <div key={product.id} className="break-inside-avoid inline-block w-full align-top mb-[8px] sm:mb-[10px] md:mb-[12px]">
                 <article
                   id={`product-shot-${product.id}`}
                   onClick={() => setLightboxIndex(idx)}
-                  className="group relative overflow-hidden bg-neutral-200 cursor-pointer w-full"
+                  className="group relative overflow-hidden bg-neutral-200 cursor-pointer w-full safari-clip-fix"
                   title={`Click to view ${product.title} in lightbox`}
                 >
-                  <div className={`w-full ${getAspectRatioClass(product.aspectRatio)} relative overflow-hidden bg-neutral-100`}>
+                  <div className={`w-full ${getAspectRatioClass(product.aspectRatio, idx, product.id)} relative overflow-hidden bg-neutral-100 safari-clip-fix`}>
                     <ResilientImage
                       src={product.url}
                       fallbackSrc={product.fallbackUrl}

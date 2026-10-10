@@ -86,12 +86,12 @@ export function getSeoConfig({
       mainEntity: {
         '@type': 'Organization',
         name: 'Deon Studios',
-        email: 'contact@gideonboadi.com',
+        email: 'studio@gideonboadi.com',
         url: origin,
         contactPoint: {
           '@type': 'ContactPoint',
           contactType: 'editorial & commercial booking',
-          email: 'contact@gideonboadi.com',
+          email: 'studio@gideonboadi.com',
           availableLanguage: ['English'],
         },
       },
