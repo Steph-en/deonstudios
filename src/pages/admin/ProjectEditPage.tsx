@@ -80,9 +80,9 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
       long_description: '',
       status: 'published',
       featured: false,
-      preview_image: '/assets/gideon_boadi_portrait.png',
+      preview_image: null,
       preview_video: null,
-      hero_image: '/assets/gideon_boadi_portrait.png',
+      hero_image: null,
       hero_video: null,
       og_image: null,
       seo_title: '',
@@ -104,6 +104,15 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
   // Populate form if editing existing project
   useEffect(() => {
     if (existingProject) {
+      const isInvalid = (url?: string | null) =>
+        !url || url === '/assets/gideon_boadi_portrait.png' || url.includes('placeholder');
+      const cleanPreviewImage = !isInvalid(existingProject.preview_image)
+        ? existingProject.preview_image
+        : (!isInvalid(existingProject.hero_image) ? existingProject.hero_image : (existingProject.media?.[0]?.media_url || null));
+      const cleanHeroImage = !isInvalid(existingProject.hero_image)
+        ? existingProject.hero_image
+        : (!isInvalid(existingProject.preview_image) ? existingProject.preview_image : (existingProject.media?.[0]?.media_url || null));
+
       reset({
         title: existingProject.title,
         slug: existingProject.slug,
@@ -115,9 +124,9 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
         long_description: existingProject.long_description || '',
         status: existingProject.status,
         featured: existingProject.featured,
-        preview_image: existingProject.preview_image,
+        preview_image: cleanPreviewImage,
         preview_video: existingProject.preview_video,
-        hero_image: existingProject.hero_image,
+        hero_image: cleanHeroImage,
         hero_video: existingProject.hero_video,
         og_image: existingProject.og_image,
         seo_title: existingProject.seo_title || '',

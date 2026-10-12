@@ -50,6 +50,23 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
     }
   }, [existingShot]);
 
+  const handleImageUrlChange = (newUrl: string) => {
+    setUrl(newUrl);
+    if (newUrl && newUrl.trim().length > 5) {
+      const img = new Image();
+      img.onload = () => {
+        const ratio = img.naturalWidth / img.naturalHeight;
+        if (ratio >= 2.05) setAspectRatio('21:9');
+        else if (ratio >= 1.55) setAspectRatio('16:9');
+        else if (ratio >= 1.18) setAspectRatio('4:3');
+        else if (ratio >= 0.92 && ratio < 1.18) setAspectRatio('square');
+        else if (ratio >= 0.72) setAspectRatio('portrait');
+        else setAspectRatio('tall');
+      };
+      img.src = newUrl;
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
@@ -194,7 +211,7 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
             <MediaUploader
               label="Upload Portrait Image"
               currentUrl={url}
-              onUploadComplete={(res: any) => setUrl(typeof res === 'string' ? res : res?.url || '')}
+              onUploadComplete={(res: any) => handleImageUrlChange(typeof res === 'string' ? res : res?.url || '')}
               accept="image"
             />
 
@@ -205,7 +222,7 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
               <input
                 type="text"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => handleImageUrlChange(e.target.value)}
                 placeholder="https://... or /assets/..."
                 className="w-full text-xs px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900 focus:bg-white font-mono"
                 required
@@ -251,22 +268,30 @@ export const PortfolioEditPage: React.FC<PortfolioEditPageProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-700 mb-1">
-                Masonry Frame Geometry (Aspect Ratio)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-neutral-700">
+                  Masonry Frame Geometry (Aspect Ratio)
+                </label>
+                <span className="text-[10px] text-amber-600 font-mono uppercase">
+                  Auto-detected from asset
+                </span>
+              </div>
               <select
                 value={aspectRatio}
                 onChange={(e) => setAspectRatio(e.target.value as any)}
                 className="w-full text-xs px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-lg focus:outline-none focus:border-neutral-900 font-medium"
               >
-                <option value="portrait">Portrait Rectangle (3:4)</option>
+                <option value="portrait">Portrait (3:4)</option>
                 <option value="tall">Tall Editorial (2:3)</option>
                 <option value="square">Balanced Square (1:1)</option>
-                <option value="landscape">Landscape Rectangle (4:3)</option>
-                <option value="wide">Cinematic Wide (16:10)</option>
+                <option value="4:3">Landscape (4:3)</option>
+                <option value="16:9">Widescreen (16:9)</option>
+                <option value="21:9">Cinematic Ultra-Wide (21:9)</option>
+                <option value="landscape">Landscape Classic (4:3)</option>
+                <option value="wide">Wide Flatlay (16:10)</option>
               </select>
               <p className="text-[10px] text-neutral-500 mt-1">
-                Mix portrait, square, and landscape shapes for an organic editorial masonry waterfall.
+                Auto-adapts to 16:9, 4:3, 21:9, square, or portrait based on natural image dimensions.
               </p>
             </div>
           </div>

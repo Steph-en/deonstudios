@@ -15,7 +15,7 @@ function singleShotToDb(s: SingleShot, idx: number): DbPortfolioShot {
     category: s.category || 'Portraiture',
     url: s.url,
     fallback_url: s.fallbackUrl || null,
-    aspect_ratio: s.aspectRatio || 'portrait',
+    aspect_ratio: (s.aspectRatio as any) || 'portrait',
     caption: s.caption || '',
     client_or_brand: s.clientOrBrand || 'Studio Archive',
     tag: s.tag || 'Single Shot',
@@ -565,5 +565,43 @@ export class PortfolioService {
       status: 'draft',
       display_order: original.display_order + 1,
     });
+  }
+
+  /**
+   * Reorder portfolio shots and persist their display_order
+   */
+  static async reorderShots(orderedItems: { id: string; display_order: number }[]): Promise<boolean> {
+    const list = getLocalShots();
+    const orderMap = new Map(orderedItems.map((o) => [o.id, o.display_order]));
+    list.forEach((s) => {
+      if (orderMap.has(s.id)) {
+        s.display_order = orderMap.get(s.id)!;
+      }
+    });
+    list.sort((a, b) => a.display_order - b.display_order);
+    saveLocalShots(list);
+
+    try {
+      await ApiClient.post('/portfolio/reorder', { orders: orderedItems });
+    } catch {
+      // fallback
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        await Promise.all(
+          orderedItems.map((item) =>
+            supabase
+              .from('portfolio_shots')
+              .update({ display_order: item.display_order })
+              .eq('id', item.id)
+          )
+        );
+      } catch (err) {
+        console.warn('Notice updating Supabase portfolio orders:', err);
+      }
+    }
+
+    return true;
   }
 }

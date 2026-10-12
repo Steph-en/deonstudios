@@ -6,6 +6,7 @@ interface ResilientImageProps extends React.ImgHTMLAttributes<HTMLImageElement> 
   lazy?: boolean;
   priority?: boolean;
   rootMargin?: string;
+  onDimensionsDetected?: (width: number, height: number) => void;
 }
 
 export const ResilientImage: React.FC<ResilientImageProps> = ({
@@ -19,6 +20,7 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
   style,
   onLoad,
   onError,
+  onDimensionsDetected,
   ...props
 }) => {
   const isEager = priority || !lazy;
@@ -37,11 +39,18 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
   useEffect(() => {
     if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
       setIsLoaded(true);
+      if (onDimensionsDetected && imgRef.current.naturalHeight > 0) {
+        onDimensionsDetected(imgRef.current.naturalWidth, imgRef.current.naturalHeight);
+      }
     }
-  }, [currentSrc]);
+  }, [currentSrc, onDimensionsDetected]);
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setIsLoaded(true);
+    const img = e.currentTarget;
+    if (onDimensionsDetected && img.naturalWidth > 0 && img.naturalHeight > 0) {
+      onDimensionsDetected(img.naturalWidth, img.naturalHeight);
+    }
     if (onLoad) onLoad(e);
   };
 

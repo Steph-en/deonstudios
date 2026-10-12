@@ -15,7 +15,7 @@ function singleProductToDb(s: SingleShot, idx: number): DbProductShot {
     category: s.category || 'Still Life',
     url: s.url,
     fallback_url: s.fallbackUrl || null,
-    aspect_ratio: s.aspectRatio || 'portrait',
+    aspect_ratio: (s.aspectRatio as any) || 'portrait',
     caption: s.caption || '',
     client_or_brand: s.clientOrBrand || 'Brand Partner',
     tag: s.tag || 'Product Shot',
@@ -565,5 +565,43 @@ export class ProductService {
       status: 'draft',
       display_order: original.display_order + 1,
     });
+  }
+
+  /**
+   * Reorder products and persist their display_order
+   */
+  static async reorderProducts(orderedItems: { id: string; display_order: number }[]): Promise<boolean> {
+    const list = getLocalProducts();
+    const orderMap = new Map(orderedItems.map((o) => [o.id, o.display_order]));
+    list.forEach((p) => {
+      if (orderMap.has(p.id)) {
+        p.display_order = orderMap.get(p.id)!;
+      }
+    });
+    list.sort((a, b) => a.display_order - b.display_order);
+    saveLocalProducts(list);
+
+    try {
+      await ApiClient.post('/products/reorder', { orders: orderedItems });
+    } catch {
+      // fallback
+    }
+
+    if (isSupabaseConfigured()) {
+      try {
+        await Promise.all(
+          orderedItems.map((item) =>
+            supabase
+              .from('product_shots')
+              .update({ display_order: item.display_order })
+              .eq('id', item.id)
+          )
+        );
+      } catch (err) {
+        console.warn('Notice updating Supabase product orders:', err);
+      }
+    }
+
+    return true;
   }
 }

@@ -37,9 +37,11 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
   const nextProject = allProjects[(currentProjectIndex + 1) % allProjects.length];
 
   const primaryImage =
-    project.images?.[0]?.url ||
+    project.hero_image ||
+    project.preview_image ||
     project.previewImages?.[0] ||
-    '/assets/gideon_boadi_portrait.png';
+    project.images?.[0]?.url ||
+    '';
 
   const projectTitle = `${project.title} — ${project.client || project.category} | Deon Studios`;
   const projectSnippet = project.description

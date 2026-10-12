@@ -292,6 +292,14 @@ export function usePortfolioMutations() {
     },
   });
 
+  const reorderShots = useMutation({
+    mutationFn: (orderedItems: { id: string; display_order: number }[]) =>
+      PortfolioService.reorderShots(orderedItems),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portfolio-shots'] });
+    },
+  });
+
   return {
     createShot,
     updateShot,
@@ -300,6 +308,7 @@ export function usePortfolioMutations() {
     deleteMultipleShots,
     updateMultipleShotsStatus,
     updateMultipleShotsFeatured,
+    reorderShots,
   };
 }
 
@@ -400,6 +409,14 @@ export function useProductMutations() {
     },
   });
 
+  const reorderProducts = useMutation({
+    mutationFn: (orderedItems: { id: string; display_order: number }[]) =>
+      ProductService.reorderProducts(orderedItems),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-shots'] });
+    },
+  });
+
   return {
     createProduct,
     updateProduct,
@@ -408,6 +425,7 @@ export function useProductMutations() {
     deleteMultipleProducts,
     updateMultipleProductsStatus,
     updateMultipleProductsFeatured,
+    reorderProducts,
   };
 }
 

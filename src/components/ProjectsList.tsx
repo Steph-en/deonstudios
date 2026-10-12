@@ -365,15 +365,36 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
     if (!project) return null;
 
     const imgIndex = itemConfig.imageIndex ?? 0;
-    const projectImage = project.images?.[imgIndex] || project.images?.[0];
-    const previewImage = project.previewImages?.[imgIndex] || project.previewImages?.[0];
-    const fallbackImage =
-      projectImage?.fallbackUrl ||
-      project.fallbackPreviewImages?.[imgIndex] ||
-      project.fallbackPreviewImages?.[0] ||
-      '/assets/gideon_boadi_portrait.png';
 
-    const src = projectImage?.url || previewImage || '/assets/gideon_boadi_portrait.png';
+    // Helper to filter out stale/deleted placeholder paths
+    const isInvalidPlaceholder = (url?: string | null) =>
+      !url ||
+      url === '/assets/gideon_boadi_portrait.png' ||
+      url.includes('placeholder');
+
+    // The Preview Thumbnail Image defined in CMS Hero & Preview Media
+    const previewThumb =
+      (!isInvalidPlaceholder(project.preview_image) ? project.preview_image : null) ||
+      (!isInvalidPlaceholder(project.previewImages?.[0]) ? project.previewImages?.[0] : null) ||
+      '';
+
+    const projectImage = project.images?.[imgIndex] || project.images?.[0];
+    const previewImage = project.previewImages?.[imgIndex] || previewThumb;
+
+    // For the primary project card thumbnail on the landing page (imgIndex 0),
+    // the Preview Thumbnail Image from CMS Hero & Preview Media strictly takes highest precedence:
+    const src =
+      imgIndex === 0
+        ? (previewThumb || projectImage?.url || previewImage || '')
+        : (project.previewImages?.[imgIndex] || projectImage?.url || previewThumb || '');
+
+    const fallbackImage =
+      (!isInvalidPlaceholder(projectImage?.fallbackUrl) ? projectImage?.fallbackUrl : null) ||
+      (!isInvalidPlaceholder(project.fallbackPreviewImages?.[imgIndex]) ? project.fallbackPreviewImages?.[imgIndex] : null) ||
+      (!isInvalidPlaceholder(project.fallbackPreviewImages?.[0]) ? project.fallbackPreviewImages?.[0] : null) ||
+      previewThumb ||
+      projectImage?.url ||
+      '';
     const title = itemConfig.customTitle || project.title;
     const is3x3Grid =
       itemConfig.forceGrid3x3 ||

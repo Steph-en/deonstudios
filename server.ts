@@ -448,6 +448,19 @@ async function startServer() {
     res.json({ success: true, count: ids?.length || 0 });
   });
 
+  api.post('/portfolio/reorder', (req: Request, res: Response) => {
+    const { orders } = req.body;
+    if (Array.isArray(orders)) {
+      const orderMap = new Map(orders.map((o: any) => [o.id, o.display_order]));
+      db.portfolio = db.portfolio.map((s) =>
+        orderMap.has(s.id) ? { ...s, display_order: orderMap.get(s.id), updated_at: new Date().toISOString() } : s
+      );
+      db.portfolio.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+      saveDatabase(db);
+    }
+    res.json({ success: true });
+  });
+
   api.post('/portfolio/seed', (_req: Request, res: Response) => {
     res.json({ success: true, count: 0, message: 'Sample seed feature removed' });
   });
@@ -547,6 +560,19 @@ async function startServer() {
       saveDatabase(db);
     }
     res.json({ success: true, count: ids?.length || 0 });
+  });
+
+  api.post('/products/reorder', (req: Request, res: Response) => {
+    const { orders } = req.body;
+    if (Array.isArray(orders)) {
+      const orderMap = new Map(orders.map((o: any) => [o.id, o.display_order]));
+      db.products = db.products.map((p) =>
+        orderMap.has(p.id) ? { ...p, display_order: orderMap.get(p.id), updated_at: new Date().toISOString() } : p
+      );
+      db.products.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+      saveDatabase(db);
+    }
+    res.json({ success: true });
   });
 
   api.post('/products/seed', (_req: Request, res: Response) => {

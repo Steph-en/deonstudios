@@ -312,7 +312,13 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
               </thead>
               <tbody className="divide-y divide-neutral-100 text-xs">
                 {projects.map((p) => {
-                  const thumb = p.preview_image || p.hero_image || '/assets/gideon_boadi_portrait.png';
+                  const isInvalid = (url?: string | null) =>
+                    !url || url === '/assets/gideon_boadi_portrait.png' || url.includes('placeholder');
+                  const thumb =
+                    (!isInvalid(p.preview_image) ? p.preview_image : null) ||
+                    (!isInvalid(p.hero_image) ? p.hero_image : null) ||
+                    p.media?.[0]?.media_url ||
+                    '';
                   const isSelected = selectedIds.includes(p.id);
                   return (
                     <tr

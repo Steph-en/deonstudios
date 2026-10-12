@@ -1,7 +1,23 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { ApiClient } from '../lib/api';
 
+export interface HeroAsset {
+  id: string;
+  url: string;
+  mediaType: 'image' | 'video';
+  title?: string;
+  mobileUrl?: string;
+  fallbackPosterUrl?: string;
+}
+
 export interface HeroSettings {
+  mode: 'single' | 'rotation'; // 'single': static single background | 'rotation': timed rotation playlist
+  rotationIntervalHours: number; // e.g. 1, 5, 6, 24 hours
+  rotationIntervalUnit?: 'hours' | 'minutes';
+  assets: HeroAsset[];
+  activeAssetId?: string;
+
+  // Primary / fallback fields
   mediaType: 'video' | 'image';
   mediaUrl: string;
   mobileMediaUrl?: string;
@@ -28,6 +44,19 @@ export interface AboutSettings {
 }
 
 export const DEFAULT_HERO_SETTINGS: HeroSettings = {
+  mode: 'single',
+  rotationIntervalHours: 1,
+  rotationIntervalUnit: 'hours',
+  assets: [
+    {
+      id: 'default-hero-asset-1',
+      url: '/videos/hero-desktop.mp4',
+      mediaType: 'video',
+      title: 'Studio Film (Desktop)',
+      fallbackPosterUrl: '/assets/images/gideon_boadi_portrait.png',
+    },
+  ],
+  activeAssetId: 'default-hero-asset-1',
   mediaType: 'video',
   mediaUrl: '/videos/hero-desktop.mp4',
   mobileMediaUrl: '',

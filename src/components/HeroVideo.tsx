@@ -42,6 +42,52 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
     };
   }, []);
 
+  // Multi-asset rotation calculation based on clock time
+  const [currentSlotIndex, setCurrentSlotIndex] = useState(() => {
+    if (!config.assets || config.assets.length === 0 || config.mode !== 'rotation') return 0;
+    const intervalValue = config.rotationIntervalHours || 1;
+    const isMinutes = config.rotationIntervalUnit === 'minutes';
+    const intervalMs = (isMinutes ? intervalValue * 60 : intervalValue * 3600) * 1000;
+    return Math.floor(Date.now() / intervalMs) % config.assets.length;
+  });
+
+  useEffect(() => {
+    if (!config.assets || config.assets.length <= 1 || config.mode !== 'rotation') return;
+    const intervalValue = config.rotationIntervalHours || 1;
+    const isMinutes = config.rotationIntervalUnit === 'minutes';
+    const intervalMs = (isMinutes ? intervalValue * 60 : intervalValue * 3600) * 1000;
+
+    const checkInterval = () => {
+      const newSlot = Math.floor(Date.now() / intervalMs) % config.assets.length;
+      setCurrentSlotIndex((prev) => (prev !== newSlot ? newSlot : prev));
+    };
+
+    checkInterval();
+    const timer = setInterval(checkInterval, 5000);
+    return () => clearInterval(timer);
+  }, [config.assets, config.mode, config.rotationIntervalHours, config.rotationIntervalUnit]);
+
+  // Active asset resolution (single vs rotation playlist)
+  const activeAsset = React.useMemo(() => {
+    if (config.mode === 'rotation' && config.assets && config.assets.length > 0) {
+      return config.assets[currentSlotIndex] || config.assets[0];
+    }
+    if (config.assets && config.assets.length > 0) {
+      if (config.activeAssetId) {
+        const found = config.assets.find((a) => a.id === config.activeAssetId);
+        if (found) return found;
+      }
+      return config.assets[0];
+    }
+    return {
+      id: 'default',
+      url: config.mediaUrl || '/videos/hero-desktop.mp4',
+      mediaType: config.mediaType || 'video',
+      mobileUrl: config.mobileMediaUrl,
+      fallbackPosterUrl: config.fallbackPosterUrl,
+    };
+  }, [config, currentSlotIndex]);
+
   // Framing values for centering the subject and scaling on mobile
   const mobileScale = config.mobileScale ?? 1;
   const mobileFocalX = config.mobileFocalX ?? 58;
@@ -49,19 +95,20 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
 
   // Determine media URL based on viewport
   const activeMediaUrl =
-    isMobileOrPortrait && config.mobileMediaUrl
-      ? config.mobileMediaUrl
-      : config.mediaUrl || '/videos/hero-desktop.mp4';
+    isMobileOrPortrait && activeAsset.mobileUrl
+      ? activeAsset.mobileUrl
+      : activeAsset.url || config.mediaUrl || '/videos/hero-desktop.mp4';
 
   const isVideoFormat =
-    config.mediaType === 'video' ||
+    activeAsset.mediaType === 'video' ||
     activeMediaUrl.endsWith('.mp4') ||
     activeMediaUrl.endsWith('.webm') ||
     activeMediaUrl.includes('/videos/');
 
   const posterFallback =
+    activeAsset.fallbackPosterUrl ||
     config.fallbackPosterUrl ||
-    (config.mediaType === 'image' ? config.mediaUrl : '') ||
+    (!isVideoFormat ? activeMediaUrl : '') ||
     '/assets/images/gideon_boadi_portrait.png';
 
   // Autoplay management for video

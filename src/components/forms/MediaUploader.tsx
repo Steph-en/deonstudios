@@ -70,9 +70,15 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
     }
   };
 
+  const isInvalidUrl =
+    !currentUrl ||
+    currentUrl === '/assets/gideon_boadi_portrait.png' ||
+    currentUrl.includes('placeholder');
+  const validUrl = !isInvalidUrl ? currentUrl : null;
+
   const isVideo =
-    currentUrl?.endsWith('.mp4') ||
-    currentUrl?.endsWith('.webm') ||
+    validUrl?.endsWith('.mp4') ||
+    validUrl?.endsWith('.webm') ||
     accept === 'video';
 
   return (
@@ -84,13 +90,13 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
         {description && <span className="text-xs text-neutral-400">{description}</span>}
       </div>
 
-      {currentUrl ? (
+      {validUrl ? (
         <div className="relative group border border-neutral-200 bg-neutral-50 rounded-lg overflow-hidden p-2 flex items-center gap-4">
           <div className="w-24 h-24 bg-neutral-900 rounded overflow-hidden flex-shrink-0 flex items-center justify-center relative">
             {isVideo ? (
-              <video src={currentUrl} className="w-full h-full object-cover" muted loop playsInline />
+              <video src={validUrl} className="w-full h-full object-cover" muted loop playsInline />
             ) : (
-              <img src={currentUrl} alt={label} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img src={validUrl} alt={label} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             )}
             <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               {isVideo ? <VideoIcon className="w-6 h-6 text-white" /> : <ImageIcon className="w-6 h-6 text-white" />}

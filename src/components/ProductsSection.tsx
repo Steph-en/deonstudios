@@ -9,58 +9,88 @@ interface ProductsSectionProps {
   theme: ThemeMode;
 }
 
-/**
- * Maps product aspect ratio types to precise CSS aspect ratio classes.
- * Mixes square, portrait, and landscape shapes with varied heights (some smaller, some larger)
- * to create a true organic luxury editorial masonry waterfall grid with a 3-column maximum.
- */
-const PRODUCT_MASONRY_RHYTHMS = [
-  'aspect-square',   // 0: Clean luxury still-life square
-  'aspect-[3/4]',    // 1: Portrait rectangle (prominent)
-  'aspect-[4/3]',    // 2: Editorial landscape rectangle (smaller)
-  'aspect-[2/3]',    // 3: Tall editorial still-life (prominent)
-  'aspect-square',   // 4: Clean square
-  'aspect-[16/10]',  // 5: Wide product flatlay (compact / smaller)
-  'aspect-[3/4]',    // 6: Portrait rectangle
-  'aspect-square',   // 7: Square
-  'aspect-[4/3]',    // 8: Landscape rectangle (smaller)
-  'aspect-[2/3]',    // 9: Tall product portrait
-  'aspect-[4/5]',    // 10: Soft portrait rectangle
-  'aspect-square',   // 11: Square
-];
+import {
+  detectAspectRatioClassFromDimensions,
+  mapStoredAspectRatioToClass,
+  getCachedAspectRatioClass,
+  setCachedAspectRatioClass,
+  preloadImageRatios,
+} from '../utils/aspectRatioHelper';
 
-const getAspectRatioClass = (aspect?: string, index: number = 0, id?: string) => {
-  if (aspect && aspect !== 'portrait') {
-    switch (aspect) {
-      case 'tall':
-        return 'aspect-[2/3]';
-      case 'square':
-        return 'aspect-square';
-      case 'landscape':
-        return 'aspect-[4/3]';
-      case 'wide':
-        return 'aspect-[16/10]';
-      default:
-        break;
+interface ProductItemCardProps {
+  product: SingleShot;
+  idx: number;
+  onClick: () => void;
+}
+
+const ProductItemCard: React.FC<ProductItemCardProps> = ({ product, idx, onClick }) => {
+  const cachedClass = getCachedAspectRatioClass(product.url);
+  const storedClass = mapStoredAspectRatioToClass(product.aspectRatio);
+
+  // Dynamic state: uses cached measured ratio, stored ratio, or neutral default
+  const [aspectClass, setAspectClass] = useState<string>(
+    cachedClass || storedClass || 'aspect-square'
+  );
+
+  // Proactively measure image natural dimensions on mount to ensure 100% accurate format
+  React.useEffect(() => {
+    if (!product.url) return;
+    const cached = getCachedAspectRatioClass(product.url);
+    if (cached) {
+      setAspectClass(cached);
+      return;
     }
-  }
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        const detected = detectAspectRatioClassFromDimensions(img.naturalWidth, img.naturalHeight);
+        setCachedAspectRatioClass(product.url, detected);
+        setAspectClass(detected);
+      }
+    };
+    img.src = product.url;
+  }, [product.url]);
 
-  // Stable pseudo-random seed based on id or index to create intentional visual variety
-  let seed = index;
-  if (id) {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      hash = (hash * 31 + id.charCodeAt(i)) & 0xffffffff;
-    }
-    seed = Math.abs(hash) + index;
-  }
+  const handleDimensionsDetected = (w: number, h: number) => {
+    const detected = detectAspectRatioClassFromDimensions(w, h);
+    setCachedAspectRatioClass(product.url, detected);
+    setAspectClass(detected);
+  };
 
-  return PRODUCT_MASONRY_RHYTHMS[seed % PRODUCT_MASONRY_RHYTHMS.length];
+  return (
+    <div className="break-inside-avoid inline-block w-full align-top mb-[8px] sm:mb-[10px] md:mb-[12px]">
+      <article
+        id={`product-shot-${product.id}`}
+        onClick={onClick}
+        className="group relative overflow-hidden bg-neutral-200 cursor-pointer w-full safari-clip-fix"
+        title={`Click to view ${product.title} in lightbox`}
+      >
+        <div className={`w-full ${aspectClass} relative overflow-hidden bg-neutral-100 safari-clip-fix transition-[aspect-ratio] duration-300`}>
+          <ResilientImage
+            src={product.url}
+            fallbackSrc={product.fallbackUrl}
+            alt={product.title}
+            priority={idx < 4}
+            lazy={idx >= 4}
+            rootMargin="1000px 0px"
+            onDimensionsDetected={handleDimensionsDetected}
+            className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025] pointer-events-none safari-scale-smooth"
+          />
+        </div>
+      </article>
+    </div>
+  );
 };
 
 export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, theme }) => {
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  // Preload natural aspect ratios for all product shots in background
+  React.useEffect(() => {
+    const urls = products.map((p) => p.url).filter(Boolean);
+    preloadImageRatios(urls);
+  }, [products]);
 
   const categories = ['All', ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))];
 
@@ -122,26 +152,12 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, them
         ) : (
           <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-3 gap-[8px] sm:gap-[10px] md:gap-[12px] select-none">
             {filteredProducts.map((product, idx) => (
-              <div key={product.id} className="break-inside-avoid inline-block w-full align-top mb-[8px] sm:mb-[10px] md:mb-[12px]">
-                <article
-                  id={`product-shot-${product.id}`}
-                  onClick={() => setLightboxIndex(idx)}
-                  className="group relative overflow-hidden bg-neutral-200 cursor-pointer w-full safari-clip-fix"
-                  title={`Click to view ${product.title} in lightbox`}
-                >
-                  <div className={`w-full ${getAspectRatioClass(product.aspectRatio, idx, product.id)} relative overflow-hidden bg-neutral-100 safari-clip-fix`}>
-                    <ResilientImage
-                      src={product.url}
-                      fallbackSrc={product.fallbackUrl}
-                      alt={product.title}
-                      priority={idx < 4}
-                      lazy={idx >= 4}
-                      rootMargin="1000px 0px"
-                      className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025] pointer-events-none safari-scale-smooth"
-                    />
-                  </div>
-                </article>
-              </div>
+              <ProductItemCard
+                key={product.id}
+                product={product}
+                idx={idx}
+                onClick={() => setLightboxIndex(idx)}
+              />
             ))}
           </div>
         )}

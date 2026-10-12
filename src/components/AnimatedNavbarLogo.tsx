@@ -9,25 +9,21 @@ interface AnimatedNavbarLogoProps {
 export const AnimatedNavbarLogo: React.FC<AnimatedNavbarLogoProps> = ({
   size = 42,
   className = '',
+  isLightHeader = false,
 }) => {
+  const logoSrc = isLightHeader ? '/assets/logo-dark.png' : '/assets/logo-white.png';
+
   return (
     <div
-      className={`relative inline-flex items-center justify-center select-none ${className}`}
+      className={`relative inline-flex items-center justify-center select-none bg-transparent ${className}`}
       style={{ width: size, height: size }}
       role="img"
       aria-label="Deon Studios"
     >
-      {/* 
-        Transparent Dynamic See-Through Original Client Logo:
-        - Pure white (#ffffff) on transparent alpha
-        - Blended via parent container with mix-blend-mode: difference
-        - Inverts to black on white sections, inverts to white on black sections
-        - Splices seamlessly across text and media boundaries during scroll
-      */}
       <img
-        src="/assets/logo-white.png"
+        src={logoSrc}
         alt="Deon Studios"
-        className="w-full h-full object-contain block select-none pointer-events-none"
+        className="w-full h-full object-contain block select-none pointer-events-none transition-opacity duration-200"
         style={{ width: size, height: size }}
         draggable={false}
       />

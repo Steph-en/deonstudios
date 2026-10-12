@@ -29,7 +29,24 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isBreadcrumbOpen, setIsBreadcrumbOpen] = useState(false);
   const breadcrumbRef = useRef<HTMLDivElement>(null);
-  const isLightHeader = activePage !== 'home';
+  const [isScrolledPastHero, setIsScrolledPastHero] = useState(false);
+
+  useEffect(() => {
+    if (activePage !== 'home') {
+      setIsScrolledPastHero(true);
+      return;
+    }
+    const handleScroll = () => {
+      // Hero section is 100vh
+      const heroThreshold = (typeof window !== 'undefined' ? window.innerHeight : 800) * 0.85;
+      setIsScrolledPastHero(window.scrollY > heroThreshold);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [activePage]);
+
+  const isLightHeader = activePage !== 'home' || isScrolledPastHero;
 
   const { data: aboutSettings } = useAboutSettings();
   const artistName = aboutSettings?.artistName || 'Gideon Boadi';
@@ -100,13 +117,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         }}
         style={{
           top: 'max(env(safe-area-inset-top, 0px) + 0.85rem, 1.75rem)',
-          mixBlendMode: 'difference',
           WebkitBackfaceVisibility: 'hidden',
           backfaceVisibility: 'hidden',
           transform: 'translate3d(-50%, 0, 0)',
           WebkitTransform: 'translate3d(-50%, 0, 0)',
         }}
-        className="fixed left-1/2 z-50 pointer-events-auto cursor-pointer select-none navbar-logo-difference text-white transition-transform duration-150 active:scale-95 safari-scale-smooth"
+        className="fixed left-1/2 z-50 pointer-events-auto cursor-pointer select-none bg-transparent transition-transform duration-150 active:scale-95 safari-scale-smooth"
         title="Deon Studios"
         aria-label="Deon Studios Home"
       >

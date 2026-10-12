@@ -5,7 +5,7 @@ export interface ProjectImage {
   url: string;
   fallbackUrl?: string;
   caption: string;
-  aspectRatio: 'portrait' | 'landscape' | 'tall' | 'square';
+  aspectRatio: 'portrait' | 'landscape' | 'tall' | 'square' | 'wide' | '16:9' | '4:3' | '21:9' | string;
   tag?: string;
   exif?: {
     camera?: string;
@@ -27,6 +27,8 @@ export interface Project {
   artDirector?: string;
   stylist?: string;
   model?: string;
+  preview_image?: string | null;
+  hero_image?: string | null;
   previewImages: string[];
   fallbackPreviewImages?: string[];
   layout?: 'single' | 'grid3x3' | 'grid2x2';
@@ -45,7 +47,7 @@ export interface SingleShot {
   category?: string;
   url: string;
   fallbackUrl?: string;
-  aspectRatio: 'portrait' | 'landscape' | 'tall' | 'square' | 'wide';
+  aspectRatio: 'portrait' | 'landscape' | 'tall' | 'square' | 'wide' | '16:9' | '4:3' | '21:9' | string;
   caption: string;
   clientOrBrand?: string;
   tag?: string;
