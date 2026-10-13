@@ -272,12 +272,8 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
               referrerPolicy="no-referrer"
               onLoad={() => setIsImageLoading(false)}
               onError={() => {
-                if (currentImage.fallbackUrl && activeSrc !== currentImage.fallbackUrl) {
-                  setActiveSrc(currentImage.fallbackUrl);
-                } else {
-                  setIsImageLoading(false);
-                  setHasError(true);
-                }
+                setIsImageLoading(false);
+                setHasError(true);
               }}
               className={`max-h-[82vh] md:max-h-[86vh] max-w-[92vw] md:max-w-[85vw] object-contain rounded-none shadow-none transition-opacity duration-200 ${
                 isImageLoading ? 'opacity-0' : 'opacity-100'

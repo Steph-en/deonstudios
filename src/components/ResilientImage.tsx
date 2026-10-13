@@ -55,10 +55,6 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
   };
 
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    if (fallbackSrc && currentSrc !== fallbackSrc && !hasTriedFallback) {
-      setHasTriedFallback(true);
-      setCurrentSrc(fallbackSrc);
-    }
     if (onError) onError(e);
   };
 

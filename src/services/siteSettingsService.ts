@@ -47,25 +47,17 @@ export const DEFAULT_HERO_SETTINGS: HeroSettings = {
   mode: 'single',
   rotationIntervalHours: 1,
   rotationIntervalUnit: 'hours',
-  assets: [
-    {
-      id: 'default-hero-asset-1',
-      url: '/videos/hero-desktop.mp4',
-      mediaType: 'video',
-      title: 'Studio Film (Desktop)',
-      fallbackPosterUrl: '/assets/images/gideon_boadi_portrait.png',
-    },
-  ],
-  activeAssetId: 'default-hero-asset-1',
-  mediaType: 'video',
-  mediaUrl: '/videos/hero-desktop.mp4',
+  assets: [],
+  activeAssetId: '',
+  mediaType: 'image',
+  mediaUrl: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/l1060844-2-1790909528392.jpg',
   mobileMediaUrl: '',
   fallbackPosterUrl: '',
-  overlayOpacity: 0.2,
+  overlayOpacity: 0.15,
   scrollText: 'SCROLL',
-  mobileScale: 0.88,
-  mobileFocalX: 58,
-  mobileFocalY: 48,
+  mobileScale: 1,
+  mobileFocalX: 54,
+  mobileFocalY: 50,
 };
 
 export const DEFAULT_ABOUT_SETTINGS: AboutSettings = {

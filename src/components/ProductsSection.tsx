@@ -68,7 +68,6 @@ const ProductItemCard: React.FC<ProductItemCardProps> = ({ product, idx, onClick
         <div className={`w-full ${aspectClass} relative overflow-hidden bg-neutral-100 safari-clip-fix transition-[aspect-ratio] duration-300`}>
           <ResilientImage
             src={product.url}
-            fallbackSrc={product.fallbackUrl}
             alt={product.title}
             priority={idx < 4}
             lazy={idx >= 4}
@@ -103,7 +102,6 @@ export const ProductsSection: React.FC<ProductsSectionProps> = ({ products, them
   const lightboxImages: ProjectImage[] = filteredProducts.map((p) => ({
     id: p.id,
     url: p.url,
-    fallbackUrl: p.fallbackUrl,
     caption: p.caption || p.title,
     aspectRatio: p.aspectRatio,
     tag: p.tag || p.category,

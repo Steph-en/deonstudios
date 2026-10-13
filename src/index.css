@@ -20,11 +20,42 @@
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
-/* Transparent navbar logo */
+/* Transparent navbar logo with black & white ghostly inversion */
 .navbar-logo-transparent {
   background: transparent;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
+}
+
+.navbar-logo-ghostly {
+  background: rgba(255, 255, 255, 0.05);
+  -webkit-mask-image: url('/assets/logo.png');
+  mask-image: url('/assets/logo.png');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  backdrop-filter: grayscale(100%) invert(100%) contrast(1.25) brightness(1.05);
+  -webkit-backdrop-filter: grayscale(100%) invert(100%) contrast(1.25) brightness(1.05);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: backdrop-filter;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .navbar-logo-ghostly {
+    background: transparent;
+    -webkit-mask-image: none;
+    mask-image: none;
+    mix-blend-mode: difference;
+    filter: grayscale(100%);
+    background-image: url('/assets/logo.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
 }
 
 /* Safari WebKit Hardware Acceleration & Hover Glitch Prevention */

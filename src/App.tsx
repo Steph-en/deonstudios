@@ -45,7 +45,6 @@ function dbShotToSingleShot(shot: any): SingleShot {
     id: shot.id,
     title: shot.title,
     url: shot.url,
-    fallbackUrl: shot.fallback_url || undefined,
     aspectRatio: shot.aspect_ratio || 'portrait',
     category: shot.category || 'Editorial',
     clientOrBrand: shot.client_or_brand || undefined,

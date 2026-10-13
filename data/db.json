@@ -5,6 +5,61 @@
   "products": [],
   "inquiries": [
     {
+      "id": "inq-1791905361180-v8r57",
+      "name": "Gideon Studio Client",
+      "email": "client@example.com",
+      "message": "Testing seamless inquiry submission without fallback errors",
+      "projectType": "Editorial Fashion",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T15:29:21.180Z"
+    },
+    {
+      "id": "inq-1791895078217-exfnm",
+      "name": "Stephen Appah",
+      "email": "appahstephen9@gmail.com",
+      "message": "Commission inquiry for new fashion lookbook and portraiture session.",
+      "projectType": "Editorial Fashion",
+      "phone": "+233 24 123 4567",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T12:37:58.217Z"
+    },
+    {
+      "id": "inq-1791895066694-aofso",
+      "name": "Stephen Appah",
+      "email": "appahstephen9@gmail.com",
+      "message": "Commission inquiry for new fashion lookbook and portraiture session.",
+      "projectType": "Editorial Fashion",
+      "phone": "+233 24 123 4567",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T12:37:46.694Z"
+    },
+    {
+      "id": "inq-1791894789710-867az",
+      "name": "Test User",
+      "email": "test@example.com",
+      "message": "Hello",
+      "projectType": "General Editorial / Commercial Inquiry",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T12:33:09.710Z"
+    },
+    {
+      "id": "inq-1791894643183-fdu8h",
+      "name": "Stephen Appah",
+      "email": "appahstephen9@gmail.com",
+      "message": "Testing contact message",
+      "projectType": "Editorial Fashion",
+      "phone": "+233 24 000 0000",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T12:30:43.183Z"
+    },
+    {
       "id": "inq-1791892283057-36xv0",
       "name": "Gideon Boadi Client",
       "email": "client@brand.com",

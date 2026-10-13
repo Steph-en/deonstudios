@@ -388,13 +388,6 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
         ? (previewThumb || projectImage?.url || previewImage || '')
         : (project.previewImages?.[imgIndex] || projectImage?.url || previewThumb || '');
 
-    const fallbackImage =
-      (!isInvalidPlaceholder(projectImage?.fallbackUrl) ? projectImage?.fallbackUrl : null) ||
-      (!isInvalidPlaceholder(project.fallbackPreviewImages?.[imgIndex]) ? project.fallbackPreviewImages?.[imgIndex] : null) ||
-      (!isInvalidPlaceholder(project.fallbackPreviewImages?.[0]) ? project.fallbackPreviewImages?.[0] : null) ||
-      previewThumb ||
-      projectImage?.url ||
-      '';
     const title = itemConfig.customTitle || project.title;
     const is3x3Grid =
       itemConfig.forceGrid3x3 ||
@@ -403,7 +396,6 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
     return {
       project,
       src,
-      fallbackSrc: fallbackImage,
       title,
       is3x3Grid,
     };
@@ -420,7 +412,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
     const data = resolveItemData(itemConfig);
     if (!data) return null;
 
-    const { project, src, fallbackSrc, title, is3x3Grid } = data;
+    const { project, src, title, is3x3Grid } = data;
 
     return (
       <article
@@ -443,10 +435,6 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
                 >
                   <ResilientImage
                     src={imgUrl}
-                    fallbackSrc={
-                      project.fallbackGridImages?.[idx] ||
-                      project.images[idx % project.images.length]?.url
-                    }
                     alt={`${title} tile ${idx + 1}`}
                     loading="lazy"
                     className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 pointer-events-none safari-scale-smooth"
@@ -458,7 +446,6 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
             /* Single Grand Full-Frame Photograph */
             <ResilientImage
               src={src}
-              fallbackSrc={fallbackSrc}
               alt={title}
               loading="lazy"
               className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.015] pointer-events-none safari-scale-smooth"

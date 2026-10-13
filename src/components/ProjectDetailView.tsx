@@ -269,7 +269,6 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                 >
                   <ResilientImage
                     src={image.url}
-                    fallbackSrc={image.fallbackUrl}
                     alt={image.caption || `${project.title} image ${index + 1}`}
                     priority={isPriority}
                     lazy={!isPriority}

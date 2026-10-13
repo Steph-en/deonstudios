@@ -81,35 +81,28 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
     }
     return {
       id: 'default',
-      url: config.mediaUrl || '/videos/hero-desktop.mp4',
-      mediaType: config.mediaType || 'video',
+      url: config.mediaUrl || 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/l1060844-2-1790909528392.jpg',
+      mediaType: config.mediaType || 'image',
       mobileUrl: config.mobileMediaUrl,
-      fallbackPosterUrl: config.fallbackPosterUrl,
     };
   }, [config, currentSlotIndex]);
 
   // Framing values for centering the subject and scaling on mobile
   const mobileScale = config.mobileScale ?? 1;
-  const mobileFocalX = config.mobileFocalX ?? 58;
-  const mobileFocalY = config.mobileFocalY ?? 48;
+  const mobileFocalX = config.mobileFocalX ?? 54;
+  const mobileFocalY = config.mobileFocalY ?? 50;
 
   // Determine media URL based on viewport
   const activeMediaUrl =
     isMobileOrPortrait && activeAsset.mobileUrl
       ? activeAsset.mobileUrl
-      : activeAsset.url || config.mediaUrl || '/videos/hero-desktop.mp4';
+      : activeAsset.url || config.mediaUrl || '';
 
   const isVideoFormat =
     activeAsset.mediaType === 'video' ||
     activeMediaUrl.endsWith('.mp4') ||
     activeMediaUrl.endsWith('.webm') ||
     activeMediaUrl.includes('/videos/');
-
-  const posterFallback =
-    activeAsset.fallbackPosterUrl ||
-    config.fallbackPosterUrl ||
-    (!isVideoFormat ? activeMediaUrl : '') ||
-    '/assets/images/gideon_boadi_portrait.png';
 
   // Autoplay management for video
   useEffect(() => {
@@ -174,34 +167,12 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
         Zero ambient backdrop gradient or bleed distortion layers.
       */}
       <div className="absolute inset-0 w-full h-full min-h-[100dvh] overflow-hidden bg-neutral-950">
-        {/* Fallback Poster (always present behind video or as primary image) */}
-        {posterFallback && (
-          <img
-            src={posterFallback}
-            alt="Deon Studios Cover"
-            className={`absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-opacity duration-700 ${
-              isVideoFormat && videoLoaded && !hasVideoError ? 'opacity-0' : 'opacity-100'
-            }`}
-            style={{
-              objectPosition: isMobileOrPortrait
-                ? `${mobileFocalX}% ${mobileFocalY}%`
-                : 'center center',
-              transform: isMobileOrPortrait ? `scale(${mobileScale})` : 'scale(1)',
-              transformOrigin: `${mobileFocalX}% ${mobileFocalY}%`,
-            }}
-            loading="eager"
-            decoding="async"
-            referrerPolicy="no-referrer"
-          />
-        )}
-
         {/* Dynamic Video (rendered when mediaType === 'video' or mp4 source) */}
         {isVideoFormat ? (
           <video
             ref={videoRef}
             key={activeMediaUrl}
             src={activeMediaUrl}
-            poster={posterFallback}
             autoPlay
             muted
             loop
@@ -211,7 +182,6 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
             onCanPlay={() => setVideoLoaded(true)}
             onPlay={() => setVideoLoaded(true)}
             onError={() => {
-              console.warn('Hero video failed to load, falling back to image');
               setHasVideoError(true);
             }}
             style={{
@@ -221,7 +191,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
               transform: isMobileOrPortrait ? `scale(${mobileScale})` : 'scale(1)',
               transformOrigin: `${mobileFocalX}% ${mobileFocalY}%`,
             }}
-            className={`absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-opacity duration-700 ${
+            className={`absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-opacity duration-500 ${
               videoLoaded && !hasVideoError ? 'opacity-100' : 'opacity-0'
             }`}
           />
@@ -230,7 +200,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
           <img
             src={activeMediaUrl}
             alt="Deon Studios Editorial Cover"
-            className="absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-transform duration-500 opacity-100"
+            className="absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-opacity duration-500 opacity-100"
             style={{
               objectPosition: isMobileOrPortrait
                 ? `${mobileFocalX}% ${mobileFocalY}%`

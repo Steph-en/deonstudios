@@ -68,7 +68,6 @@ const PortfolioItemCard: React.FC<PortfolioItemCardProps> = ({ shot, idx, onClic
         <div className={`w-full ${aspectClass} relative overflow-hidden bg-neutral-100 safari-clip-fix transition-[aspect-ratio] duration-300`}>
           <ResilientImage
             src={shot.url}
-            fallbackSrc={shot.fallbackUrl}
             alt={shot.title}
             priority={idx < 4}
             lazy={idx >= 4}
@@ -103,7 +102,6 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
   const lightboxImages: ProjectImage[] = filteredShots.map((s) => ({
     id: s.id,
     url: s.url,
-    fallbackUrl: s.fallbackUrl,
     caption: s.caption || s.title,
     aspectRatio: s.aspectRatio,
     tag: s.tag || s.category,

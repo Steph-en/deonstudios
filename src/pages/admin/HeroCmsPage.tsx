@@ -965,7 +965,6 @@ export const HeroCmsPage: React.FC = () => {
                 <video
                   key={currentMediaUrl}
                   src={currentMediaUrl}
-                  poster={activePreviewAsset.fallbackPosterUrl}
                   autoPlay
                   loop
                   muted

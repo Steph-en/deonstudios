@@ -40,7 +40,6 @@ export function dbProjectToPortfolioProject(db: DbProject): Project {
     images = db.media.map((m, idx) => ({
       id: m.id,
       url: m.media_url,
-      fallbackUrl: m.media_url,
       caption: m.alt_text || `${db.title} — 0${idx + 1}`,
       aspectRatio: idx % 2 === 0 ? 'portrait' : 'tall',
       tag: idx === 0 ? 'Lead' : 'Editorial',
@@ -52,7 +51,6 @@ export function dbProjectToPortfolioProject(db: DbProject): Project {
       {
         id: `${db.id}-hero`,
         url: heroImg || previewImg,
-        fallbackUrl: heroImg || previewImg,
         caption: `${db.title} — Primary Campaign Frame`,
         aspectRatio: 'tall',
         tag: 'Hero Visual',
@@ -94,7 +92,6 @@ export function dbProjectToPortfolioProject(db: DbProject): Project {
     preview_image: previewImg || null,
     hero_image: heroImg || null,
     previewImages,
-    fallbackPreviewImages: matchingStatic?.fallbackPreviewImages,
     images,
   };
 }

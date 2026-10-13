@@ -29,56 +29,7 @@ const LOCAL_PROJECTS_KEY = 'deon_cms_local_projects';
 const LOCAL_PORTFOLIO_KEY = 'deon_cms_local_portfolio_shots';
 const LOCAL_PRODUCTS_KEY = 'deon_cms_local_product_shots';
 
-const DEFAULT_SAMPLE_MEDIA: LibraryMediaAsset[] = [
-  {
-    id: 'sample-1',
-    name: 'gideon_boadi_portrait.png',
-    url: '/assets/gideon_boadi_portrait.png',
-    type: 'image',
-    size: '1.4 MB',
-    date: '2025-09-01',
-  },
-  {
-    id: 'sample-2',
-    name: 'helmet_of_heritage_hero.jpg',
-    url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=1600&auto=format&fit=crop',
-    type: 'image',
-    size: '2.1 MB',
-    date: '2025-08-14',
-  },
-  {
-    id: 'sample-3',
-    name: 'vlisco_textile_editorial.jpg',
-    url: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=1600&auto=format&fit=crop',
-    type: 'image',
-    size: '1.8 MB',
-    date: '2025-07-22',
-  },
-  {
-    id: 'sample-4',
-    name: 'beauty_portrait_duveprime.jpg',
-    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1600&auto=format&fit=crop',
-    type: 'image',
-    size: '2.6 MB',
-    date: '2025-07-05',
-  },
-  {
-    id: 'sample-5',
-    name: 'dazed_generation_pulse.jpg',
-    url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=1600&auto=format&fit=crop',
-    type: 'image',
-    size: '1.9 MB',
-    date: '2025-06-18',
-  },
-  {
-    id: 'sample-6',
-    name: 'bottega_form_leather.jpg',
-    url: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1600&auto=format&fit=crop',
-    type: 'image',
-    size: '2.2 MB',
-    date: '2025-05-30',
-  },
-];
+const DEFAULT_SAMPLE_MEDIA: LibraryMediaAsset[] = [];
 
 /**
  * Harvest media assets from active projects, portfolio shots, and product shots
