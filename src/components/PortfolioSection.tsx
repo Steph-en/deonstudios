@@ -69,9 +69,10 @@ const PortfolioItemCard: React.FC<PortfolioItemCardProps> = ({ shot, idx, onClic
           <ResilientImage
             src={shot.url}
             alt={shot.title}
-            priority={idx < 4}
-            lazy={idx >= 4}
-            rootMargin="1000px 0px"
+            priority={idx < 2}
+            lazy={idx >= 2}
+            rootMargin="400px 0px"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             onDimensionsDetected={handleDimensionsDetected}
             className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025] pointer-events-none safari-scale-smooth"
           />

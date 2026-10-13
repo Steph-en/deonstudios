@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getOptimizedImageUrl, buildResponsiveSrcSet } from '../utils/imageOptimizer';
 
 interface ResilientImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -6,6 +7,9 @@ interface ResilientImageProps extends React.ImgHTMLAttributes<HTMLImageElement> 
   lazy?: boolean;
   priority?: boolean;
   rootMargin?: string;
+  optimizedWidth?: number;
+  quality?: number;
+  enableResponsiveSrcSet?: boolean;
   onDimensionsDetected?: (width: number, height: number) => void;
 }
 
@@ -16,24 +20,72 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
   className = '',
   lazy = true,
   priority = false,
-  rootMargin,
+  rootMargin = '400px 0px',
+  optimizedWidth,
+  quality = 82,
+  enableResponsiveSrcSet = true,
   style,
   onLoad,
   onError,
   onDimensionsDetected,
+  sizes = '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw',
   ...props
 }) => {
   const isEager = priority || !lazy;
-  const [currentSrc, setCurrentSrc] = useState(src);
+  const [isInView, setIsInView] = useState(isEager);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hasTriedFallback, setHasTriedFallback] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  // Synchronize src if prop changes
+  // IntersectionObserver for genuine, reliable lazy-loading that defers DOM image attachment
+  // until the viewport is within rootMargin
   useEffect(() => {
-    setCurrentSrc(src);
-    setHasTriedFallback(false);
-  }, [src]);
+    if (isEager) {
+      setIsInView(true);
+      return;
+    }
+
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      setIsInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      {
+        rootMargin,
+        threshold: 0.01,
+      }
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [isEager, rootMargin]);
+
+  // Derive optimized src and responsive srcset
+  const optimizedSrc = React.useMemo(() => {
+    if (!src) return '';
+    if (optimizedWidth) {
+      return getOptimizedImageUrl(src, { width: optimizedWidth, quality });
+    }
+    return src;
+  }, [src, optimizedWidth, quality]);
+
+  const responsiveSrcSet = React.useMemo(() => {
+    if (!enableResponsiveSrcSet || !src) return undefined;
+    return buildResponsiveSrcSet(src);
+  }, [src, enableResponsiveSrcSet]);
 
   // Check if image is already cached/complete on mount
   useEffect(() => {
@@ -43,7 +95,7 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
         onDimensionsDetected(imgRef.current.naturalWidth, imgRef.current.naturalHeight);
       }
     }
-  }, [currentSrc, onDimensionsDetected]);
+  }, [optimizedSrc, onDimensionsDetected]);
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setIsLoaded(true);
@@ -59,23 +111,38 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
   };
 
   return (
-    <img
-      ref={imgRef}
-      {...props}
-      src={currentSrc}
-      alt={alt}
-      draggable={false}
-      loading={isEager ? 'eager' : 'lazy'}
-      decoding="async"
-      onLoad={handleLoad}
-      onError={handleError}
-      className={`transition-opacity duration-300 ${className}`}
-      style={{
-        ...style,
-        opacity: isLoaded || isEager ? 1 : 0.85,
-      }}
-      referrerPolicy="no-referrer"
-    />
+    <div
+      ref={containerRef}
+      className="contents"
+    >
+      {isInView ? (
+        <img
+          ref={imgRef}
+          {...props}
+          src={optimizedSrc}
+          srcSet={responsiveSrcSet}
+          sizes={responsiveSrcSet ? sizes : undefined}
+          alt={alt}
+          draggable={false}
+          loading={isEager ? 'eager' : 'lazy'}
+          decoding="async"
+          fetchPriority={isEager ? 'high' : 'low'}
+          onLoad={handleLoad}
+          onError={handleError}
+          className={`transition-opacity duration-500 ${
+            isLoaded || isEager ? 'opacity-100' : 'opacity-0'
+          } ${className}`}
+          style={style}
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        /* Empty DOM placeholder while far off-screen to keep DOM light and save memory */
+        <div
+          aria-hidden="true"
+          className="w-full h-full pointer-events-none"
+        />
+      )}
+    </div>
   );
 };
 

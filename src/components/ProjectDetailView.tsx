@@ -226,11 +226,12 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                         {sec.media_url.endsWith('.mp4') || sec.media_url.endsWith('.webm') ? (
                           <video src={sec.media_url} controls className="w-full h-auto max-h-[500px] object-cover" />
                         ) : (
-                          <img
+                          <ResilientImage
                             src={sec.media_url}
                             alt={sec.title || 'Case study'}
+                            lazy={true}
+                            rootMargin="400px 0px"
                             className="w-full h-auto max-h-[500px] object-cover"
-                            referrerPolicy="no-referrer"
                           />
                         )}
                       </div>
@@ -260,19 +261,20 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           {/* Masonry Columns */}
           <div className="masonry-columns-3">
             {project.images.map((image, index) => {
-              const isPriority = index < 6;
+              const isPriority = index < 2;
               return (
                 <div
                   key={image.id}
                   onClick={() => openLightbox(index)}
-                  className="masonry-break group relative overflow-hidden rounded-xl cursor-pointer bg-neutral-100 dark:bg-neutral-800/80 shadow-xs transition-all duration-300 hover:shadow-2xl"
+                  className="masonry-break group relative overflow-hidden rounded-xl cursor-pointer bg-neutral-100 dark:bg-neutral-800/80 shadow-xs transition-all duration-300 hover:shadow-2xl min-h-[220px]"
                 >
                   <ResilientImage
                     src={image.url}
                     alt={image.caption || `${project.title} image ${index + 1}`}
                     priority={isPriority}
                     lazy={!isPriority}
-                    rootMargin="1500px 0px"
+                    rootMargin="400px 0px"
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="w-full h-auto object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 pointer-events-none safari-scale-smooth select-none"
                   />
 

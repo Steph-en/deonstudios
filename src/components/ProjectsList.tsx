@@ -407,7 +407,8 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
   const renderCard = (
     itemConfig: RowItemConfig,
     aspectRatioClasses: string,
-    extraContainerClasses = ''
+    extraContainerClasses = '',
+    isPriority = false
   ) => {
     const data = resolveItemData(itemConfig);
     if (!data) return null;
@@ -436,7 +437,10 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
                   <ResilientImage
                     src={imgUrl}
                     alt={`${title} tile ${idx + 1}`}
-                    loading="lazy"
+                    priority={isPriority && idx < 3}
+                    lazy={!(isPriority && idx < 3)}
+                    rootMargin="400px 0px"
+                    sizes="(max-width: 640px) 33vw, 15vw"
                     className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 pointer-events-none safari-scale-smooth"
                   />
                 </div>
@@ -447,7 +451,10 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
             <ResilientImage
               src={src}
               alt={title}
-              loading="lazy"
+              priority={isPriority}
+              lazy={!isPriority}
+              rootMargin="400px 0px"
+              sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 100vw"
               className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.015] pointer-events-none safari-scale-smooth"
             />
           )}
@@ -466,7 +473,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
   /**
    * Renders an editorial row based on its layout archetype with exact 10px gap
    */
-  const renderRow = (row: EditorialRowConfig) => {
+  const renderRow = (row: EditorialRowConfig, rowIndex: number) => {
+    const isPriorityRow = rowIndex === 0;
+
     switch (row.type) {
       // 1. Two-Column Equal: 50% / 50% grand vertical plates side by side - 10px gap
       case 'two-col-equal':
@@ -482,7 +491,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
               >
                 {renderCard(
                   item,
-                  'aspect-[3/4] sm:aspect-[4/5] min-h-[460px] sm:min-h-[580px] md:min-h-[660px] lg:min-h-[780px]'
+                  'aspect-[3/4] sm:aspect-[4/5] min-h-[460px] sm:min-h-[580px] md:min-h-[660px] lg:min-h-[780px]',
+                  '',
+                  isPriorityRow
                 )}
               </div>
             ))}
@@ -502,7 +513,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
               <div className="w-full md:col-span-1">
                 {renderCard(
                   leftItem,
-                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]'
+                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]',
+                  '',
+                  isPriorityRow
                 )}
               </div>
             )}
@@ -510,7 +523,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
               <div className="w-full md:col-span-2">
                 {renderCard(
                   rightItem,
-                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]'
+                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]',
+                  '',
+                  isPriorityRow
                 )}
               </div>
             )}
@@ -531,7 +546,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
               <div className="w-full md:col-span-2">
                 {renderCard(
                   leftItem,
-                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]'
+                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]',
+                  '',
+                  isPriorityRow
                 )}
               </div>
             )}
@@ -539,7 +556,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
               <div className="w-full md:col-span-1">
                 {renderCard(
                   rightItem,
-                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]'
+                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]',
+                  '',
+                  isPriorityRow
                 )}
               </div>
             )}
@@ -555,7 +574,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
           <div key={row.id} className="w-full">
             {renderCard(
               item,
-              'w-full aspect-[16/9] sm:aspect-[21/9] lg:aspect-[24/10] min-h-[380px] sm:min-h-[500px] md:min-h-[620px] lg:min-h-[720px] max-h-[820px]'
+              'w-full aspect-[16/9] sm:aspect-[21/9] lg:aspect-[24/10] min-h-[380px] sm:min-h-[500px] md:min-h-[620px] lg:min-h-[720px] max-h-[820px]',
+              '',
+              isPriorityRow
             )}
           </div>
         );
@@ -575,7 +596,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
               >
                 {renderCard(
                   item,
-                  'w-full h-[360px] sm:h-[440px] md:h-[500px] lg:h-[580px]'
+                  'w-full h-[360px] sm:h-[440px] md:h-[500px] lg:h-[580px]',
+                  '',
+                  isPriorityRow
                 )}
               </div>
             ))}
@@ -596,7 +619,9 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
               >
                 {renderCard(
                   item,
-                  'aspect-[3/4] min-h-[360px] sm:min-h-[420px] md:min-h-[480px] lg:min-h-[560px]'
+                  'aspect-[3/4] min-h-[360px] sm:min-h-[420px] md:min-h-[480px] lg:min-h-[560px]',
+                  '',
+                  isPriorityRow
                 )}
               </div>
             ))}
@@ -645,7 +670,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
           </div>
         ) : (
           <div className="flex flex-col gap-y-[10px]">
-            {displayedRows.map((row) => renderRow(row))}
+            {displayedRows.map((row, idx) => renderRow(row, idx))}
           </div>
         )}
 
