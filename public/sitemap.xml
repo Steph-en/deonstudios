@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <!-- Main Landing Page -->
+  <url>
+    <loc>https://gideonboadi.com/</loc>
+    <lastmod>2026-10-13</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- About & Bio -->
+  <url>
+    <loc>https://gideonboadi.com/about</loc>
+    <lastmod>2026-10-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Contact & Studio Booking -->
+  <url>
+    <loc>https://gideonboadi.com/contact</loc>
+    <lastmod>2026-10-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Project Archive & Editorial Detail Pages -->
+  <url>
+    <loc>https://gideonboadi.com/project/daniel-diyepriye-beauty</loc>
+    <lastmod>2026-10-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/cd50633a-77cb-4103-9c89-093f130e33a6/preview/db010-1791632140614.jpg</image:loc>
+      <image:title>Daniel Diyepriye Beauty</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/temp/hero/db012-1791337857821.jpg</image:loc>
+      <image:title>Daniel Diyepriye Beauty</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/cd50633a-77cb-4103-9c89-093f130e33a6/gallery/db027-1791338960111.jpg</image:loc>
+      <image:title>DB027.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/cd50633a-77cb-4103-9c89-093f130e33a6/gallery/db031-1791338908601.jpg</image:loc>
+      <image:title>DB031.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/cd50633a-77cb-4103-9c89-093f130e33a6/gallery/db01-1791338754612.jpg</image:loc>
+      <image:title>DB01.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/cd50633a-77cb-4103-9c89-093f130e33a6/gallery/db048-1791338872953.jpg</image:loc>
+      <image:title>DB048.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/cd50633a-77cb-4103-9c89-093f130e33a6/gallery/db023-1791338810152.jpg</image:loc>
+      <image:title>DB023.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/cd50633a-77cb-4103-9c89-093f130e33a6/gallery/db024-1791339069982.jpg</image:loc>
+      <image:title>DB024.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/cd50633a-77cb-4103-9c89-093f130e33a6/gallery/db02-1791339110377.jpg</image:loc>
+      <image:title>DB02.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/cd50633a-77cb-4103-9c89-093f130e33a6/gallery/db010-1791339052061.jpg</image:loc>
+      <image:title>DB010.jpg</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://gideonboadi.com/project/shadraq-stone</loc>
+    <lastmod>2026-10-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/temp/hero/ston0153crop-1791460940264.jpg</image:loc>
+      <image:title>Shadraq Stone</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/0148413f-d8b9-48b1-83af-7d2935e8943f/gallery/ston0153crop-1791461390093.jpg</image:loc>
+      <image:title>STON0153crop.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/0148413f-d8b9-48b1-83af-7d2935e8943f/gallery/ston0100-1791461458576.jpg</image:loc>
+      <image:title>STON0100.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/0148413f-d8b9-48b1-83af-7d2935e8943f/gallery/ston0226-1791461550140.jpg</image:loc>
+      <image:title>STON0226.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/0148413f-d8b9-48b1-83af-7d2935e8943f/gallery/ston0060-1791461711640.jpg</image:loc>
+      <image:title>STON0060.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/0148413f-d8b9-48b1-83af-7d2935e8943f/gallery/ston0044-1791461796279.jpg</image:loc>
+      <image:title>STON0044.jpg</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://gideonboadi.com/project/puma</loc>
+    <lastmod>2026-10-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/temp/preview/lisa0159-1791402350621.jpg</image:loc>
+      <image:title>LISA </image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/temp/hero/lisa0159-1791402458082.jpg</image:loc>
+      <image:title>LISA </image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/b2d6dfb3-3230-4894-b972-e6c71b10a427/gallery/lisa0077-1-1-1791456696609.jpg</image:loc>
+      <image:title>LISA0077-1-1.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/b2d6dfb3-3230-4894-b972-e6c71b10a427/gallery/lisa0171-1791456723098.jpg</image:loc>
+      <image:title>LISA0171.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/b2d6dfb3-3230-4894-b972-e6c71b10a427/gallery/lisa0139-1791456764168.jpg</image:loc>
+      <image:title>LISA0139.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/b2d6dfb3-3230-4894-b972-e6c71b10a427/gallery/lisa0078-1791456801651.jpg</image:loc>
+      <image:title>LISA0078.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/b2d6dfb3-3230-4894-b972-e6c71b10a427/gallery/lisa0017-1791456840820.jpg</image:loc>
+      <image:title>LISA0017.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/b2d6dfb3-3230-4894-b972-e6c71b10a427/gallery/lisa0265-1791456896982.jpg</image:loc>
+      <image:title>LISA0265.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/b2d6dfb3-3230-4894-b972-e6c71b10a427/gallery/lisa0159-1791456918118.jpg</image:loc>
+      <image:title>LISA0159.jpg</image:title>
+    </image:image>
+  </url>
+</urlset>

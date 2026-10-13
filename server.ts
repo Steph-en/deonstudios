@@ -1134,6 +1134,31 @@ async function startServer() {
   // Mount API router
   app.use('/api', api);
 
+  // Dedicated Sitemap and Robots.txt routes
+  app.get('/sitemap.xml', (_req: Request, res: Response) => {
+    const distSitemap = path.resolve(__dirname, 'dist', 'sitemap.xml');
+    const publicSitemap = path.resolve(__dirname, 'public', 'sitemap.xml');
+    const filePath = fs.existsSync(distSitemap) ? distSitemap : publicSitemap;
+
+    if (fs.existsSync(filePath)) {
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      return res.sendFile(filePath);
+    }
+    res.status(404).send('sitemap.xml not found');
+  });
+
+  app.get('/robots.txt', (_req: Request, res: Response) => {
+    const distRobots = path.resolve(__dirname, 'dist', 'robots.txt');
+    const publicRobots = path.resolve(__dirname, 'public', 'robots.txt');
+    const filePath = fs.existsSync(distRobots) ? distRobots : publicRobots;
+
+    if (fs.existsSync(filePath)) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      return res.sendFile(filePath);
+    }
+    res.status(404).send('robots.txt not found');
+  });
+
   // Serve static assets or mount Vite dev middleware
   if (process.env.NODE_ENV === 'production' && fs.existsSync(path.resolve(__dirname, 'dist'))) {
     app.use(express.static(path.resolve(__dirname, 'dist')));

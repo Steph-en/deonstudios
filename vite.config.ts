@@ -1,11 +1,32 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import fs from 'fs';
+import { defineConfig, Plugin } from 'vite';
+
+function sitemapBuildPlugin(): Plugin {
+  return {
+    name: 'vite-plugin-generate-sitemap',
+    apply: 'build',
+    async closeBundle() {
+      try {
+        const { generateSitemap } = await import('./scripts/generate-sitemap');
+        const { xml, projectCount, slugs } = await generateSitemap();
+        const distDir = path.resolve(__dirname, 'dist');
+        if (fs.existsSync(distDir)) {
+          fs.writeFileSync(path.resolve(distDir, 'sitemap.xml'), xml, 'utf-8');
+          console.log(`[vite] Output sitemap.xml to dist/sitemap.xml (${projectCount} projects: ${slugs.join(', ')})`);
+        }
+      } catch (err) {
+        console.warn('[vite] Error generating sitemap during build:', err);
+      }
+    },
+  };
+}
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), sitemapBuildPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
