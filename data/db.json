@@ -5,6 +5,83 @@
   "products": [],
   "inquiries": [
     {
+      "id": "inq-1791892283057-36xv0",
+      "name": "Gideon Boadi Client",
+      "email": "client@brand.com",
+      "message": "Looking to commission a 3-day luxury campaign in New York with editorial and studio lighting.",
+      "projectType": "Commercial Campaign",
+      "phone": "+1 555-0199",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T11:51:23.057Z"
+    },
+    {
+      "id": "inq-1791892178286-nh519",
+      "name": "Gideon Fan",
+      "email": "fan@example.com",
+      "message": "I would love to book a portrait session for next month.",
+      "projectType": "Portraiture Session",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T11:49:38.286Z"
+    },
+    {
+      "id": "inq-1791892072174-49ei7",
+      "name": "Stephen Appah",
+      "email": "appahstephen9@gmail.com",
+      "message": "Hello Gideon, testing contact submission",
+      "projectType": "Editorial",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T11:47:52.174Z"
+    },
+    {
+      "id": "inq-1791891992495-o2afd",
+      "name": "Gideon Boadi Client",
+      "email": "client@example.com",
+      "message": "Booking request for editorial portraiture in Accra.",
+      "projectType": "Portraiture Session",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T11:46:32.495Z"
+    },
+    {
+      "id": "inq-1791891806800-p1lhc",
+      "name": "Gideon Boadi Fan",
+      "email": "fan@gideonboadi.com",
+      "message": "Excited to book our new campaign session!",
+      "projectType": "Commercial Campaign",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "read",
+      "created_at": "2026-10-13T11:43:26.800Z"
+    },
+    {
+      "id": "inq-1791891796888-5eaqn",
+      "name": "Gideon Boadi Fan",
+      "email": "fan@gideonboadi.com",
+      "message": "Excited to book our new campaign session!",
+      "projectType": "Commercial Campaign",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T11:43:16.888Z"
+    },
+    {
+      "id": "inq-1791891531658-01yev",
+      "name": "Stephen Appah",
+      "email": "appahstephen9@gmail.com",
+      "message": "Hello Gideon, I would like to inquire about booking an editorial fashion shoot.",
+      "projectType": "Editorial Fashion",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-13T11:38:51.658Z"
+    },
+    {
       "id": "inq-1791665164292-653da",
       "name": "Campaign Director",
       "email": "director@campaign.com",

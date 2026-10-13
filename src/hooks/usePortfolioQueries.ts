@@ -475,4 +475,49 @@ export function useUpdateAboutSettings() {
   });
 }
 
+export function useInquiries() {
+  return useQuery<any[]>({
+    queryKey: ['inquiries'],
+    queryFn: async () => {
+      const res = await fetch('/api/inquiries');
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 1000 * 5,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useUpdateInquiryStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: 'read' | 'unread' }) => {
+      const res = await fetch(`/api/inquiries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error('Failed to update inquiry status');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inquiries'] });
+    },
+  });
+}
+
+export function useDeleteInquiry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/inquiries/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete inquiry');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inquiries'] });
+    },
+  });
+}
+
 

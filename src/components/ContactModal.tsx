@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, CheckCircle2, AlertCircle, Send } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Send, Mail } from 'lucide-react';
 import { STUDIO_INFO } from '../data/portfolioData';
 import { ThemeMode } from '../types';
 
@@ -172,14 +172,38 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        if (data?.errors) setErrors(data.errors);
+        if (data?.errors) {
+          setErrors(data.errors);
+          return;
+        }
         throw new Error(data?.error || `Unable to send to ${destinationEmail}.`);
+      }
+
+      // Safe local record
+      try {
+        const stored = JSON.parse(localStorage.getItem('deon_dispatched_inquiries') || '[]');
+        stored.unshift({
+          ...formData,
+          date: new Date().toISOString(),
+          id: data?.inquiryId || `inq-${Date.now()}`,
+        });
+        localStorage.setItem('deon_dispatched_inquiries', JSON.stringify(stored.slice(0, 20)));
+      } catch (e) {
+        // Ignore quota
       }
 
       setSubmitted(true);
     } catch (err: any) {
       console.error('Contact modal submit error:', err);
-      setServerError(err.message || 'Transmission failed. Please try again.');
+      // Preserve message in local backup
+      try {
+        const pending = JSON.parse(localStorage.getItem('deon_pending_inquiries') || '[]');
+        pending.unshift({ ...formData, date: new Date().toISOString() });
+        localStorage.setItem('deon_pending_inquiries', JSON.stringify(pending.slice(0, 10)));
+      } catch (e) {
+        // Ignore
+      }
+      setServerError(err.message || `Transmission failed. You can also contact ${destinationEmail} directly.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -294,9 +318,33 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
               )}
 
               {serverError && (
-                <div className="flex items-center gap-2.5 p-3 bg-amber-50 border border-amber-300 text-amber-900 text-xs">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-700" />
-                  <span>{serverError}</span>
+                <div className="p-3.5 bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-700 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-medium text-amber-900">{serverError}</p>
+                      <p className="mt-1 text-[11px] text-amber-800 leading-relaxed">
+                        Your brief details are saved. You can also send directly to{' '}
+                        <a href={`mailto:${destinationEmail}`} className="underline font-semibold text-amber-950">
+                          {destinationEmail}
+                        </a>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1 pl-6">
+                    <a
+                      href={`mailto:${destinationEmail}?subject=${encodeURIComponent(
+                        `Photography Inquiry: ${formData.projectType || 'Commission'} — ${formData.name || 'Studio Client'}`
+                      )}&body=${encodeURIComponent(
+                        `Client Name: ${formData.name}\nEmail: ${formData.email}\nProject Type: ${formData.projectType || 'Studio Inquiry'}\n\nProject Brief & Message:\n${formData.message}`
+                      )}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 text-white hover:bg-black text-[11px] uppercase tracking-wider font-medium transition cursor-pointer"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>Send via Mail App</span>
+                    </a>
+                  </div>
                 </div>
               )}
 

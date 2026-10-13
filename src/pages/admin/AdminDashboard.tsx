@@ -11,6 +11,10 @@ import {
   TrendingUp,
   BarChart3,
   PieChart as PieChartIcon,
+  Mail,
+  MessageSquare,
+  Check,
+  Trash2,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -24,7 +28,13 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { useDashboardStats, useDetailedAnalytics } from '../../hooks/usePortfolioQueries';
+import {
+  useDashboardStats,
+  useDetailedAnalytics,
+  useInquiries,
+  useUpdateInquiryStatus,
+  useDeleteInquiry,
+} from '../../hooks/usePortfolioQueries';
 import { AdminTab } from '../../components/layouts/AdminLayout';
 
 interface AdminDashboardProps {
@@ -39,9 +49,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: analytics } = useDetailedAnalytics();
+  const { data: inquiries = [], isLoading: inquiriesLoading } = useInquiries();
+  const updateStatus = useUpdateInquiryStatus();
+  const deleteInquiry = useDeleteInquiry();
 
   const totalViews = stats?.totalViews ?? 0;
   const uniqueVisitors = stats?.uniqueVisitors ?? 0;
+  const unreadCount = inquiries.filter((inq: any) => inq.status !== 'read').length;
 
   return (
     <div className="space-y-8">
@@ -335,6 +349,142 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Studio Client Inquiries & Briefs */}
+      <div className="bg-white border border-neutral-200 rounded-xl p-5 sm:p-6 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-100">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-neutral-900 text-white rounded-lg">
+              <Mail className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-900">
+                  Client Inquiries & Briefs
+                </h3>
+                {unreadCount > 0 && (
+                  <span className="px-2 py-0.5 text-[10px] font-mono font-medium bg-amber-100 text-amber-900 rounded-full">
+                    {unreadCount} new
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-neutral-500 mt-0.5">
+                Messages dispatched from the website contact and booking forms
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-neutral-500 font-mono">
+            <span>Total: <strong>{inquiries.length}</strong></span>
+          </div>
+        </div>
+
+        {inquiriesLoading ? (
+          <div className="py-12 text-center text-xs text-neutral-400 font-mono">
+            Loading studio inquiries...
+          </div>
+        ) : inquiries.length === 0 ? (
+          <div className="py-12 text-center space-y-2 bg-neutral-50/50 rounded-lg border border-dashed border-neutral-200">
+            <MessageSquare className="w-8 h-8 text-neutral-300 mx-auto" />
+            <p className="text-xs font-medium text-neutral-700">No client inquiries received yet</p>
+            <p className="text-[11px] text-neutral-500 max-w-sm mx-auto">
+              Inquiries submitted through the studio contact form will appear here and route to studio@gideonboadi.com.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-neutral-100 border border-neutral-100 rounded-lg overflow-hidden">
+            {inquiries.map((inq: any) => {
+              const isUnread = inq.status !== 'read';
+              return (
+                <div
+                  key={inq.id}
+                  className={`p-4 sm:p-5 transition-colors ${
+                    isUnread ? 'bg-amber-50/30 hover:bg-amber-50/50' : 'bg-white hover:bg-neutral-50/80'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-2.5">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {isUnread && (
+                          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Unread" />
+                        )}
+                        <span className="text-xs sm:text-sm font-semibold text-neutral-900">
+                          {inq.name}
+                        </span>
+                        <span className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 bg-neutral-100 text-neutral-700 rounded">
+                          {inq.projectType || 'General Inquiry'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">
+                        <a
+                          href={`mailto:${inq.email}?subject=Re: Studio Inquiry — Gideon Boadi`}
+                          className="underline hover:text-black font-medium"
+                        >
+                          {inq.email}
+                        </a>
+                        {inq.phone && (
+                          <span>• Tel: {inq.phone}</span>
+                        )}
+                        <span>
+                          • {inq.created_at ? new Date(inq.created_at).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }) : 'Recent'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <a
+                        href={`mailto:${inq.email}?subject=Re: Studio Inquiry — Gideon Boadi`}
+                        className="px-2.5 py-1 text-[11px] rounded bg-neutral-900 text-white hover:bg-black transition flex items-center gap-1"
+                      >
+                        <Mail className="w-3 h-3" />
+                        <span>Reply</span>
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateStatus.mutate({
+                            id: inq.id,
+                            status: isUnread ? 'read' : 'unread',
+                          })
+                        }
+                        className="px-2.5 py-1 text-[11px] rounded border border-neutral-200 hover:bg-neutral-100 text-neutral-700 transition cursor-pointer flex items-center gap-1"
+                      >
+                        <Check className="w-3 h-3" />
+                        <span>{isUnread ? 'Mark Read' : 'Mark Unread'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm('Delete this inquiry?')) {
+                            deleteInquiry.mutate(inq.id);
+                          }
+                        }}
+                        className="p-1 text-neutral-400 hover:text-rose-600 transition cursor-pointer rounded"
+                        title="Delete inquiry"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 p-3 bg-neutral-50 rounded text-xs text-neutral-800 leading-relaxed font-sans whitespace-pre-wrap border border-neutral-100">
+                    {inq.message}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

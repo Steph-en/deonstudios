@@ -897,7 +897,7 @@ async function startServer() {
 
   api.post('/contact', async (req: Request, res: Response) => {
     try {
-      const { name, email, message, projectType, phone } = req.body || {};
+      const { name, email, message, projectType, phone, destinationEmail } = req.body || {};
 
       // Server-side form validation
       const errors: Record<string, string> = {};
@@ -910,7 +910,7 @@ async function startServer() {
         errors.email = 'Please provide a valid email address.';
       }
 
-      if (!message || typeof message !== 'string' || message.trim().length < 5) {
+      if (!message || typeof message !== 'string' || message.trim().length < 3) {
         errors.message = 'Please provide a message with details about your inquiry.';
       }
 
@@ -927,6 +927,12 @@ async function startServer() {
       const cleanMessage = message.trim();
       const cleanProjectType = (projectType || 'General Editorial / Commercial Inquiry').trim();
       const cleanPhone = (phone || '').trim();
+      const targetDestination = (
+        destinationEmail ||
+        db?.site_settings?.about_settings?.email ||
+        CONTACT_DESTINATION_EMAIL ||
+        'studio@gideonboadi.com'
+      ).trim();
 
       const newInquiry = {
         id: `inq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -935,28 +941,31 @@ async function startServer() {
         message: cleanMessage,
         projectType: cleanProjectType,
         phone: cleanPhone,
-        destination_email: CONTACT_DESTINATION_EMAIL,
+        destination_email: targetDestination,
         status: 'unread',
         created_at: new Date().toISOString(),
       };
 
       // Persist in local database so no messages are ever lost
-      if (!Array.isArray(db.inquiries)) {
-        db.inquiries = [];
+      try {
+        if (!Array.isArray(db.inquiries)) {
+          db.inquiries = [];
+        }
+        db.inquiries.unshift(newInquiry);
+        saveDatabase(db);
+      } catch (dbErr) {
+        console.error('Failed to save inquiry to disk, maintaining in memory:', dbErr);
       }
-      db.inquiries.unshift(newInquiry);
-      saveDatabase(db);
 
-      // Email dispatch using Nodemailer
+      // Email dispatch using Nodemailer with fast timeout
       let emailDispatched = false;
-      let emailError: string | null = null;
 
       const smtpHost = process.env.SMTP_HOST;
       const smtpUser = process.env.SMTP_USER;
       const smtpPass = process.env.SMTP_PASS;
       const smtpPort = Number(process.env.SMTP_PORT) || 587;
       const smtpFrom =
-        process.env.SMTP_FROM || `"Deon Studios Web" <${CONTACT_DESTINATION_EMAIL}>`;
+        process.env.SMTP_FROM || `"Deon Studios Web" <${targetDestination}>`;
 
       const emailSubject = `New Studio Inquiry from ${cleanName} — Deon Studios`;
       const emailHtml = `
@@ -1011,7 +1020,7 @@ async function startServer() {
               <a href="mailto:${cleanEmail}?subject=Re: Photography Inquiry — Deon Studios" class="btn">Reply Directly to Client</a>
             </div>
             <div class="footer">
-              Sent via Deon Studios Contact Service to <strong>${CONTACT_DESTINATION_EMAIL}</strong> on ${new Date().toISOString()}.
+              Sent via Deon Studios Contact Service to <strong>${targetDestination}</strong> on ${new Date().toISOString()}.
             </div>
           </div>
         </body>
@@ -1028,26 +1037,33 @@ async function startServer() {
               user: smtpUser,
               pass: smtpPass,
             },
+            connectionTimeout: 4000,
+            greetingTimeout: 3000,
+            socketTimeout: 5000,
           });
 
-          const info = await transporter.sendMail({
-            from: smtpFrom,
-            to: CONTACT_DESTINATION_EMAIL,
-            replyTo: `${cleanName} <${cleanEmail}>`,
-            subject: emailSubject,
-            text: `New Studio Inquiry from ${cleanName} (${cleanEmail})\n\nProject Type: ${cleanProjectType}\nPhone: ${cleanPhone}\n\nMessage:\n${cleanMessage}`,
-            html: emailHtml,
-          });
+          await Promise.race([
+            transporter.sendMail({
+              from: smtpFrom,
+              to: targetDestination,
+              replyTo: `${cleanName} <${cleanEmail}>`,
+              subject: emailSubject,
+              text: `New Studio Inquiry from ${cleanName} (${cleanEmail})\n\nProject Type: ${cleanProjectType}\nPhone: ${cleanPhone}\n\nMessage:\n${cleanMessage}`,
+              html: emailHtml,
+            }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('SMTP timeout after 4.5s')), 4500)
+            ),
+          ]);
           emailDispatched = true;
-          console.log(`[Email Dispatch] Successfully sent email to ${CONTACT_DESTINATION_EMAIL}:`, info.messageId);
+          console.log(`[Email Dispatch] Successfully sent email to ${targetDestination}`);
         } catch (smtpErr: any) {
-          console.error('[Email Dispatch] SMTP error:', smtpErr);
-          emailError = smtpErr?.message || 'SMTP sending failed';
+          console.warn('[Email Dispatch] SMTP note (inquiry saved in database):', smtpErr?.message || smtpErr);
         }
       } else {
-        // When SMTP credentials are not configured in environment, safely log the formatted delivery and store inquiry
+        // Safe logging when SMTP credentials not provided
         console.log(`\n============================================================`);
-        console.log(`[EMAIL DISPATCH SERVICE] Routing message to: ${CONTACT_DESTINATION_EMAIL}`);
+        console.log(`[EMAIL DISPATCH SERVICE] Routing message to: ${targetDestination}`);
         console.log(`From: "${cleanName}" <${cleanEmail}>`);
         console.log(`Subject: ${emailSubject}`);
         console.log(`Project: ${cleanProjectType}`);
@@ -1059,17 +1075,16 @@ async function startServer() {
 
       return res.status(200).json({
         success: true,
-        message: `Your message has been sent successfully to ${CONTACT_DESTINATION_EMAIL}.`,
+        message: `Your message has been sent successfully to ${targetDestination}.`,
         inquiryId: newInquiry.id,
-        destination: CONTACT_DESTINATION_EMAIL,
+        destination: targetDestination,
         dispatched: emailDispatched,
-        warning: emailError ? 'Message stored in studio database, but SMTP delivery encountered a warning.' : undefined,
       });
     } catch (err: any) {
       console.error('[Contact API Error]:', err);
       return res.status(500).json({
         success: false,
-        error: 'An internal error occurred while processing your message. Please try again or email studio@gideonboadi.com directly.',
+        error: err?.message || 'Unable to dispatch message. Please try again or email studio@gideonboadi.com directly.',
       });
     }
   });
@@ -1077,6 +1092,19 @@ async function startServer() {
   // Endpoints to manage received inquiries (for Admin)
   api.get('/inquiries', (_req: Request, res: Response) => {
     res.json(db.inquiries || []);
+  });
+
+  api.patch('/inquiries/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { status } = req.body || {};
+    if (Array.isArray(db.inquiries)) {
+      const target = db.inquiries.find((inq: any) => inq.id === id);
+      if (target && status) {
+        target.status = status;
+        saveDatabase(db);
+      }
+    }
+    res.json({ success: true, id });
   });
 
   api.delete('/inquiries/:id', (req: Request, res: Response) => {
@@ -1145,7 +1173,7 @@ function getProcessUsingPort(port: number): string | null {
   return null;
 }
 
-  const listenOnPort = (portToTry: number): Promise<number> => {
+  const listenOnPort = (portToTry: number, retryCount = 0): Promise<number> => {
     return new Promise((resolve, reject) => {
       const server = app.listen(portToTry, '0.0.0.0');
 
@@ -1153,32 +1181,20 @@ function getProcessUsingPort(port: number): string | null {
         resolve(portToTry);
       });
 
-      server.once('error', (err: any) => {
+      server.once('error', async (err: any) => {
         if (err.code === 'EADDRINUSE') {
-          const procInfo = getProcessUsingPort(portToTry);
-          console.warn(`\n` + '═'.repeat(66));
-          console.warn(`  ⚠️  [PORT CONFLICT] Port ${portToTry} is occupied by another application!`);
-          console.warn('═'.repeat(66));
-          if (procInfo) {
-            console.warn(`  Detected background process squatting on port ${portToTry}:`);
-            console.warn(`  ${procInfo.split('\n').join('\n  ')}\n`);
-          }
-          console.warn(`  WHY THIS MATTERS:`);
-          console.warn(`  A background server (Python / CherryPy / another web service)`);
-          console.warn(`  is intercepting port ${portToTry}. When you open http://localhost:${portToTry}`);
-          console.warn(`  in your browser, that other service responds with:`);
-          console.warn(`  "404: The requested resource was not found on this server"`);
-          console.warn(`\n  HOW TO FREE PORT ${portToTry}:`);
-          console.warn(`  • In this project, run:   npm run kill-3000`);
-          console.warn(`  • On macOS / Linux run:   lsof -ti:${portToTry} | xargs kill -9`);
-          console.warn(`  • On Windows PowerShell:  npx kill-port ${portToTry}`);
-          console.warn('═'.repeat(66) + '\n');
-
-          if (process.env.STRICT_PORT === 'true') {
-            reject(err);
+          console.warn(`[Port Status] Port ${portToTry} currently in use (attempt ${retryCount + 1}/5). Waiting for release...`);
+          if (retryCount < 5) {
+            await new Promise((r) => setTimeout(r, 1000));
+            try {
+              const p = await listenOnPort(portToTry, retryCount + 1);
+              resolve(p);
+            } catch (retryErr) {
+              reject(retryErr);
+            }
           } else {
-            console.log(`  ➜ Auto-switching Deon Studios to port ${portToTry + 1}...\n`);
-            resolve(listenOnPort(portToTry + 1));
+            console.error(`[Port Error] Port ${portToTry} is still in use after 5 retries.`);
+            reject(err);
           }
         } else {
           reject(err);

@@ -169,19 +169,41 @@ export const ContactView: React.FC = () => {
       if (!response.ok) {
         if (result?.errors) {
           setErrors(result.errors);
+          return;
         }
         throw new Error(
           result?.error ||
-            `Unable to dispatch message. Please try again or email ${destinationEmail} directly.`
+            `Unable to dispatch message directly to ${destinationEmail}.`
         );
+      }
+
+      // Safe local record
+      try {
+        const stored = JSON.parse(localStorage.getItem('deon_dispatched_inquiries') || '[]');
+        stored.unshift({
+          ...formData,
+          date: new Date().toISOString(),
+          id: result?.inquiryId || `inq-${Date.now()}`
+        });
+        localStorage.setItem('deon_dispatched_inquiries', JSON.stringify(stored.slice(0, 20)));
+      } catch (e) {
+        // Ignore quota
       }
 
       setSubmitted(true);
     } catch (err: any) {
       console.error('Contact submission error:', err);
+      // Preserve user message in local cache so nothing is lost
+      try {
+        const pending = JSON.parse(localStorage.getItem('deon_pending_inquiries') || '[]');
+        pending.unshift({ ...formData, date: new Date().toISOString() });
+        localStorage.setItem('deon_pending_inquiries', JSON.stringify(pending.slice(0, 10)));
+      } catch (e) {
+        // Ignore
+      }
       setServerError(
         err.message ||
-          'A transmission error occurred. Please try again or contact us directly via email.'
+          `Unable to reach dispatch service. You can send directly via email to ${destinationEmail}.`
       );
     } finally {
       setIsSubmitting(false);
@@ -314,21 +336,49 @@ export const ContactView: React.FC = () => {
                 </div>
               )}
 
-              {/* Server-Side Error Alert */}
+              {/* Server-Side Error Alert with Direct Mailto Fallback */}
               {serverError && (
                 <div
                   role="alert"
-                  className="flex items-start gap-3 p-3.5 bg-amber-50 border border-amber-300 text-amber-900 text-xs rounded-none"
+                  className="p-4 bg-amber-50 border border-amber-300 text-amber-950 text-xs rounded-none space-y-3"
                 >
-                  <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium">{serverError}</p>
-                    <p className="mt-1 text-[11px]">
-                      You can also reach Gideon directly at{' '}
-                      <a href={`mailto:${destinationEmail}`} className="underline font-semibold">
-                        {destinationEmail}
-                      </a>.
-                    </p>
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-medium text-amber-900">{serverError}</p>
+                      <p className="mt-1 text-[11px] text-amber-800 leading-relaxed">
+                        Your message details have been preserved. You can click below to dispatch directly via your device mail application to{' '}
+                        <a href={`mailto:${destinationEmail}`} className="underline font-semibold text-amber-950">
+                          {destinationEmail}
+                        </a>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1 pl-7">
+                    <a
+                      href={`mailto:${destinationEmail}?subject=${encodeURIComponent(
+                        `Photography Inquiry: ${formData.projectType || 'Commission'} — ${formData.name || 'Studio Client'}`
+                      )}&body=${encodeURIComponent(
+                        `Client Name: ${formData.name}\nEmail: ${formData.email}\nPhone: ${formData.phone || 'N/A'}\nProject Type: ${formData.projectType || 'Editorial Fashion'}\n\nProject Brief & Message:\n${formData.message}`
+                      )}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 text-white hover:bg-black text-[11px] uppercase tracking-wider font-medium transition cursor-pointer"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>Open in Mail App (Pre-filled)</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setServerError(null);
+                        const syntheticEvent = { preventDefault: () => {} } as React.FormEvent;
+                        handleSubmit(syntheticEvent);
+                      }}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 border border-amber-400 bg-white hover:bg-amber-100 text-amber-900 text-[11px] uppercase tracking-wider font-medium transition cursor-pointer"
+                    >
+                      <span>Retry Dispatch</span>
+                    </button>
                   </div>
                 </div>
               )}
