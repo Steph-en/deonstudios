@@ -886,6 +886,20 @@ async function startServer() {
   const CONTACT_DESTINATION_EMAIL =
     process.env.CONTACT_DESTINATION_EMAIL || 'studio@gideonboadi.com';
 
+  // Health check and CORS preflight for contact endpoint
+  api.options('/contact', (_req: Request, res: Response) => {
+    res.sendStatus(200);
+  });
+
+  api.get('/contact', (_req: Request, res: Response) => {
+    res.status(200).json({
+      status: 'ok',
+      service: 'Deon Studios Contact & Booking API',
+      destination: db?.site_settings?.about_settings?.email || CONTACT_DESTINATION_EMAIL || 'studio@gideonboadi.com',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   api.post('/contact', async (req: Request, res: Response) => {
     try {
       const { name, email, message, projectType, phone, destinationEmail } = req.body || {};

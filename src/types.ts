@@ -29,12 +29,15 @@ export interface Project {
   model?: string;
   preview_image?: string | null;
   hero_image?: string | null;
+  aspect_ratio?: string | null;
+  aspectRatio?: string | null;
   previewImages: string[];
   fallbackPreviewImages?: string[];
   layout?: 'single' | 'grid3x3' | 'grid2x2';
   gridImages?: string[];
   fallbackGridImages?: string[];
   images: ProjectImage[];
+  display_order?: number;
 }
 
 export type ThemeMode = 'dark' | 'light';

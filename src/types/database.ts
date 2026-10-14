@@ -150,6 +150,7 @@ export interface Database {
           seo_description: string | null;
           seo_keywords: string | null;
           published_at: string | null;
+          display_order?: number;
           created_at: string;
           updated_at: string;
           deleted_at: string | null;
@@ -175,6 +176,7 @@ export interface Database {
           seo_description?: string | null;
           seo_keywords?: string | null;
           published_at?: string | null;
+          display_order?: number;
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
@@ -200,6 +202,7 @@ export interface Database {
           seo_description?: string | null;
           seo_keywords?: string | null;
           published_at?: string | null;
+          display_order?: number;
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;

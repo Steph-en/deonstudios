@@ -32,117 +32,115 @@ export const ResilientImage: React.FC<ResilientImageProps> = ({
   ...props
 }) => {
   const isEager = priority || !lazy;
-  const [isInView, setIsInView] = useState(isEager);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [currentSrc, setCurrentSrc] = useState<string>(() => {
+    const raw = src || fallbackSrc || '';
+    if (!raw) return '';
+    if (optimizedWidth) {
+      return getOptimizedImageUrl(raw, { width: optimizedWidth, quality });
+    }
+    return raw;
+  });
+  const [isLoaded, setIsLoaded] = useState(isEager);
+  const [loadFailed, setLoadFailed] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  // IntersectionObserver for genuine, reliable lazy-loading that defers DOM image attachment
-  // until the viewport is within rootMargin
+  // Keep a stable ref to onDimensionsDetected to avoid re-triggering effects when parent passes new closures
+  const onDimensionsDetectedRef = useRef(onDimensionsDetected);
   useEffect(() => {
-    if (isEager) {
-      setIsInView(true);
+    onDimensionsDetectedRef.current = onDimensionsDetected;
+  });
+
+  // Keep track of reported dimensions for current image to prevent duplicate calls
+  const reportedDimensionsRef = useRef<string | null>(null);
+
+  // Sync state when src changes
+  useEffect(() => {
+    const raw = src || fallbackSrc || '';
+    if (!raw) {
+      setCurrentSrc('');
       return;
     }
-
-    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
-      setIsInView(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (entry.isIntersecting) {
-          setIsInView(true);
-          observer.disconnect();
-        }
-      },
-      {
-        rootMargin,
-        threshold: 0.01,
-      }
-    );
-
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [isEager, rootMargin]);
-
-  // Derive optimized src and responsive srcset
-  const optimizedSrc = React.useMemo(() => {
-    if (!src) return '';
-    if (optimizedWidth) {
-      return getOptimizedImageUrl(src, { width: optimizedWidth, quality });
-    }
-    return src;
-  }, [src, optimizedWidth, quality]);
+    const nextSrc = optimizedWidth
+      ? getOptimizedImageUrl(raw, { width: optimizedWidth, quality })
+      : raw;
+    setCurrentSrc(nextSrc);
+    setLoadFailed(false);
+    reportedDimensionsRef.current = null;
+  }, [src, fallbackSrc, optimizedWidth, quality]);
 
   const responsiveSrcSet = React.useMemo(() => {
-    if (!enableResponsiveSrcSet || !src) return undefined;
+    if (!enableResponsiveSrcSet || !src || loadFailed) return undefined;
     return buildResponsiveSrcSet(src);
-  }, [src, enableResponsiveSrcSet]);
+  }, [src, enableResponsiveSrcSet, loadFailed]);
 
-  // Check if image is already cached/complete on mount
+  // Check if image is already cached or complete on mount/source change (no unstable callback in deps)
   useEffect(() => {
-    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+    const el = imgRef.current;
+    if (el && el.complete && el.naturalWidth > 0 && el.naturalHeight > 0) {
       setIsLoaded(true);
-      if (onDimensionsDetected && imgRef.current.naturalHeight > 0) {
-        onDimensionsDetected(imgRef.current.naturalWidth, imgRef.current.naturalHeight);
+      const key = `${el.naturalWidth}x${el.naturalHeight}`;
+      if (reportedDimensionsRef.current !== key) {
+        reportedDimensionsRef.current = key;
+        onDimensionsDetectedRef.current?.(el.naturalWidth, el.naturalHeight);
       }
     }
-  }, [optimizedSrc, onDimensionsDetected]);
+  }, [currentSrc]);
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setIsLoaded(true);
+    setLoadFailed(false);
     const img = e.currentTarget;
-    if (onDimensionsDetected && img.naturalWidth > 0 && img.naturalHeight > 0) {
-      onDimensionsDetected(img.naturalWidth, img.naturalHeight);
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      const key = `${img.naturalWidth}x${img.naturalHeight}`;
+      if (reportedDimensionsRef.current !== key) {
+        reportedDimensionsRef.current = key;
+        onDimensionsDetectedRef.current?.(img.naturalWidth, img.naturalHeight);
+      }
     }
     if (onLoad) onLoad(e);
   };
 
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    // If optimized URL failed, fallback to raw src first
+    if (currentSrc !== src && src) {
+      setCurrentSrc(src);
+      return;
+    }
+    // If raw src failed, fallback to fallbackSrc if provided
+    if (fallbackSrc && currentSrc !== fallbackSrc) {
+      setCurrentSrc(fallbackSrc);
+      return;
+    }
+    setLoadFailed(true);
+    setIsLoaded(true);
     if (onError) onError(e);
   };
 
+  // If no source is available, do not render an <img> tag with an empty string
+  if (!currentSrc) {
+    return null;
+  }
+
   return (
-    <div
-      ref={containerRef}
-      className="contents"
-    >
-      {isInView ? (
-        <img
-          ref={imgRef}
-          {...props}
-          src={optimizedSrc}
-          srcSet={responsiveSrcSet}
-          sizes={responsiveSrcSet ? sizes : undefined}
-          alt={alt}
-          draggable={false}
-          loading={isEager ? 'eager' : 'lazy'}
-          decoding="async"
-          fetchPriority={isEager ? 'high' : 'low'}
-          onLoad={handleLoad}
-          onError={handleError}
-          className={`transition-opacity duration-500 ${
-            isLoaded || isEager ? 'opacity-100' : 'opacity-0'
-          } ${className}`}
-          style={style}
-          referrerPolicy="no-referrer"
-        />
-      ) : (
-        /* Empty DOM placeholder while far off-screen to keep DOM light and save memory */
-        <div
-          aria-hidden="true"
-          className="w-full h-full pointer-events-none"
-        />
-      )}
-    </div>
+    <img
+      ref={imgRef}
+      {...props}
+      src={currentSrc}
+      srcSet={responsiveSrcSet}
+      sizes={responsiveSrcSet ? sizes : undefined}
+      alt={alt}
+      draggable={false}
+      loading={isEager ? 'eager' : 'lazy'}
+      decoding="async"
+      fetchPriority={isEager ? 'high' : 'auto'}
+      onLoad={handleLoad}
+      onError={handleError}
+      className={`transition-opacity duration-300 ${
+        isLoaded ? 'opacity-100' : 'opacity-80'
+      } ${className}`}
+      style={style}
+      referrerPolicy="no-referrer"
+    />
   );
 };
 

@@ -62,7 +62,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
         description={projectSnippet}
         canonicalUrl={`/#project-${project.slug}`}
         ogType="article"
-        ogImage={primaryImage}
+        ogImage={primaryImage || undefined}
         imageAlt={`${project.title} - ${project.category}`}
         author="Gideon Boadi"
         publishedTime={project.year ? `${project.year}-01-01` : undefined}
@@ -222,16 +222,16 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                     )}
 
                     {sec.media_url && (
-                      <div className="rounded-xl overflow-hidden shadow-md mt-4 border border-neutral-200">
+                      <div className="rounded-md overflow-hidden bg-neutral-100 dark:bg-neutral-900 mt-4 border border-neutral-200 dark:border-neutral-800">
                         {sec.media_url.endsWith('.mp4') || sec.media_url.endsWith('.webm') ? (
-                          <video src={sec.media_url} controls className="w-full h-auto max-h-[500px] object-cover" />
+                          <video src={sec.media_url} controls className="w-full h-auto max-h-[700px] object-contain mx-auto" />
                         ) : (
                           <ResilientImage
                             src={sec.media_url}
                             alt={sec.title || 'Case study'}
                             lazy={true}
                             rootMargin="400px 0px"
-                            className="w-full h-auto max-h-[500px] object-cover"
+                            className="w-full h-auto max-h-[700px] object-contain object-center mx-auto"
                           />
                         )}
                       </div>
@@ -245,7 +245,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
 
         {/* 
           FEATURE 3 (chantellekemkemian.com/quick-portfolio inspired):
-          Masonry grid layout displaying related project works and assets.
+          Masonry grid layout displaying related project works and assets with 4px gap.
           Clicking any image pops up the Lightbox Modal with navigation and counter.
         */}
         <section className="mt-14">
@@ -258,38 +258,42 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
             </span>
           </div>
 
-          {/* Masonry Columns */}
-          <div className="masonry-columns-3">
-            {project.images.map((image, index) => {
-              const isPriority = index < 2;
-              return (
-                <div
-                  key={image.id}
-                  onClick={() => openLightbox(index)}
-                  className="masonry-break group relative overflow-hidden rounded-xl cursor-pointer bg-neutral-100 dark:bg-neutral-800/80 shadow-xs transition-all duration-300 hover:shadow-2xl min-h-[220px]"
-                >
-                  <ResilientImage
-                    src={image.url}
-                    alt={image.caption || `${project.title} image ${index + 1}`}
-                    priority={isPriority}
-                    lazy={!isPriority}
-                    rootMargin="400px 0px"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="w-full h-auto object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 pointer-events-none safari-scale-smooth select-none"
-                  />
+          {/* Masonry Columns - Equal 4px gap all round */}
+          <div className="masonry-columns-3 columns-1 sm:columns-2 lg:columns-3 gap-[4px] select-none">
+            {project.images
+              .filter((image) => Boolean(image?.url))
+              .map((image, index) => {
+                const isPriority = index < 3;
+                return (
+                  <div
+                    key={image.id}
+                    onClick={() => openLightbox(index)}
+                    className="masonry-break break-inside-avoid block w-full align-top mb-[4px] group relative overflow-hidden rounded-[4px] cursor-pointer bg-neutral-100 dark:bg-neutral-900 transition-opacity duration-200 hover:opacity-95"
+                  >
+                    {image.url ? (
+                      <ResilientImage
+                        src={image.url}
+                        alt={image.caption || `${project.title} image ${index + 1}`}
+                        priority={isPriority}
+                        lazy={!isPriority}
+                        rootMargin="400px 0px"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="w-full h-auto block object-contain object-center transition-opacity duration-300 pointer-events-none safari-scale-smooth select-none"
+                      />
+                    ) : null}
 
-                  {/* Dark subtle gradient on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-5 pointer-events-none" />
+                    {/* Dark subtle gradient on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
 
-                  {/* Top-right zoom action icon on hover */}
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 pointer-events-none">
-                    <span className="p-2.5 rounded-full bg-black/75 text-white border border-white/20 inline-flex items-center justify-center safari-scale-smooth">
-                      <Maximize2 className="w-4 h-4" />
-                    </span>
+                    {/* Top-right zoom action icon on hover */}
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                      <span className="p-2 rounded-full bg-black/75 text-white border border-white/20 inline-flex items-center justify-center">
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </section>
 

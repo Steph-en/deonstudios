@@ -4,7 +4,7 @@
   <!-- Main Landing Page -->
   <url>
     <loc>https://gideonboadi.com/</loc>
-    <lastmod>2026-10-13</lastmod>
+    <lastmod>2026-10-14</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -12,7 +12,7 @@
   <!-- About & Bio -->
   <url>
     <loc>https://gideonboadi.com/about</loc>
-    <lastmod>2026-10-13</lastmod>
+    <lastmod>2026-10-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -20,7 +20,7 @@
   <!-- Contact & Studio Booking -->
   <url>
     <loc>https://gideonboadi.com/contact</loc>
-    <lastmod>2026-10-13</lastmod>
+    <lastmod>2026-10-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -100,6 +100,52 @@
     <image:image>
       <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/0148413f-d8b9-48b1-83af-7d2935e8943f/gallery/ston0044-1791461796279.jpg</image:loc>
       <image:title>STON0044.jpg</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://gideonboadi.com/project/silent-presence</loc>
+    <lastmod>2026-10-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/65258f88-e19f-46e3-bfab-28b0a22dafec/preview/jean0387-1791942772400.jpg</image:loc>
+      <image:title>Silent Presence</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/65258f88-e19f-46e3-bfab-28b0a22dafec/hero/jean0387-1791942739413.jpg</image:loc>
+      <image:title>Silent Presence</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/65258f88-e19f-46e3-bfab-28b0a22dafec/gallery/jean0291-1791942241336.jpg</image:loc>
+      <image:title>jean0291.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/65258f88-e19f-46e3-bfab-28b0a22dafec/gallery/jean0729-1791942353413.jpg</image:loc>
+      <image:title>jean0729.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/65258f88-e19f-46e3-bfab-28b0a22dafec/gallery/jean0321-1791942177526.jpg</image:loc>
+      <image:title>jean0321.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/65258f88-e19f-46e3-bfab-28b0a22dafec/gallery/jean0274-1791942265650.jpg</image:loc>
+      <image:title>jean0274.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/65258f88-e19f-46e3-bfab-28b0a22dafec/gallery/jean0842-1791942396589.jpg</image:loc>
+      <image:title>jean0842.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/65258f88-e19f-46e3-bfab-28b0a22dafec/gallery/jean0341-1791942454025.jpg</image:loc>
+      <image:title>jean0341.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/65258f88-e19f-46e3-bfab-28b0a22dafec/gallery/jean06g92-1791942492690.jpg</image:loc>
+      <image:title>jean06g92.jpg</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/projects/65258f88-e19f-46e3-bfab-28b0a22dafec/gallery/jean0304-1791942199318.jpg</image:loc>
+      <image:title>jean0304.jpg</image:title>
     </image:image>
   </url>
   <url>

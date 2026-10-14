@@ -274,16 +274,16 @@ export const MediaManagerPage: React.FC = () => {
                     />
                   </div>
 
-                  {asset.type === 'video' ? (
+                  {asset.type === 'video' && asset.url ? (
                     <video src={asset.url} className="w-full h-full object-cover" muted />
-                  ) : (
+                  ) : asset.url ? (
                     <img
                       src={asset.url}
                       alt={asset.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                       referrerPolicy="no-referrer"
                     />
-                  )}
+                  ) : null}
 
                   <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-black/60 text-white backdrop-blur-sm">
                     {asset.type}

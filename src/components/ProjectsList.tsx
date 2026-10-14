@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { Project, ThemeMode } from '../types';
 import { ResilientImage } from './ResilientImage';
+import {
+  detectAspectRatioClassFromDimensions,
+  mapStoredAspectRatioToClass,
+  getCachedAspectRatioClass,
+  setCachedAspectRatioClass,
+  detectOrientationFromDimensions,
+  detectOrientationFromClassOrString,
+  OrientationType,
+} from '../utils/aspectRatioHelper';
 
 interface ProjectsListProps {
   projects: Project[];
@@ -267,6 +276,136 @@ const EDITORIAL_ROWS: EditorialRowConfig[] = [
 
 const INITIAL_ROWS_COUNT = 6;
 
+interface EditorialProjectCardProps {
+  project: Project;
+  src: string;
+  title: string;
+  is3x3Grid: boolean;
+  cardId: string;
+  defaultAspectClasses?: string;
+  extraContainerClasses?: string;
+  isPriority?: boolean;
+  onSelectProject: (project: Project) => void;
+}
+
+const EditorialProjectCard: React.FC<EditorialProjectCardProps> = ({
+  project,
+  src,
+  title,
+  is3x3Grid,
+  cardId,
+  defaultAspectClasses = 'aspect-[4/3]',
+  extraContainerClasses = '',
+  isPriority = false,
+  onSelectProject,
+}) => {
+  const cachedClass = src ? getCachedAspectRatioClass(src) : '';
+  const storedClass = mapStoredAspectRatioToClass(project.aspect_ratio || (project as any).aspectRatio);
+
+  const [aspectClass, setAspectClass] = useState<string>(
+    cachedClass || storedClass || defaultAspectClasses
+  );
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+
+  React.useEffect(() => {
+    if (!src || is3x3Grid) return;
+    const cached = getCachedAspectRatioClass(src);
+    if (cached) {
+      setAspectClass((prev) => (prev === cached ? prev : cached));
+    }
+    let isMounted = true;
+    const img = new Image();
+    img.onload = () => {
+      if (!isMounted) return;
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        setDimensions((prev) => {
+          if (prev && prev.width === img.naturalWidth && prev.height === img.naturalHeight) return prev;
+          return { width: img.naturalWidth, height: img.naturalHeight };
+        });
+        const detected = detectAspectRatioClassFromDimensions(img.naturalWidth, img.naturalHeight);
+        setCachedAspectRatioClass(src, detected);
+        setAspectClass((prev) => (prev === detected ? prev : detected));
+      }
+    };
+    img.src = src;
+    return () => {
+      isMounted = false;
+    };
+  }, [src, is3x3Grid]);
+
+  const handleDimensionsDetected = React.useCallback((w: number, h: number) => {
+    if (!w || !h) return;
+    setDimensions((prev) => {
+      if (prev && prev.width === w && prev.height === h) return prev;
+      return { width: w, height: h };
+    });
+    const detected = detectAspectRatioClassFromDimensions(w, h);
+    if (src) setCachedAspectRatioClass(src, detected);
+    setAspectClass((prev) => (prev === detected ? prev : detected));
+  }, [src]);
+
+  const dynamicAspectRatio = !is3x3Grid && dimensions?.width && dimensions?.height
+    ? `${dimensions.width} / ${dimensions.height}`
+    : undefined;
+
+  return (
+    <article
+      id={cardId}
+      onClick={() => onSelectProject(project)}
+      className={`group cursor-pointer flex flex-col select-none w-full ${extraContainerClasses}`}
+    >
+      {/* Dynamic Canvas Container: takes the exact shape / aspect ratio of the image */}
+      <div
+        style={{ aspectRatio: dynamicAspectRatio }}
+        className={`relative w-full overflow-hidden bg-neutral-100 dark:bg-neutral-900 safari-clip-fix flex items-center justify-center ${
+          !dynamicAspectRatio ? aspectClass : ''
+        }`}
+      >
+        {is3x3Grid && project.gridImages && project.gridImages.length > 0 ? (
+          <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-[2px] sm:gap-[3px]">
+            {project.gridImages.filter(Boolean).slice(0, 9).map((imgUrl: string, idx: number) => (
+              <div
+                key={idx}
+                className="relative w-full h-full overflow-hidden bg-neutral-200 dark:bg-neutral-800 safari-clip-fix flex items-center justify-center"
+              >
+                {imgUrl ? (
+                  <ResilientImage
+                    src={imgUrl}
+                    alt={`${title} tile ${idx + 1}`}
+                    priority={isPriority && idx < 3}
+                    lazy={!(isPriority && idx < 3)}
+                    rootMargin="400px 0px"
+                    sizes="(max-width: 640px) 33vw, 15vw"
+                    className="w-full h-full object-contain object-center transition-opacity duration-300 pointer-events-none safari-scale-smooth"
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : src ? (
+          <ResilientImage
+            src={src}
+            alt={title}
+            priority={isPriority}
+            lazy={!isPriority}
+            rootMargin="400px 0px"
+            sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 100vw"
+            onDimensionsDetected={handleDimensionsDetected}
+            className="w-full h-full object-contain object-center transition-opacity duration-300 pointer-events-none safari-scale-smooth select-none"
+          />
+        ) : null}
+      </div>
+
+      {/* Understated Underlined Project Title Directly Underneath */}
+      <div className="mt-2 sm:mt-2.5 mb-[6px]">
+        <span className="inline-block text-xs sm:text-[13px] md:text-[14px] lg:text-[15px] font-normal tracking-wide text-neutral-900 underline underline-offset-4 decoration-1 decoration-neutral-400 group-hover:decoration-neutral-950 group-hover:text-black transition-colors duration-200">
+          {title}
+        </span>
+      </div>
+    </article>
+  );
+};
+
 export const ProjectsList: React.FC<ProjectsListProps> = ({
   projects,
   theme,
@@ -281,62 +420,340 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
     return map;
   }, [projects]);
 
-  // Dynamic editorial rows strictly based on projects actually present in database
+  // Helper to extract the primary thumbnail URL for a project
+  const getThumbnailForProject = React.useCallback((project: Project): string => {
+    const isInvalidPlaceholder = (url?: string | null) =>
+      !url ||
+      url === '/assets/gideon_boadi_portrait.png' ||
+      url.includes('placeholder');
+
+    const previewThumb =
+      (!isInvalidPlaceholder(project.preview_image) ? project.preview_image : null) ||
+      (!isInvalidPlaceholder(project.previewImages?.[0]) ? project.previewImages?.[0] : null) ||
+      '';
+
+    const projectImage = project.images?.[0];
+    return previewThumb || projectImage?.url || project.hero_image || '';
+  }, []);
+
+  // Track dynamically detected aspect ratio / orientation for each project's thumbnail
+  const [aspectData, setAspectData] = useState<
+    Record<
+      string,
+      {
+        orientation: OrientationType;
+        ratio: number;
+        width: number;
+        height: number;
+      }
+    >
+  >(() => {
+    const initial: Record<
+      string,
+      {
+        orientation: OrientationType;
+        ratio: number;
+        width: number;
+        height: number;
+      }
+    > = {};
+
+    projects.forEach((p) => {
+      const src = getThumbnailForProject(p);
+      if (!src) return;
+      const cached = getCachedAspectRatioClass(src);
+      const stored = p.aspect_ratio || (p as any).aspectRatio || p.images?.[0]?.aspectRatio;
+      const orientation =
+        (cached && detectOrientationFromClassOrString(cached)) ||
+        (stored && detectOrientationFromClassOrString(stored)) ||
+        'portrait';
+
+      initial[p.slug] = {
+        orientation,
+        ratio: orientation === 'landscape' ? 1.77 : orientation === 'square' ? 1 : 0.75,
+        width: orientation === 'landscape' ? 1920 : orientation === 'square' ? 1200 : 1200,
+        height: orientation === 'landscape' ? 1080 : orientation === 'square' ? 1200 : 1600,
+      };
+    });
+
+    return initial;
+  });
+
+  // Dynamically pre-measure all project thumbnail images to get exact orientation & natural dimensions
+  React.useEffect(() => {
+    let isMounted = true;
+
+    projects.forEach((p) => {
+      const src = getThumbnailForProject(p);
+      if (!src) return;
+
+      const img = new Image();
+      img.onload = () => {
+        if (!isMounted || img.naturalWidth <= 0 || img.naturalHeight <= 0) return;
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        const ratio = w / h;
+        const orientation = detectOrientationFromDimensions(w, h);
+        const cls = detectAspectRatioClassFromDimensions(w, h);
+        setCachedAspectRatioClass(src, cls);
+
+        setAspectData((prev) => {
+          const current = prev[p.slug];
+          if (
+            current &&
+            current.width === w &&
+            current.height === h &&
+            current.orientation === orientation
+          ) {
+            return prev;
+          }
+          return {
+            ...prev,
+            [p.slug]: {
+              orientation,
+              ratio,
+              width: w,
+              height: h,
+            },
+          };
+        });
+      };
+      img.src = src;
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projects, getThumbnailForProject]);
+
+  /**
+   * Balanced Editorial Grid Rearrangement:
+   * 1. The first image in the grid is guaranteed to be a landscape taking the entire width (full-width landscape plate).
+   * 2. The remaining projects are rearranged based on aspect ratio:
+   *    - Portraits are grouped with portraits (in balanced 2-column or 3-column rows) so heights match and there is NO empty void.
+   *    - Landscapes are grouped with other landscapes (balanced 2-column landscape row) or full-width landscape plates.
+   *    - Squares are paired with squares or close-matching portrait formats.
+   * 3. Completely prevents mismatched pairings (e.g. landscape next to tall portrait) that caused empty dead space.
+   */
   const activeRows = React.useMemo<EditorialRowConfig[]>(() => {
     if (!projects || projects.length === 0) return [];
 
-    const resultRows: EditorialRowConfig[] = [];
-    const rhythmPatterns: Array<{
-      type: EditorialRowConfig['type'];
-      count: number;
-    }> = [
-      { type: 'two-col-equal', count: 2 },
-      { type: 'two-col-1-to-2', count: 2 },
-      { type: 'full-width-landscape', count: 1 },
-      { type: 'three-col', count: 3 },
-      { type: 'two-col-2-to-1', count: 2 },
-      { type: 'four-col', count: 4 },
-      { type: 'two-col-equal', count: 2 },
-      { type: 'full-width-landscape', count: 1 },
-      { type: 'three-col', count: 3 },
-    ];
+    // Helper to get orientation for any project
+    const getOrientation = (p: Project): OrientationType => {
+      if (aspectData[p.slug]?.orientation) {
+        return aspectData[p.slug].orientation;
+      }
+      const src = getThumbnailForProject(p);
+      const cached = src ? getCachedAspectRatioClass(src) : null;
+      if (cached) return detectOrientationFromClassOrString(cached);
 
-    let pIdx = 0;
-    let patternIdx = 0;
+      const stored = p.aspect_ratio || (p as any).aspectRatio || p.images?.[0]?.aspectRatio;
+      if (stored) return detectOrientationFromClassOrString(stored);
 
-    while (pIdx < projects.length) {
-      const remaining = projects.length - pIdx;
-      const curPattern = rhythmPatterns[patternIdx % rhythmPatterns.length];
-      patternIdx++;
+      return 'portrait';
+    };
 
-      let takeCount = Math.min(curPattern.count, remaining);
-      let rowType = curPattern.type;
+    // Build project metadata list
+    const pool = projects.map((p) => ({
+      project: p,
+      orientation: getOrientation(p),
+    }));
 
-      // Adaptively adjust layout type if fewer items remain
-      if (takeCount === 1) {
-        rowType = 'full-width-landscape';
-      } else if (takeCount === 2 && (rowType === 'three-col' || rowType === 'four-col')) {
-        rowType = 'two-col-equal';
-      } else if (takeCount === 3 && rowType === 'four-col') {
-        rowType = 'three-col';
+    // Find the first landscape project to occupy the entire grid as Row 0
+    let heroLandscapeIndex = pool.findIndex((item) => item.orientation === 'landscape');
+    let heroProject: Project;
+    let heroImageIndex = 0;
+
+    if (heroLandscapeIndex !== -1) {
+      heroProject = pool[heroLandscapeIndex].project;
+      pool.splice(heroLandscapeIndex, 1);
+    } else {
+      // Check if any project has an image with landscape aspect ratio in its gallery
+      let foundInGallery = false;
+      for (let i = 0; i < pool.length; i++) {
+        const p = pool[i].project;
+        if (p.images && p.images.length > 0) {
+          const imgIdx = p.images.findIndex((img) => {
+            const asp = img.aspectRatio ? String(img.aspectRatio).toLowerCase() : '';
+            return (
+              asp.includes('landscape') ||
+              asp.includes('wide') ||
+              asp.includes('16:9') ||
+              asp.includes('4:3') ||
+              asp.includes('21:9')
+            );
+          });
+          if (imgIdx !== -1) {
+            heroProject = p;
+            heroImageIndex = imgIdx;
+            pool.splice(i, 1);
+            foundInGallery = true;
+            break;
+          }
+        }
       }
 
-      const rowProjects = projects.slice(pIdx, pIdx + takeCount);
-      resultRows.push({
-        id: `editorial-row-${pIdx}`,
-        type: rowType,
-        items: rowProjects.map((p) => ({
-          projectSlug: p.slug,
-          imageIndex: 0,
-          customTitle: p.title,
-        })),
-      });
+      if (!foundInGallery) {
+        // Fallback: take the first project and format as the prominent full-width showcase
+        heroProject = pool[0].project;
+        pool.splice(0, 1);
+      }
+    }
 
-      pIdx += takeCount;
+    const resultRows: EditorialRowConfig[] = [];
+
+    // ROW 0: Always a grand full-width landscape taking the entire grid width
+    resultRows.push({
+      id: `hero-landscape-${heroProject.slug}`,
+      type: 'full-width-landscape',
+      items: [
+        {
+          projectSlug: heroProject.slug,
+          imageIndex: heroImageIndex,
+          customTitle: heroProject.title,
+        },
+      ],
+    });
+
+    // Separate remaining projects into orientation categories
+    const remainingPortraits: Project[] = [];
+    const remainingLandscapes: Project[] = [];
+    const remainingSquares: Project[] = [];
+
+    pool.forEach((item) => {
+      if (item.orientation === 'landscape') {
+        remainingLandscapes.push(item.project);
+      } else if (item.orientation === 'square') {
+        remainingSquares.push(item.project);
+      } else {
+        remainingPortraits.push(item.project);
+      }
+    });
+
+    let rowIndex = 1;
+
+    // Process remaining projects into balanced, flush rows
+    while (
+      remainingPortraits.length > 0 ||
+      remainingLandscapes.length > 0 ||
+      remainingSquares.length > 0
+    ) {
+      // If we have landscapes left to weave in:
+      if (
+        remainingLandscapes.length > 0 &&
+        (rowIndex % 3 === 0 || remainingPortraits.length === 0)
+      ) {
+        if (remainingLandscapes.length >= 2 && rowIndex % 2 === 0) {
+          // Pair 2 landscapes in a balanced 2-column landscape row (both have matching landscape heights!)
+          const l1 = remainingLandscapes.shift()!;
+          const l2 = remainingLandscapes.shift()!;
+          resultRows.push({
+            id: `row-landscapes-pair-${rowIndex++}`,
+            type: 'two-col-equal',
+            items: [
+              { projectSlug: l1.slug, imageIndex: 0, customTitle: l1.title },
+              { projectSlug: l2.slug, imageIndex: 0, customTitle: l2.title },
+            ],
+          });
+        } else {
+          // Single landscape becomes an impressive full-width canvas
+          const l = remainingLandscapes.shift()!;
+          resultRows.push({
+            id: `row-landscape-full-${rowIndex++}`,
+            type: 'full-width-landscape',
+            items: [{ projectSlug: l.slug, imageIndex: 0, customTitle: l.title }],
+          });
+        }
+        continue;
+      }
+
+      // Group portraits with portraits so lengths are equal and there is no empty space
+      if (remainingPortraits.length >= 3 && rowIndex % 3 === 2) {
+        // Trio of portraits in a 3-column row
+        const p1 = remainingPortraits.shift()!;
+        const p2 = remainingPortraits.shift()!;
+        const p3 = remainingPortraits.shift()!;
+        resultRows.push({
+          id: `row-portraits-trio-${rowIndex++}`,
+          type: 'three-col',
+          items: [
+            { projectSlug: p1.slug, imageIndex: 0, customTitle: p1.title },
+            { projectSlug: p2.slug, imageIndex: 0, customTitle: p2.title },
+            { projectSlug: p3.slug, imageIndex: 0, customTitle: p3.title },
+          ],
+        });
+      } else if (remainingPortraits.length >= 2) {
+        // Pair of portraits in a 2-column row (50% / 50% equal height!)
+        const p1 = remainingPortraits.shift()!;
+        const p2 = remainingPortraits.shift()!;
+        resultRows.push({
+          id: `row-portraits-pair-${rowIndex++}`,
+          type: 'two-col-equal',
+          items: [
+            { projectSlug: p1.slug, imageIndex: 0, customTitle: p1.title },
+            { projectSlug: p2.slug, imageIndex: 0, customTitle: p2.title },
+          ],
+        });
+      } else if (remainingPortraits.length === 1) {
+        const p = remainingPortraits.shift()!;
+        if (remainingSquares.length > 0) {
+          // Pair with a square (square is close in aspect to portrait, avoiding giant height discrepancies)
+          const sq = remainingSquares.shift()!;
+          resultRows.push({
+            id: `row-portrait-sq-${rowIndex++}`,
+            type: 'two-col-equal',
+            items: [
+              { projectSlug: p.slug, imageIndex: 0, customTitle: p.title },
+              { projectSlug: sq.slug, imageIndex: 0, customTitle: sq.title },
+            ],
+          });
+        } else if (remainingLandscapes.length > 0) {
+          // Never place a landscape next to a portrait in the same row!
+          // Give the portrait its own clean column, and the landscape a full-width plate
+          resultRows.push({
+            id: `row-portrait-solo-${rowIndex++}`,
+            type: 'two-col-equal',
+            items: [{ projectSlug: p.slug, imageIndex: 0, customTitle: p.title }],
+          });
+        } else {
+          resultRows.push({
+            id: `row-portrait-solo-${rowIndex++}`,
+            type: 'two-col-equal',
+            items: [{ projectSlug: p.slug, imageIndex: 0, customTitle: p.title }],
+          });
+        }
+      } else if (remainingSquares.length > 0) {
+        if (remainingSquares.length >= 2) {
+          const sq1 = remainingSquares.shift()!;
+          const sq2 = remainingSquares.shift()!;
+          resultRows.push({
+            id: `row-squares-pair-${rowIndex++}`,
+            type: 'two-col-equal',
+            items: [
+              { projectSlug: sq1.slug, imageIndex: 0, customTitle: sq1.title },
+              { projectSlug: sq2.slug, imageIndex: 0, customTitle: sq2.title },
+            ],
+          });
+        } else {
+          const sq = remainingSquares.shift()!;
+          resultRows.push({
+            id: `row-square-solo-${rowIndex++}`,
+            type: 'two-col-equal',
+            items: [{ projectSlug: sq.slug, imageIndex: 0, customTitle: sq.title }],
+          });
+        }
+      } else if (remainingLandscapes.length > 0) {
+        const l = remainingLandscapes.shift()!;
+        resultRows.push({
+          id: `row-landscape-full-${rowIndex++}`,
+          type: 'full-width-landscape',
+          items: [{ projectSlug: l.slug, imageIndex: 0, customTitle: l.title }],
+        });
+      }
     }
 
     return resultRows;
-  }, [projects]);
+  }, [projects, aspectData, getThumbnailForProject]);
 
   const displayedRows = showAll || activeRows.length <= 8
     ? activeRows
@@ -402,105 +819,59 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
   };
 
   /**
-   * Renders a single picture frame card with underlined title underneath
+   * Editorial Project Card with dynamic container aspect ratio
+   * Automatically shapes itself to the aspect ratio of the client's uploaded thumbnail.
+   * Images use object-contain so details are 100% visible before clicking into lightbox.
    */
   const renderCard = (
     itemConfig: RowItemConfig,
-    aspectRatioClasses: string,
+    defaultAspect = 'aspect-[4/3]',
     extraContainerClasses = '',
     isPriority = false
   ) => {
     const data = resolveItemData(itemConfig);
     if (!data) return null;
-
     const { project, src, title, is3x3Grid } = data;
 
     return (
-      <article
-        key={`${project.slug}-${itemConfig.imageIndex ?? 0}-${itemConfig.customTitle ?? ''}`}
-        id={`card-${project.slug}-${itemConfig.imageIndex ?? 0}`}
-        onClick={() => onSelectProject(project)}
-        className={`group cursor-pointer flex flex-col select-none ${extraContainerClasses}`}
-      >
-        {/* Massive Picture Frame / Canvas Container */}
-        <div
-          className={`relative w-full overflow-hidden bg-neutral-100 safari-clip-fix ${aspectRatioClasses}`}
-        >
-          {is3x3Grid && project.gridImages && project.gridImages.length > 0 ? (
-            /* 3x3 Photo Matrix Contact Sheet (French Kiwis Eyewear reference) */
-            <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-[2px] sm:gap-[3px]">
-              {project.gridImages.slice(0, 9).map((imgUrl, idx) => (
-                <div
-                  key={idx}
-                  className="relative w-full h-full overflow-hidden bg-neutral-200 safari-clip-fix"
-                >
-                  <ResilientImage
-                    src={imgUrl}
-                    alt={`${title} tile ${idx + 1}`}
-                    priority={isPriority && idx < 3}
-                    lazy={!(isPriority && idx < 3)}
-                    rootMargin="400px 0px"
-                    sizes="(max-width: 640px) 33vw, 15vw"
-                    className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 pointer-events-none safari-scale-smooth"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            /* Single Grand Full-Frame Photograph */
-            <ResilientImage
-              src={src}
-              alt={title}
-              priority={isPriority}
-              lazy={!isPriority}
-              rootMargin="400px 0px"
-              sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 100vw"
-              className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.015] pointer-events-none safari-scale-smooth"
-            />
-          )}
-        </div>
-
-        {/* Understated Underlined Project Title Directly Underneath */}
-        <div className="mt-2 sm:mt-2.5 mb-[6px]">
-          <span className="inline-block text-xs sm:text-[13px] md:text-[14px] lg:text-[15px] font-normal tracking-wide text-neutral-900 underline underline-offset-4 decoration-1 decoration-neutral-400 group-hover:decoration-neutral-950 group-hover:text-black transition-colors duration-200">
-            {title}
-          </span>
-        </div>
-      </article>
+      <EditorialProjectCard
+        key={`${itemConfig.projectSlug}-${itemConfig.imageIndex ?? 0}-${itemConfig.customTitle ?? ''}`}
+        project={project}
+        src={src}
+        title={title}
+        is3x3Grid={is3x3Grid}
+        cardId={`card-${project.slug}-${itemConfig.imageIndex ?? 0}`}
+        defaultAspectClasses={defaultAspect}
+        extraContainerClasses={extraContainerClasses}
+        isPriority={isPriority}
+        onSelectProject={onSelectProject}
+      />
     );
   };
 
   /**
-   * Renders an editorial row based on its layout archetype with exact 10px gap
+   * Renders an editorial row with responsive rhythm and dynamic image containers
    */
   const renderRow = (row: EditorialRowConfig, rowIndex: number) => {
     const isPriorityRow = rowIndex === 0;
 
     switch (row.type) {
-      // 1. Two-Column Equal: 50% / 50% grand vertical plates side by side - 10px gap
+      // 1. Two-Column Equal: 50% / 50% dynamic plates side by side - 10px gap
       case 'two-col-equal':
         return (
           <div
             key={row.id}
-            className="flex flex-col md:flex-row gap-[10px] items-start"
+            className="grid grid-cols-1 md:grid-cols-2 gap-[10px] items-stretch"
           >
             {row.items.map((item) => (
-              <div
-                key={`${item.projectSlug}-${item.imageIndex ?? 0}`}
-                className="w-full md:w-[calc(50%-5px)]"
-              >
-                {renderCard(
-                  item,
-                  'aspect-[3/4] sm:aspect-[4/5] min-h-[460px] sm:min-h-[580px] md:min-h-[660px] lg:min-h-[780px]',
-                  '',
-                  isPriorityRow
-                )}
+              <div key={`${item.projectSlug}-${item.imageIndex ?? 0}`} className="w-full flex">
+                {renderCard(item, 'aspect-[4/5]', 'w-full h-full flex flex-col justify-between', isPriorityRow)}
               </div>
             ))}
           </div>
         );
 
-      // 2. Two-Column Asymmetric 1 is to 2: Narrow portrait left (1 part), broad landscape right (2 parts) - Exact Equal Height, 10px gap
+      // 2. Two-Column Asymmetric 1 is to 2: Narrow column left, broad column right - 10px gap
       case 'two-col-1-to-2': {
         const leftItem = row.items[0];
         const rightItem = row.items[1];
@@ -510,30 +881,20 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
             className="grid grid-cols-1 md:grid-cols-3 gap-[10px] items-stretch"
           >
             {leftItem && (
-              <div className="w-full md:col-span-1">
-                {renderCard(
-                  leftItem,
-                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]',
-                  '',
-                  isPriorityRow
-                )}
+              <div className="w-full md:col-span-1 flex">
+                {renderCard(leftItem, 'aspect-[3/4]', 'w-full h-full flex flex-col justify-between', isPriorityRow)}
               </div>
             )}
             {rightItem && (
-              <div className="w-full md:col-span-2">
-                {renderCard(
-                  rightItem,
-                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]',
-                  '',
-                  isPriorityRow
-                )}
+              <div className="w-full md:col-span-2 flex">
+                {renderCard(rightItem, 'aspect-[16/9]', 'w-full h-full flex flex-col justify-between', isPriorityRow)}
               </div>
             )}
           </div>
         );
       }
 
-      // 3. Two-Column Asymmetric 2 is to 1: Broad landscape left (2 parts), narrow portrait right (1 part) - Exact Equal Height, 10px gap
+      // 3. Two-Column Asymmetric 2 is to 1: Broad column left, narrow column right - 10px gap
       case 'two-col-2-to-1': {
         const leftItem = row.items[0];
         const rightItem = row.items[1];
@@ -543,63 +904,40 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
             className="grid grid-cols-1 md:grid-cols-3 gap-[10px] items-stretch"
           >
             {leftItem && (
-              <div className="w-full md:col-span-2">
-                {renderCard(
-                  leftItem,
-                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]',
-                  '',
-                  isPriorityRow
-                )}
+              <div className="w-full md:col-span-2 flex">
+                {renderCard(leftItem, 'aspect-[16/9]', 'w-full h-full flex flex-col justify-between', isPriorityRow)}
               </div>
             )}
             {rightItem && (
-              <div className="w-full md:col-span-1">
-                {renderCard(
-                  rightItem,
-                  'w-full h-[380px] sm:h-[480px] md:h-[540px] lg:h-[620px]',
-                  '',
-                  isPriorityRow
-                )}
+              <div className="w-full md:col-span-1 flex">
+                {renderCard(rightItem, 'aspect-[3/4]', 'w-full h-full flex flex-col justify-between', isPriorityRow)}
               </div>
             )}
           </div>
         );
       }
 
-      // 4. Single Full-Width Grand Landscape Canvas Plate (100% width)
+      // 4. Single Full-Width Landscape Canvas Plate (100% width)
       case 'full-width-landscape': {
         const item = row.items[0];
         if (!item) return null;
         return (
           <div key={row.id} className="w-full">
-            {renderCard(
-              item,
-              'w-full aspect-[16/9] sm:aspect-[21/9] lg:aspect-[24/10] min-h-[380px] sm:min-h-[500px] md:min-h-[620px] lg:min-h-[720px] max-h-[820px]',
-              '',
-              isPriorityRow
-            )}
+            {renderCard(item, 'aspect-[16/9]', 'w-full', isPriorityRow)}
           </div>
         );
       }
 
-      // 5. Three-Column Editorial Grid (33.3% / 33.3% / 33.3%) - Exact Uniform Height, 10px gap
+      // 5. Three-Column Editorial Grid (33.3% each) - 10px gap
       case 'three-col':
         return (
           <div
             key={row.id}
-            className="grid grid-cols-1 md:grid-cols-3 gap-[10px] items-start"
+            className="grid grid-cols-1 md:grid-cols-3 gap-[10px] items-stretch"
           >
             {row.items.map((item) => (
-              <div
-                key={`${item.projectSlug}-${item.imageIndex ?? 0}`}
-                className="w-full"
-              >
-                {renderCard(
-                  item,
-                  'w-full h-[360px] sm:h-[440px] md:h-[500px] lg:h-[580px]',
-                  '',
-                  isPriorityRow
-                )}
+              <div key={`${item.projectSlug}-${item.imageIndex ?? 0}`} className="w-full flex">
+                {renderCard(item, 'aspect-[4/5]', 'w-full h-full flex flex-col justify-between', isPriorityRow)}
               </div>
             ))}
           </div>
@@ -610,19 +948,11 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
         return (
           <div
             key={row.id}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[10px] items-start"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[10px] items-stretch"
           >
             {row.items.map((item) => (
-              <div
-                key={`${item.projectSlug}-${item.imageIndex ?? 0}`}
-                className="w-full"
-              >
-                {renderCard(
-                  item,
-                  'aspect-[3/4] min-h-[360px] sm:min-h-[420px] md:min-h-[480px] lg:min-h-[560px]',
-                  '',
-                  isPriorityRow
-                )}
+              <div key={`${item.projectSlug}-${item.imageIndex ?? 0}`} className="w-full flex">
+                {renderCard(item, 'aspect-[3/4]', 'w-full h-full flex flex-col justify-between', isPriorityRow)}
               </div>
             ))}
           </div>

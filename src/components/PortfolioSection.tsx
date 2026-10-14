@@ -27,55 +27,77 @@ const PortfolioItemCard: React.FC<PortfolioItemCardProps> = ({ shot, idx, onClic
   const cachedClass = getCachedAspectRatioClass(shot.url);
   const storedClass = mapStoredAspectRatioToClass(shot.aspectRatio);
 
-  // Dynamic state: uses cached measured ratio, stored ratio, or neutral default
   const [aspectClass, setAspectClass] = useState<string>(
     cachedClass || storedClass || 'aspect-[3/4]'
   );
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
 
-  // Proactively measure image natural dimensions on mount to ensure 100% accurate format
+  // Proactively measure image natural dimensions on mount to ensure accurate format
   React.useEffect(() => {
     if (!shot.url) return;
     const cached = getCachedAspectRatioClass(shot.url);
     if (cached) {
-      setAspectClass(cached);
-      return;
+      setAspectClass((prev) => (prev === cached ? prev : cached));
     }
+    let isMounted = true;
     const img = new Image();
     img.onload = () => {
+      if (!isMounted) return;
       if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        setDimensions((prev) => {
+          if (prev && prev.width === img.naturalWidth && prev.height === img.naturalHeight) return prev;
+          return { width: img.naturalWidth, height: img.naturalHeight };
+        });
         const detected = detectAspectRatioClassFromDimensions(img.naturalWidth, img.naturalHeight);
         setCachedAspectRatioClass(shot.url, detected);
-        setAspectClass(detected);
+        setAspectClass((prev) => (prev === detected ? prev : detected));
       }
     };
     img.src = shot.url;
+    return () => {
+      isMounted = false;
+    };
   }, [shot.url]);
 
-  const handleDimensionsDetected = (w: number, h: number) => {
+  const handleDimensionsDetected = React.useCallback((w: number, h: number) => {
+    if (!w || !h) return;
+    setDimensions((prev) => {
+      if (prev && prev.width === w && prev.height === h) return prev;
+      return { width: w, height: h };
+    });
     const detected = detectAspectRatioClassFromDimensions(w, h);
-    setCachedAspectRatioClass(shot.url, detected);
-    setAspectClass(detected);
-  };
+    if (shot.url) setCachedAspectRatioClass(shot.url, detected);
+    setAspectClass((prev) => (prev === detected ? prev : detected));
+  }, [shot.url]);
+
+  const dynamicAspectRatio = dimensions?.width && dimensions?.height
+    ? `${dimensions.width} / ${dimensions.height}`
+    : undefined;
 
   return (
     <div className="break-inside-avoid inline-block w-full align-top mb-[8px] sm:mb-[10px] md:mb-[12px]">
       <article
         id={`portfolio-shot-${shot.id}`}
         onClick={onClick}
-        className="group relative overflow-hidden bg-neutral-200 cursor-pointer w-full safari-clip-fix"
+        className="group relative overflow-hidden bg-neutral-100 dark:bg-neutral-900 cursor-pointer w-full safari-clip-fix rounded-xs transition-opacity duration-200 hover:opacity-95"
         title={`Click to view ${shot.title} in lightbox`}
       >
-        <div className={`w-full ${aspectClass} relative overflow-hidden bg-neutral-100 safari-clip-fix transition-[aspect-ratio] duration-300`}>
-          <ResilientImage
-            src={shot.url}
-            alt={shot.title}
-            priority={idx < 2}
-            lazy={idx >= 2}
-            rootMargin="400px 0px"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            onDimensionsDetected={handleDimensionsDetected}
-            className="w-full h-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-[1.025] pointer-events-none safari-scale-smooth"
-          />
+        <div
+          style={{ aspectRatio: dynamicAspectRatio }}
+          className={`w-full ${!dynamicAspectRatio ? aspectClass : ''} relative overflow-hidden bg-neutral-100 dark:bg-neutral-900 safari-clip-fix flex items-center justify-center`}
+        >
+          {shot.url ? (
+            <ResilientImage
+              src={shot.url}
+              alt={shot.title}
+              priority={idx < 4}
+              lazy={idx >= 4}
+              rootMargin="400px 0px"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              onDimensionsDetected={handleDimensionsDetected}
+              className="w-full h-full object-contain object-center transition-opacity duration-300 pointer-events-none safari-scale-smooth select-none"
+            />
+          ) : null}
         </div>
       </article>
     </div>

@@ -93,10 +93,11 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
   const mobileFocalY = config.mobileFocalY ?? 50;
 
   // Determine media URL based on viewport
+  const fallbackCoverUrl = 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/l1060844-2-1790909528392.jpg';
   const activeMediaUrl =
     isMobileOrPortrait && activeAsset.mobileUrl
       ? activeAsset.mobileUrl
-      : activeAsset.url || config.mediaUrl || '';
+      : activeAsset.url || config.mediaUrl || fallbackCoverUrl;
 
   const isVideoFormat =
     activeAsset.mediaType === 'video' ||
@@ -168,7 +169,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
       */}
       <div className="absolute inset-0 w-full h-full min-h-[100dvh] overflow-hidden bg-neutral-950">
         {/* Dynamic Video (rendered when mediaType === 'video' or mp4 source) */}
-        {isVideoFormat ? (
+        {isVideoFormat && activeMediaUrl ? (
           <video
             ref={videoRef}
             key={activeMediaUrl}
@@ -195,7 +196,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
               videoLoaded && !hasVideoError ? 'opacity-100' : 'opacity-0'
             }`}
           />
-        ) : (
+        ) : activeMediaUrl ? (
           /* Pure Image Mode — clean, centered, no gradient bleed */
           <img
             src={activeMediaUrl}
@@ -212,7 +213,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
             decoding="async"
             referrerPolicy="no-referrer"
           />
-        )}
+        ) : null}
 
         {/* Ambient Darkened Overlay */}
         <div

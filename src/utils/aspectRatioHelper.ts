@@ -113,6 +113,70 @@ export function mapStoredAspectRatioToClass(aspect?: string | null): string {
   }
 }
 
+export type OrientationType = 'landscape' | 'portrait' | 'square';
+
+/**
+ * Detects whether image dimensions correspond to landscape, portrait, or square orientation.
+ */
+export function detectOrientationFromDimensions(width: number, height: number): OrientationType {
+  if (!width || !height) return 'portrait';
+  const ratio = width / height;
+  if (ratio >= 1.15) return 'landscape';
+  if (ratio <= 0.88) return 'portrait';
+  return 'square';
+}
+
+/**
+ * Detects orientation from a stored aspect string (e.g. '16:9', 'landscape') or Tailwind class (e.g. 'aspect-[16/9]').
+ */
+export function detectOrientationFromClassOrString(str?: string | null): OrientationType {
+  if (!str) return 'portrait';
+  const s = str.toLowerCase().trim();
+  if (
+    s.includes('16/9') ||
+    s.includes('16:9') ||
+    s.includes('21/9') ||
+    s.includes('21:9') ||
+    s.includes('4/3') ||
+    s.includes('4:3') ||
+    s.includes('16/10') ||
+    s.includes('landscape') ||
+    s.includes('wide') ||
+    s.includes('cinema') ||
+    s.includes('ultrawide')
+  ) {
+    return 'landscape';
+  }
+  if (
+    s.includes('3/4') ||
+    s.includes('3:4') ||
+    s.includes('2/3') ||
+    s.includes('2:3') ||
+    s.includes('9/16') ||
+    s.includes('9:16') ||
+    s.includes('4/5') ||
+    s.includes('4:5') ||
+    s.includes('portrait') ||
+    s.includes('tall')
+  ) {
+    return 'portrait';
+  }
+  if (s.includes('square') || s.includes('1:1') || s.includes('1/1')) {
+    return 'square';
+  }
+  return 'portrait';
+}
+
+/**
+ * Gets cached orientation from ratioCache if available
+ */
+export function getCachedOrientation(url: string): OrientationType | null {
+  if (!url) return null;
+  const cached = ratioCache.get(url);
+  if (!cached) return null;
+  return detectOrientationFromClassOrString(cached);
+}
+
 /**
  * Gets cached aspect ratio for a URL or returns null if not measured yet
  */

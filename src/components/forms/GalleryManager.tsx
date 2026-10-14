@@ -54,11 +54,11 @@ const SortableGalleryCard: React.FC<GalleryItemProps> = ({ item, onUpdateAlt, on
       }`}
     >
       <div className="relative aspect-[4/3] bg-neutral-900 group">
-        {isVideo ? (
+        {isVideo && item.media_url ? (
           <video src={item.media_url} className="w-full h-full object-cover" muted />
-        ) : (
+        ) : item.media_url ? (
           <img src={item.media_url} alt={item.alt_text || ''} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-        )}
+        ) : null}
 
         {/* Drag Handle */}
         <div

@@ -573,14 +573,14 @@ export const HeroCmsPage: React.FC = () => {
                             <Video className="w-3.5 h-3.5 text-white" />
                           </div>
                         </>
-                      ) : (
+                      ) : asset.url ? (
                         <img
                           src={asset.url}
                           alt={asset.title}
                           className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
                         />
-                      )}
+                      ) : null}
                     </div>
 
                     {/* Info & Editable Title */}

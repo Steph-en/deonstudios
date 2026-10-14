@@ -26,7 +26,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
   const currentImage = images[currentIndex];
   const [isImageLoading, setIsImageLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [activeSrc, setActiveSrc] = useState<string>('');
+  const [activeSrc, setActiveSrc] = useState<string>(() => currentImage?.url || '');
 
   // Touch swipe support for mobile
   const touchStartX = useRef<number | null>(null);
@@ -262,7 +262,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
                 Retry
               </button>
             </div>
-          ) : (
+          ) : activeSrc ? (
             <img
               key={activeSrc}
               src={activeSrc}
@@ -279,7 +279,7 @@ export const LightboxModal: React.FC<LightboxModalProps> = ({
                 isImageLoading ? 'opacity-0' : 'opacity-100'
               }`}
             />
-          )}
+          ) : null}
         </div>
 
         {/* Next Navigation Button */}

@@ -83,13 +83,17 @@ const SortableShotCard: React.FC<SortableShotCardProps> = ({
           : 'border-neutral-200 hover:border-neutral-400'
       }`}
     >
-      <div className="relative aspect-[3/4] bg-neutral-900 overflow-hidden">
-        <img
-          src={shot.url}
-          alt={shot.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          referrerPolicy="no-referrer"
-        />
+      <div className="relative aspect-[3/4] bg-neutral-900 overflow-hidden flex items-center justify-center">
+        {shot.url ? (
+          <img
+            src={shot.url}
+            alt={shot.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <span className="text-[10px] font-mono text-neutral-500 uppercase">No image</span>
+        )}
         {/* Drag handle & Step order buttons */}
         <div className="absolute top-2 left-2 flex items-center gap-1 z-10">
           <div
@@ -644,12 +648,18 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
                           className="w-12 h-14 bg-neutral-900 rounded overflow-hidden flex-shrink-0 border border-neutral-200 block relative group/thumb cursor-zoom-in"
                           title="Preview full shot"
                         >
-                          <img
-                            src={s.url}
-                            alt={s.title}
-                            className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
-                            referrerPolicy="no-referrer"
-                          />
+                          {s.url ? (
+                            <img
+                              src={s.url}
+                              alt={s.title}
+                              className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center font-mono text-[9px] text-neutral-500">
+                              N/A
+                            </div>
+                          )}
                         </button>
                       </td>
 
@@ -758,12 +768,14 @@ export const PortfolioListPage: React.FC<PortfolioListPageProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative aspect-[3/4] max-h-[70vh] bg-neutral-100">
-              <img
-                src={previewShot.url}
-                alt={previewShot.title}
-                className="w-full h-full object-contain"
-                referrerPolicy="no-referrer"
-              />
+              {previewShot.url ? (
+                <img
+                  src={previewShot.url}
+                  alt={previewShot.title}
+                  className="w-full h-full object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              ) : null}
             </div>
             <div className="p-4 flex items-center justify-between border-t border-neutral-100 bg-white">
               <div>

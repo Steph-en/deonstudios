@@ -224,8 +224,16 @@ export const ContactView: React.FC = () => {
 
       const result = await response.json().catch(() => null);
 
-      if (!response.ok && result?.errors) {
-        setErrors(result.errors);
+      if (!response.ok) {
+        if (result?.errors) {
+          setErrors(result.errors);
+        } else {
+          setServerError(
+            result?.error ||
+            result?.message ||
+            `Server returned status ${response.status}. Please check your connection or send your message directly to ${destinationEmail}.`
+          );
+        }
         return;
       }
 

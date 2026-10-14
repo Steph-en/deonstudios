@@ -339,13 +339,17 @@ export const ProjectListPage: React.FC<ProjectListPageProps> = ({
 
                       {/* Thumbnail */}
                       <td className="py-3 px-3 w-16">
-                        <div className="w-12 h-14 bg-neutral-900 rounded overflow-hidden flex-shrink-0 border border-neutral-200">
-                          <img
-                            src={thumb}
-                            alt={p.title}
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
+                        <div className="w-12 h-14 bg-neutral-900 rounded overflow-hidden flex-shrink-0 border border-neutral-200 flex items-center justify-center">
+                          {thumb ? (
+                            <img
+                              src={thumb}
+                              alt={p.title}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <span className="text-[9px] font-mono text-neutral-500 uppercase">Empty</span>
+                          )}
                         </div>
                       </td>
 

@@ -191,8 +191,16 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
 
       const data = await res.json().catch(() => null);
 
-      if (!res.ok && data?.errors) {
-        setErrors(data.errors);
+      if (!res.ok) {
+        if (data?.errors) {
+          setErrors(data.errors);
+        } else {
+          setServerError(
+            data?.error ||
+            data?.message ||
+            `Server returned status ${res.status}. Please try again or email ${destinationEmail} directly.`
+          );
+        }
         return;
       }
 
