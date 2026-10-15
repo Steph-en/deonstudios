@@ -184,6 +184,14 @@ export function useProjectMutations() {
     },
   });
 
+  const reorderProjects = useMutation({
+    mutationFn: (orders: { id: string; display_order: number }[]) =>
+      ProjectService.reorderProjects(orders),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+
   return {
     createProject,
     updateProject,
@@ -192,6 +200,7 @@ export function useProjectMutations() {
     deleteMultipleProjects,
     updateMultipleProjectsStatus,
     updateMultipleProjectsFeatured,
+    reorderProjects,
   };
 }
 

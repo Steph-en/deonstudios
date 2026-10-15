@@ -256,6 +256,12 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
     }
   };
 
+  const handleSetGalleryAsPreview = (url: string) => {
+    setValue('preview_image', url, { shouldDirty: true });
+    setValue('hero_image', url, { shouldDirty: true });
+    toast.success('Selected image set as Project Thumbnail & Hero Banner.', 'THUMBNAIL UPDATED');
+  };
+
   // Case Study Sections handlers
   const handleAddSection = async (sec: Partial<DbProjectSection>) => {
     if (!projectId && isNew) {
@@ -612,6 +618,45 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
             </p>
           </div>
 
+          {galleryItems.length > 0 && (
+            <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-neutral-800 uppercase tracking-wider">
+                  Quick Select from Gallery ({galleryItems.length} assets):
+                </span>
+                {galleryItems[0]?.media_url && (
+                  <button
+                    type="button"
+                    onClick={() => handleSetGalleryAsPreview(galleryItems[0].media_url!)}
+                    className="text-[11px] font-medium text-neutral-900 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    Use #1 Image as Thumbnail & Hero
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                {galleryItems.map((item, idx) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => item.media_url && handleSetGalleryAsPreview(item.media_url)}
+                    className={`relative w-14 h-14 rounded-md overflow-hidden flex-shrink-0 border-2 transition cursor-pointer ${
+                      previewImage === item.media_url
+                        ? 'border-neutral-950 ring-2 ring-neutral-950/20'
+                        : 'border-transparent hover:border-neutral-400'
+                    }`}
+                    title={`Click to set image #${idx + 1} as preview`}
+                  >
+                    <img src={item.media_url || ''} alt="" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-0.5 right-0.5 bg-black/70 text-white text-[9px] px-1 rounded font-mono">
+                      #{idx + 1}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <MediaUploader
               label="Preview Thumbnail Image"
@@ -670,6 +715,7 @@ export const ProjectEditPage: React.FC<ProjectEditPageProps> = ({
             onAddItem={handleAddGalleryItem}
             onDeleteItem={handleDeleteGalleryItem}
             onUpdateAlt={handleUpdateGalleryAlt}
+            onSetAsPreview={handleSetGalleryAsPreview}
           />
         </div>
       )}

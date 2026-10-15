@@ -559,44 +559,68 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
       orientation: getOrientation(p),
     }));
 
-    // Find the first landscape project to occupy the entire grid as Row 0
-    let heroLandscapeIndex = pool.findIndex((item) => item.orientation === 'landscape');
+    // Determine the full-width landscape hero for Row 0
     let heroProject: Project;
     let heroImageIndex = 0;
 
-    if (heroLandscapeIndex !== -1) {
-      heroProject = pool[heroLandscapeIndex].project;
-      pool.splice(heroLandscapeIndex, 1);
+    // First check if the user's #1 ordered project is already landscape or contains a landscape image
+    const firstProject = pool[0]?.project;
+    const firstProjHasLandscapeImg = firstProject?.images?.findIndex((img) => {
+      const asp = img.aspectRatio ? String(img.aspectRatio).toLowerCase() : '';
+      return (
+        asp.includes('landscape') ||
+        asp.includes('wide') ||
+        asp.includes('16:9') ||
+        asp.includes('4:3') ||
+        asp.includes('21:9')
+      );
+    });
+
+    if (pool[0]?.orientation === 'landscape') {
+      heroProject = pool[0].project;
+      heroImageIndex = 0;
+      pool.splice(0, 1);
+    } else if (firstProjHasLandscapeImg !== undefined && firstProjHasLandscapeImg !== -1) {
+      heroProject = pool[0].project;
+      heroImageIndex = firstProjHasLandscapeImg;
+      pool.splice(0, 1);
     } else {
-      // Check if any project has an image with landscape aspect ratio in its gallery
-      let foundInGallery = false;
-      for (let i = 0; i < pool.length; i++) {
-        const p = pool[i].project;
-        if (p.images && p.images.length > 0) {
-          const imgIdx = p.images.findIndex((img) => {
-            const asp = img.aspectRatio ? String(img.aspectRatio).toLowerCase() : '';
-            return (
-              asp.includes('landscape') ||
-              asp.includes('wide') ||
-              asp.includes('16:9') ||
-              asp.includes('4:3') ||
-              asp.includes('21:9')
-            );
-          });
-          if (imgIdx !== -1) {
-            heroProject = p;
-            heroImageIndex = imgIdx;
-            pool.splice(i, 1);
-            foundInGallery = true;
-            break;
+      // Find the first landscape project in the user's ordered list
+      let heroLandscapeIndex = pool.findIndex((item) => item.orientation === 'landscape');
+      if (heroLandscapeIndex !== -1) {
+        heroProject = pool[heroLandscapeIndex].project;
+        pool.splice(heroLandscapeIndex, 1);
+      } else {
+        // Check if any project has an image with landscape aspect ratio in its gallery
+        let foundInGallery = false;
+        for (let i = 0; i < pool.length; i++) {
+          const p = pool[i].project;
+          if (p.images && p.images.length > 0) {
+            const imgIdx = p.images.findIndex((img) => {
+              const asp = img.aspectRatio ? String(img.aspectRatio).toLowerCase() : '';
+              return (
+                asp.includes('landscape') ||
+                asp.includes('wide') ||
+                asp.includes('16:9') ||
+                asp.includes('4:3') ||
+                asp.includes('21:9')
+              );
+            });
+            if (imgIdx !== -1) {
+              heroProject = p;
+              heroImageIndex = imgIdx;
+              pool.splice(i, 1);
+              foundInGallery = true;
+              break;
+            }
           }
         }
-      }
 
-      if (!foundInGallery) {
-        // Fallback: take the first project and format as the prominent full-width showcase
-        heroProject = pool[0].project;
-        pool.splice(0, 1);
+        if (!foundInGallery) {
+          // Fallback: take the first project and format as the prominent full-width showcase
+          heroProject = pool[0].project;
+          pool.splice(0, 1);
+        }
       }
     }
 

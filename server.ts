@@ -263,6 +263,14 @@ async function startServer() {
       );
     }
 
+    // Sort by display_order (lowest first), fallback to created_at
+    list = [...list].sort((a, b) => {
+      const orderA = a.display_order !== undefined && a.display_order !== null ? a.display_order : 9999;
+      const orderB = b.display_order !== undefined && b.display_order !== null ? b.display_order : 9999;
+      if (orderA !== orderB) return orderA - orderB;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
     res.json(list);
   });
 
@@ -336,6 +344,25 @@ async function startServer() {
       saveDatabase(db);
     }
     res.json({ success: true, count: ids?.length || 0 });
+  });
+
+  api.post('/projects/reorder', (req: Request, res: Response) => {
+    const { orders } = req.body;
+    if (Array.isArray(orders)) {
+      const orderMap = new Map(orders.map((o: any) => [o.id, Number(o.display_order)]));
+      db.projects = db.projects.map((p) =>
+        orderMap.has(p.id)
+          ? { ...p, display_order: orderMap.get(p.id), updated_at: new Date().toISOString() }
+          : p
+      );
+      db.projects.sort((a, b) => {
+        const orderA = a.display_order !== undefined && a.display_order !== null ? a.display_order : 9999;
+        const orderB = b.display_order !== undefined && b.display_order !== null ? b.display_order : 9999;
+        return orderA - orderB;
+      });
+      saveDatabase(db);
+    }
+    res.json({ success: true });
   });
 
   api.post('/projects/seed', (_req: Request, res: Response) => {

@@ -17,18 +17,44 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Edit3, Image as ImageIcon, Video as VideoIcon, Plus, Check } from 'lucide-react';
+import {
+  GripVertical,
+  Trash2,
+  Edit3,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  Plus,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpToLine,
+  Star,
+} from 'lucide-react';
 import { DbProjectMedia } from '../../types/database';
 import { MediaUploader } from './MediaUploader';
 import { formatFileSize } from '../../lib/utils';
 
 interface GalleryItemProps {
   item: DbProjectMedia;
+  index: number;
+  totalCount: number;
   onUpdateAlt: (id: string, alt: string) => void;
   onDelete: (id: string, path: string) => void;
+  onMoveToFirst: (index: number) => void;
+  onMoveStep: (fromIndex: number, toIndex: number) => void;
+  onSetAsPreview?: (url: string) => void;
 }
 
-const SortableGalleryCard: React.FC<GalleryItemProps> = ({ item, onUpdateAlt, onDelete }) => {
+const SortableGalleryCard: React.FC<GalleryItemProps> = ({
+  item,
+  index,
+  totalCount,
+  onUpdateAlt,
+  onDelete,
+  onMoveToFirst,
+  onMoveStep,
+  onSetAsPreview,
+}) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   });
@@ -44,46 +70,128 @@ const SortableGalleryCard: React.FC<GalleryItemProps> = ({ item, onUpdateAlt, on
   };
 
   const isVideo = item.media_type === 'video' || item.media_url?.endsWith('.mp4');
+  const isFirst = index === 0;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={`border rounded-lg bg-white overflow-hidden shadow-sm transition ${
-        isDragging ? 'border-neutral-900 ring-2 ring-neutral-900/10' : 'border-neutral-200 hover:border-neutral-400'
+        isDragging
+          ? 'border-neutral-900 ring-2 ring-neutral-900/10'
+          : isFirst
+          ? 'border-neutral-900 ring-1 ring-neutral-900/10'
+          : 'border-neutral-200 hover:border-neutral-400'
       }`}
     >
       <div className="relative aspect-[4/3] bg-neutral-900 group">
         {isVideo && item.media_url ? (
           <video src={item.media_url} className="w-full h-full object-cover" muted />
         ) : item.media_url ? (
-          <img src={item.media_url} alt={item.alt_text || ''} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          <img
+            src={item.media_url}
+            alt={item.alt_text || ''}
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+          />
         ) : null}
 
-        {/* Drag Handle */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="absolute top-2 left-2 p-1.5 rounded bg-black/60 text-white cursor-grab active:cursor-grabbing hover:bg-black/80 transition"
-          title="Drag to reorder"
-        >
-          <GripVertical className="w-4 h-4" />
+        {/* Top Control Bar: Drag Handle + Move Left + Move Right */}
+        <div className="absolute top-2 left-2 flex items-center gap-1 z-10">
+          <div
+            {...attributes}
+            {...listeners}
+            className="p-1.5 rounded bg-black/80 text-white cursor-grab active:cursor-grabbing hover:bg-black transition shadow-sm"
+            title="Drag to reposition"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+          </div>
+
+          {!isFirst && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveStep(index, index - 1);
+              }}
+              className="p-1.5 rounded bg-black/80 text-white hover:bg-neutral-800 transition shadow-sm cursor-pointer"
+              title="Shift left / earlier"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {index < totalCount - 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveStep(index, index + 1);
+              }}
+              className="p-1.5 rounded bg-black/80 text-white hover:bg-neutral-800 transition shadow-sm cursor-pointer"
+              title="Shift right / later"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* Media Type Badge */}
-        <div className="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-black/60 text-white backdrop-blur-sm">
-          {item.media_type}
+        {/* Top-Right: Order Badge & Make First */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
+          {!isFirst && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToFirst(index);
+              }}
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-black/80 text-white hover:bg-black transition shadow-sm cursor-pointer"
+              title="Shift position to be first image (#1)"
+            >
+              <ArrowUpToLine className="w-3 h-3" />
+              <span>Make #1</span>
+            </button>
+          )}
+
+          <div
+            className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-tight shadow-sm ${
+              isFirst
+                ? 'bg-neutral-900 text-amber-300 border border-amber-400/40'
+                : 'bg-black/80 text-white'
+            }`}
+          >
+            {isFirst ? '#1 Primary' : `#${index + 1}`}
+          </div>
         </div>
 
-        {/* Delete button */}
-        <button
-          type="button"
-          onClick={() => onDelete(item.id, item.storage_path)}
-          className="absolute bottom-2 right-2 p-1.5 rounded bg-red-600/90 text-white opacity-0 group-hover:opacity-100 hover:bg-red-700 transition"
-          title="Remove media"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {/* Action buttons on hover */}
+        <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+          {onSetAsPreview && item.media_url && !isVideo && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetAsPreview(item.media_url);
+              }}
+              className="p-1.5 rounded bg-black/80 text-amber-300 opacity-0 group-hover:opacity-100 hover:bg-black transition shadow-sm"
+              title="Set as Project Preview Thumbnail"
+            >
+              <Star className="w-3.5 h-3.5 fill-amber-300" />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(item.id, item.storage_path);
+            }}
+            className="p-1.5 rounded bg-red-600/90 text-white opacity-0 group-hover:opacity-100 hover:bg-red-700 transition shadow-sm cursor-pointer"
+            title="Remove media"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       <div className="p-2.5 bg-neutral-50 border-t border-neutral-100">
@@ -135,6 +243,7 @@ interface GalleryManagerProps {
   onAddItem: (item: Partial<DbProjectMedia>) => void;
   onDeleteItem: (id: string, path: string) => void;
   onUpdateAlt: (id: string, alt: string) => void;
+  onSetAsPreview?: (url: string) => void;
 }
 
 export const GalleryManager: React.FC<GalleryManagerProps> = ({
@@ -144,6 +253,7 @@ export const GalleryManager: React.FC<GalleryManagerProps> = ({
   onAddItem,
   onDeleteItem,
   onUpdateAlt,
+  onSetAsPreview,
 }) => {
   const [showUploader, setShowUploader] = useState(false);
 
@@ -164,13 +274,37 @@ export const GalleryManager: React.FC<GalleryManagerProps> = ({
       const oldIndex = items.findIndex((item) => item.id === active.id);
       const newIndex = items.findIndex((item) => item.id === over.id);
 
-      const reordered = (arrayMove(items, oldIndex, newIndex) as DbProjectMedia[]).map((item: DbProjectMedia, idx: number) => ({
-        ...item,
-        display_order: idx + 1,
-      }));
+      const reordered = (arrayMove(items, oldIndex, newIndex) as DbProjectMedia[]).map(
+        (item: DbProjectMedia, idx: number) => ({
+          ...item,
+          display_order: idx + 1,
+        })
+      );
 
       onItemsChange(reordered);
     }
+  };
+
+  const handleMoveToFirst = (index: number) => {
+    if (index <= 0 || index >= items.length) return;
+    const reordered = (arrayMove(items, index, 0) as DbProjectMedia[]).map(
+      (item: DbProjectMedia, idx: number) => ({
+        ...item,
+        display_order: idx + 1,
+      })
+    );
+    onItemsChange(reordered);
+  };
+
+  const handleMoveStep = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= items.length || fromIndex === toIndex) return;
+    const reordered = (arrayMove(items, fromIndex, toIndex) as DbProjectMedia[]).map(
+      (item: DbProjectMedia, idx: number) => ({
+        ...item,
+        display_order: idx + 1,
+      })
+    );
+    onItemsChange(reordered);
   };
 
   return (
@@ -181,7 +315,7 @@ export const GalleryManager: React.FC<GalleryManagerProps> = ({
             Project Gallery ({items.length} assets)
           </h3>
           <p className="text-xs text-neutral-500">
-            Drag items using the grip handle to reorder the public gallery presentation.
+            Drag items using the grip handle or use "Make #1" / arrow buttons to reposition any image to the front.
           </p>
         </div>
 
@@ -235,12 +369,17 @@ export const GalleryManager: React.FC<GalleryManagerProps> = ({
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <SortableGalleryCard
                   key={item.id}
                   item={item}
+                  index={index}
+                  totalCount={items.length}
                   onUpdateAlt={onUpdateAlt}
                   onDelete={onDeleteItem}
+                  onMoveToFirst={handleMoveToFirst}
+                  onMoveStep={handleMoveStep}
+                  onSetAsPreview={onSetAsPreview}
                 />
               ))}
             </div>

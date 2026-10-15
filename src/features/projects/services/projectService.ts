@@ -161,6 +161,12 @@ export class ProjectService {
             p.description.toLowerCase().includes(q)
         );
       }
+      list.sort((a, b) => {
+        const orderA = a.display_order !== undefined && a.display_order !== null ? a.display_order : 9999;
+        const orderB = b.display_order !== undefined && b.display_order !== null ? b.display_order : 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
       return list;
     }
 
@@ -172,6 +178,7 @@ export class ProjectService {
         media:project_media(*),
         sections:project_sections(*)
       `)
+      .order('display_order', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false });
 
     if (!options.includeDeleted) {
@@ -635,6 +642,49 @@ export class ProjectService {
         console.warn('Supabase bulk featured update warning:', err);
       }
     }
+  }
+
+  /**
+   * Reorder projects live
+   */
+  static async reorderProjects(orders: { id: string; display_order: number }[]): Promise<boolean> {
+    try {
+      await ApiClient.post('/projects/reorder', { orders });
+    } catch {
+      // fallback
+    }
+
+    const list = getLocalProjects();
+    const orderMap = new Map(orders.map((o) => [o.id, o.display_order]));
+    for (const p of list) {
+      if (orderMap.has(p.id)) {
+        p.display_order = orderMap.get(p.id);
+        p.updated_at = new Date().toISOString();
+      }
+    }
+    list.sort((a, b) => {
+      const orderA = a.display_order !== undefined && a.display_order !== null ? a.display_order : 9999;
+      const orderB = b.display_order !== undefined && b.display_order !== null ? b.display_order : 9999;
+      return orderA - orderB;
+    });
+    saveLocalProjects(list);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await Promise.all(
+          orders.map(({ id, display_order }) =>
+            supabase
+              .from('projects')
+              .update({ display_order, updated_at: new Date().toISOString() })
+              .eq('id', id)
+          )
+        );
+      } catch (err) {
+        console.warn('Supabase reorder projects warning:', err);
+      }
+    }
+
+    return true;
   }
 
   /**
