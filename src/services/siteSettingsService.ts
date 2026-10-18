@@ -44,20 +44,63 @@ export interface AboutSettings {
 }
 
 export const DEFAULT_HERO_SETTINGS: HeroSettings = {
-  mode: 'single',
+  mode: 'rotation',
   rotationIntervalHours: 1,
   rotationIntervalUnit: 'hours',
-  assets: [],
-  activeAssetId: '',
+  assets: [
+    {
+      id: 'hero-1791892019297-0',
+      url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0321-1791892013876.jpg',
+      title: 'jean0321',
+      mediaType: 'image',
+    },
+    {
+      id: 'hero-1791892022435-1',
+      url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0324-1791892019311.jpg',
+      title: 'jean0324',
+      mediaType: 'image',
+    },
+    {
+      id: 'hero-1791892026096-2',
+      url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0291-1791892022444.jpg',
+      title: 'jean0291',
+      mediaType: 'image',
+    },
+    {
+      id: 'hero-1791892029819-3',
+      url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0260-1791892026109.jpg',
+      title: 'jean0260',
+      mediaType: 'image',
+    },
+    {
+      id: 'hero-1791892032328-4',
+      url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0405-1791892029830.jpg',
+      title: 'jean0405',
+      mediaType: 'image',
+    },
+    {
+      id: 'hero-1791892036197-5',
+      url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0163-1791892032344.jpg',
+      title: 'jean0163',
+      mediaType: 'image',
+    },
+    {
+      id: 'hero-1791892040300-6',
+      url: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0387-1791892036211.jpg',
+      title: 'jean0387',
+      mediaType: 'image',
+    },
+  ],
+  activeAssetId: 'hero-1791892019297-0',
   mediaType: 'image',
-  mediaUrl: 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/l1060844-2-1790909528392.jpg',
+  mediaUrl: '',
   mobileMediaUrl: '',
   fallbackPosterUrl: '',
-  overlayOpacity: 0.15,
+  overlayOpacity: 0,
   scrollText: 'SCROLL',
   mobileScale: 1,
-  mobileFocalX: 54,
-  mobileFocalY: 50,
+  mobileFocalX: 50,
+  mobileFocalY: 61,
 };
 
 export const DEFAULT_ABOUT_SETTINGS: AboutSettings = {
@@ -183,11 +226,22 @@ export class SiteSettingsService {
     return value;
   }
 
-  private static getLocalCache<T>(key: string): T | null {
+  static getLocalCache<T>(key: string): T | null {
     if (typeof window === 'undefined') return null;
     try {
       const raw = localStorage.getItem(`${LOCAL_STORAGE_PREFIX}${key}`);
-      if (raw) return JSON.parse(raw) as T;
+      if (raw) {
+        const parsed = JSON.parse(raw) as T;
+        // Purge legacy obsolete single-image cache if it points to outdated image
+        if (key === 'hero_settings' && parsed && typeof parsed === 'object') {
+          const hp = parsed as any;
+          if (hp.mediaUrl && typeof hp.mediaUrl === 'string' && hp.mediaUrl.includes('l1060844')) {
+            localStorage.removeItem(`${LOCAL_STORAGE_PREFIX}${key}`);
+            return null;
+          }
+        }
+        return parsed;
+      }
     } catch {
       // Ignore parsing errors
     }

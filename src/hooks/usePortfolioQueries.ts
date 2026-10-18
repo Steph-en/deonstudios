@@ -446,6 +446,7 @@ export function useHeroSettings() {
   return useQuery<HeroSettings>({
     queryKey: QUERY_KEYS.siteSettings('hero_settings'),
     queryFn: () => SiteSettingsService.getSettings<HeroSettings>('hero_settings', DEFAULT_HERO_SETTINGS),
+    initialData: () => SiteSettingsService.getLocalCache<HeroSettings>('hero_settings') ?? DEFAULT_HERO_SETTINGS,
     staleTime: 1000 * 5,
     refetchOnWindowFocus: true,
   });

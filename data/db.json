@@ -5,6 +5,39 @@
   "products": [],
   "inquiries": [
     {
+      "id": "inq-1792310576064-5655e",
+      "name": "Studio Client",
+      "email": "client@example.com",
+      "message": "Booking request for London Fashion Week campaign.",
+      "projectType": "Editorial Fashion",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-18T08:02:56.064Z"
+    },
+    {
+      "id": "inq-1792310050629-feeti",
+      "name": "Test User",
+      "email": "test@example.com",
+      "message": "This is a test message to see how the contact endpoint responds.",
+      "projectType": "Editorial Fashion",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-18T07:54:10.629Z"
+    },
+    {
+      "id": "inq-1792309468759-fnwh9",
+      "name": "Test Client",
+      "email": "test@example.com",
+      "message": "This is a test message for studio booking.",
+      "projectType": "General Editorial / Commercial Inquiry",
+      "phone": "",
+      "destination_email": "studio@gideonboadi.com",
+      "status": "unread",
+      "created_at": "2026-10-18T07:44:28.759Z"
+    },
+    {
       "id": "inq-1791966205039-zogxx",
       "name": "Gideon",
       "email": "test@example.com",
@@ -196,15 +229,63 @@
   "deleted_keys": [],
   "site_settings": {
     "hero_settings": {
+      "mode": "rotation",
+      "rotationIntervalHours": 1,
+      "rotationIntervalUnit": "hours",
+      "assets": [
+        {
+          "id": "hero-1791892019297-0",
+          "url": "https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0321-1791892013876.jpg",
+          "title": "jean0321",
+          "mediaType": "image"
+        },
+        {
+          "id": "hero-1791892022435-1",
+          "url": "https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0324-1791892019311.jpg",
+          "title": "jean0324",
+          "mediaType": "image"
+        },
+        {
+          "id": "hero-1791892026096-2",
+          "url": "https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0291-1791892022444.jpg",
+          "title": "jean0291",
+          "mediaType": "image"
+        },
+        {
+          "id": "hero-1791892029819-3",
+          "url": "https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0260-1791892026109.jpg",
+          "title": "jean0260",
+          "mediaType": "image"
+        },
+        {
+          "id": "hero-1791892032328-4",
+          "url": "https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0405-1791892029830.jpg",
+          "title": "jean0405",
+          "mediaType": "image"
+        },
+        {
+          "id": "hero-1791892036197-5",
+          "url": "https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0163-1791892032344.jpg",
+          "title": "jean0163",
+          "mediaType": "image"
+        },
+        {
+          "id": "hero-1791892040300-6",
+          "url": "https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/jean0387-1791892036211.jpg",
+          "title": "jean0387",
+          "mediaType": "image"
+        }
+      ],
+      "mediaUrl": "",
       "mediaType": "image",
-      "mediaUrl": "https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/l1060844-2-1790909528392.jpg",
-      "mobileMediaUrl": "",
-      "fallbackPosterUrl": "",
-      "overlayOpacity": 0.15,
       "scrollText": "SCROLL",
       "mobileScale": 1,
-      "mobileFocalX": 54,
-      "mobileFocalY": 50
+      "mobileFocalX": 50,
+      "mobileFocalY": 61,
+      "activeAssetId": "hero-1791892019297-0",
+      "mobileMediaUrl": "",
+      "overlayOpacity": 0,
+      "fallbackPosterUrl": ""
     }
   },
   "users": [
@@ -221,7 +302,7 @@
   "config": {
     "supabaseUrl": "https://oorbvpnuivsyfxftlqwr.supabase.co",
     "supabaseAnonKey": "sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV",
-    "siteUrl": "https://gideonboadi.vercel.app/",
+    "siteUrl": "https://www.gideonboadi.com",
     "allowedOrigins": [
       "https://www.gideonboadi.com",
       "https://gideonboadi.com",

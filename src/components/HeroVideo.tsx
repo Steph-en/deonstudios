@@ -42,68 +42,86 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
     };
   }, []);
 
-  // Multi-asset rotation calculation based on clock time
-  const [currentSlotIndex, setCurrentSlotIndex] = useState(() => {
+  // Multi-asset rotation calculation based on clock time with dynamic tick updates
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (config.mode !== 'rotation' || !config.assets || config.assets.length <= 1) return;
+    const timer = setInterval(() => setTick((t) => t + 1), 3000);
+    return () => clearInterval(timer);
+  }, [config.assets, config.mode]);
+
+  const currentSlotIndex = React.useMemo(() => {
     if (!config.assets || config.assets.length === 0 || config.mode !== 'rotation') return 0;
     const intervalValue = config.rotationIntervalHours || 1;
     const isMinutes = config.rotationIntervalUnit === 'minutes';
     const intervalMs = (isMinutes ? intervalValue * 60 : intervalValue * 3600) * 1000;
     return Math.floor(Date.now() / intervalMs) % config.assets.length;
-  });
+  }, [config.assets, config.mode, config.rotationIntervalHours, config.rotationIntervalUnit, tick]);
 
+  // Preload all assets in rotation playlist for seamless, flash-free transitions
   useEffect(() => {
-    if (!config.assets || config.assets.length <= 1 || config.mode !== 'rotation') return;
-    const intervalValue = config.rotationIntervalHours || 1;
-    const isMinutes = config.rotationIntervalUnit === 'minutes';
-    const intervalMs = (isMinutes ? intervalValue * 60 : intervalValue * 3600) * 1000;
+    if (config.mode !== 'rotation' || !config.assets || config.assets.length === 0) return;
+    config.assets.forEach((asset) => {
+      const targetUrl = isMobileOrPortrait && asset.mobileUrl ? asset.mobileUrl : asset.url;
+      if (targetUrl && (asset.mediaType === 'image' || !targetUrl.endsWith('.mp4'))) {
+        const img = new Image();
+        img.src = targetUrl;
+      }
+    });
+  }, [config.assets, config.mode, isMobileOrPortrait]);
 
-    const checkInterval = () => {
-      const newSlot = Math.floor(Date.now() / intervalMs) % config.assets.length;
-      setCurrentSlotIndex((prev) => (prev !== newSlot ? newSlot : prev));
-    };
-
-    checkInterval();
-    const timer = setInterval(checkInterval, 5000);
-    return () => clearInterval(timer);
-  }, [config.assets, config.mode, config.rotationIntervalHours, config.rotationIntervalUnit]);
-
-  // Active asset resolution (single vs rotation playlist)
+  // Active asset resolution (single vs rotation playlist — strictly isolated, NO cross-mode fallbacks)
   const activeAsset = React.useMemo(() => {
-    if (config.mode === 'rotation' && config.assets && config.assets.length > 0) {
-      return config.assets[currentSlotIndex] || config.assets[0];
+    // Rotation mode: ONLY use rotation playlist assets. NEVER fallback to single image
+    if (config.mode === 'rotation') {
+      if (config.assets && config.assets.length > 0) {
+        return config.assets[currentSlotIndex] || config.assets[0];
+      }
+      return null;
     }
-    if (config.assets && config.assets.length > 0) {
-      if (config.activeAssetId) {
+
+    // Single mode: ONLY active when user explicitly set mode to 'single'
+    if (config.mode === 'single') {
+      if (config.activeAssetId && config.assets && config.assets.length > 0) {
         const found = config.assets.find((a) => a.id === config.activeAssetId);
         if (found) return found;
       }
-      return config.assets[0];
+      if (config.assets && config.assets.length > 0) {
+        return config.assets[0];
+      }
+      if (config.mediaUrl && !config.mediaUrl.includes('l1060844')) {
+        return {
+          id: 'single-custom',
+          url: config.mediaUrl,
+          mediaType: config.mediaType || 'image',
+          mobileUrl: config.mobileMediaUrl,
+        };
+      }
     }
-    return {
-      id: 'default',
-      url: config.mediaUrl || 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/l1060844-2-1790909528392.jpg',
-      mediaType: config.mediaType || 'image',
-      mobileUrl: config.mobileMediaUrl,
-    };
+
+    return null;
   }, [config, currentSlotIndex]);
 
   // Framing values for centering the subject and scaling on mobile
   const mobileScale = config.mobileScale ?? 1;
-  const mobileFocalX = config.mobileFocalX ?? 54;
-  const mobileFocalY = config.mobileFocalY ?? 50;
+  const mobileFocalX = config.mobileFocalX ?? 50;
+  const mobileFocalY = config.mobileFocalY ?? 61;
 
-  // Determine media URL based on viewport
-  const fallbackCoverUrl = 'https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/hero/l1060844-2-1790909528392.jpg';
+  // Determine media URL based on viewport (strictly from activeAsset, never legacy fallback)
   const activeMediaUrl =
-    isMobileOrPortrait && activeAsset.mobileUrl
-      ? activeAsset.mobileUrl
-      : activeAsset.url || config.mediaUrl || fallbackCoverUrl;
+    activeAsset
+      ? isMobileOrPortrait && activeAsset.mobileUrl
+        ? activeAsset.mobileUrl
+        : activeAsset.url || ''
+      : '';
 
   const isVideoFormat =
-    activeAsset.mediaType === 'video' ||
-    activeMediaUrl.endsWith('.mp4') ||
-    activeMediaUrl.endsWith('.webm') ||
-    activeMediaUrl.includes('/videos/');
+    Boolean(activeAsset) &&
+    (activeAsset?.mediaType === 'video' ||
+      activeMediaUrl.endsWith('.mp4') ||
+      activeMediaUrl.endsWith('.webm') ||
+      activeMediaUrl.includes('/videos/'));
 
   // Autoplay management for video
   useEffect(() => {
@@ -199,6 +217,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
         ) : activeMediaUrl ? (
           /* Pure Image Mode — clean, centered, no gradient bleed */
           <img
+            key={activeMediaUrl}
             src={activeMediaUrl}
             alt="Deon Studios Editorial Cover"
             className="absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-opacity duration-500 opacity-100"

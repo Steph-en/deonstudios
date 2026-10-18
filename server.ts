@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
+
 import express, { Request, Response } from 'express';
 import { createServer as createViteServer } from 'vite';
 import fs from 'fs';
@@ -600,8 +603,33 @@ async function startServer() {
   // 6b. Site Settings API (Hero & About Dynamic Configuration)
   api.get('/settings/:key', (req: Request, res: Response) => {
     const key = req.params.key;
+    try {
+      if (fs.existsSync(DB_FILE)) {
+        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed.site_settings) {
+          db.site_settings = parsed.site_settings;
+        }
+      }
+    } catch {
+      // ignore
+    }
     if (!db.site_settings) db.site_settings = {};
-    const value = db.site_settings[key] || null;
+    let value = db.site_settings[key] || null;
+
+    // Purge obsolete legacy single image if it exists
+    if (key === 'hero_settings' && value && typeof value === 'object') {
+      if (value.mediaUrl && typeof value.mediaUrl === 'string' && value.mediaUrl.includes('l1060844')) {
+        value = {
+          ...value,
+          mode: 'rotation',
+          mediaUrl: '',
+        };
+        db.site_settings[key] = value;
+        saveDatabase(db);
+      }
+    }
+
     res.json({ success: true, key, value });
   });
 
@@ -918,12 +946,168 @@ async function startServer() {
     res.sendStatus(200);
   });
 
-  api.get('/contact', (_req: Request, res: Response) => {
+  // Health check, configuration status, and CORS preflight for contact endpoint
+  api.options('/contact', (_req: Request, res: Response) => {
+    res.sendStatus(200);
+  });
+  api.options('/contact/test', (_req: Request, res: Response) => {
+    res.sendStatus(200);
+  });
+
+  api.get('/contact/status', (_req: Request, res: Response) => {
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const target = process.env.CONTACT_DESTINATION_EMAIL || 'studio@gideonboadi.com';
+
+    const hasResend = Boolean(resendApiKey && resendApiKey.trim().length > 5);
+    const hasSmtp = Boolean(smtpHost && smtpUser && smtpPass);
+
     res.status(200).json({
       status: 'ok',
       service: 'Deon Studios Contact & Booking API',
-      destination: db?.site_settings?.about_settings?.email || CONTACT_DESTINATION_EMAIL || 'studio@gideonboadi.com',
+      destination: target,
+      deliveryProvider: hasResend ? 'resend' : hasSmtp ? 'smtp' : 'database_only',
+      resendConfigured: hasResend,
+      smtpConfigured: hasSmtp,
+      smtpHost: smtpHost ? smtpHost : 'Not set',
+      smtpUser: smtpUser ? smtpUser : 'Not set',
+      totalInquiries: Array.isArray(db.inquiries) ? db.inquiries.length : 0,
       timestamp: new Date().toISOString(),
+    });
+  });
+
+  api.get('/contact', (_req: Request, res: Response) => {
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const target = process.env.CONTACT_DESTINATION_EMAIL || 'studio@gideonboadi.com';
+
+    const hasResend = Boolean(resendApiKey && resendApiKey.trim().length > 5);
+    const hasSmtp = Boolean(smtpHost && smtpUser && smtpPass);
+
+    res.status(200).json({
+      status: 'ok',
+      service: 'Deon Studios Contact & Booking API',
+      destination: target,
+      deliveryProvider: hasResend ? 'resend' : hasSmtp ? 'smtp' : 'database_only',
+      resendConfigured: hasResend,
+      smtpConfigured: hasSmtp,
+      smtpHost: smtpHost ? smtpHost : 'Not configured (inquiries saved to database)',
+      totalInquiries: Array.isArray(db.inquiries) ? db.inquiries.length : 0,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Diagnostic Test Route: Sends a real verification test email to studio@gideonboadi.com
+  api.post('/contact/test', async (_req: Request, res: Response) => {
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const smtpPort = Number(process.env.SMTP_PORT) || 587;
+    const targetDestination = (process.env.CONTACT_DESTINATION_EMAIL || 'studio@gideonboadi.com').trim();
+    const smtpFrom = process.env.SMTP_FROM || `"Deon Studios" <${targetDestination}>`;
+
+    const testSubject = `[TEST] Deon Studios Contact Email Verification — ${new Date().toLocaleTimeString()}`;
+    const testHtml = `
+      <div style="font-family: -apple-system, sans-serif; max-width: 500px; padding: 24px; background: #0a0a0a; color: #fff; border-radius: 8px;">
+        <h2 style="margin: 0 0 12px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.15em;">Deon Studios Email Test</h2>
+        <p style="font-size: 13px; color: #a3a3a3; line-height: 1.5;">This diagnostic verification email confirms that your outgoing mail dispatch is operational and routing to <strong>${targetDestination}</strong>.</p>
+        <p style="font-size: 11px; color: #737373; margin-top: 20px;">Timestamp: ${new Date().toISOString()}</p>
+      </div>
+    `;
+
+    // 1. Try Resend if configured
+    if (resendApiKey && resendApiKey.trim().length > 5) {
+      try {
+        const resendRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: process.env.RESEND_FROM || 'Deon Studios <onboarding@resend.dev>',
+            to: [targetDestination],
+            subject: testSubject,
+            html: testHtml,
+          }),
+        });
+        const resendData = await resendRes.json();
+        if (resendRes.ok) {
+          return res.json({
+            success: true,
+            provider: 'resend',
+            message: `Verification email successfully dispatched via Resend to ${targetDestination}.`,
+            id: resendData?.id,
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            provider: 'resend',
+            error: resendData?.message || 'Resend API returned an error',
+            details: resendData,
+          });
+        }
+      } catch (err: any) {
+        return res.status(500).json({
+          success: false,
+          provider: 'resend',
+          error: err?.message || 'Failed connecting to Resend API',
+        });
+      }
+    }
+
+    // 2. Try SMTP if configured
+    if (smtpHost && smtpUser && smtpPass) {
+      try {
+        const isSecure = smtpPort === 465 || process.env.SMTP_SECURE === 'true';
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: isSecure,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass,
+          },
+          connectionTimeout: 8000,
+          greetingTimeout: 6000,
+          socketTimeout: 8000,
+        });
+
+        await transporter.verify();
+
+        await transporter.sendMail({
+          from: smtpFrom,
+          to: targetDestination,
+          subject: testSubject,
+          text: `Deon Studios Email Test: Outgoing mail dispatch is operational and routing to ${targetDestination}.`,
+          html: testHtml,
+        });
+
+        return res.json({
+          success: true,
+          provider: 'smtp',
+          message: `Verification email successfully sent via SMTP (${smtpHost}) to ${targetDestination}.`,
+        });
+      } catch (err: any) {
+        return res.status(400).json({
+          success: false,
+          provider: 'smtp',
+          error: err?.message || 'SMTP Authentication or Connection failed',
+          hint: 'Check your SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS (e.g. Gmail App Password).',
+        });
+      }
+    }
+
+    return res.status(400).json({
+      success: false,
+      provider: 'none',
+      error: 'No email dispatch provider configured in .env',
+      hint: 'Add RESEND_API_KEY or SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) to .env to enable automated email transmission.',
     });
   });
 
@@ -931,7 +1115,7 @@ async function startServer() {
     try {
       const { name, email, message, projectType, phone, destinationEmail } = req.body || {};
 
-      // Server-side form validation
+      // Server-side form validation (friendly minimums)
       const errors: Record<string, string> = {};
       if (!name || typeof name !== 'string' || name.trim().length < 2) {
         errors.name = 'Please provide your full name (minimum 2 characters).';
@@ -942,7 +1126,7 @@ async function startServer() {
         errors.email = 'Please provide a valid email address.';
       }
 
-      if (!message || typeof message !== 'string' || message.trim().length < 3) {
+      if (!message || typeof message !== 'string' || message.trim().length < 2) {
         errors.message = 'Please provide a message with details about your inquiry.';
       }
 
@@ -961,8 +1145,7 @@ async function startServer() {
       const cleanPhone = (phone || '').trim();
       const targetDestination = (
         destinationEmail ||
-        db?.site_settings?.about_settings?.email ||
-        CONTACT_DESTINATION_EMAIL ||
+        process.env.CONTACT_DESTINATION_EMAIL ||
         'studio@gideonboadi.com'
       ).trim();
 
@@ -989,15 +1172,18 @@ async function startServer() {
         console.error('Failed to save inquiry to disk, maintaining in memory:', dbErr);
       }
 
-      // Email dispatch using Nodemailer with fast timeout
+      // Email dispatch using Resend API (Priority 1) or Nodemailer SMTP (Priority 2)
       let emailDispatched = false;
+      let emailProvider = 'database_only';
+      let emailError: string | null = null;
 
+      const resendApiKey = process.env.RESEND_API_KEY;
       const smtpHost = process.env.SMTP_HOST;
       const smtpUser = process.env.SMTP_USER;
       const smtpPass = process.env.SMTP_PASS;
       const smtpPort = Number(process.env.SMTP_PORT) || 587;
       const smtpFrom =
-        process.env.SMTP_FROM || `"Deon Studios Web" <${targetDestination}>`;
+        process.env.SMTP_FROM || `"Deon Studios" <${targetDestination}>`;
 
       const emailSubject = `New Studio Inquiry from ${cleanName} — Deon Studios`;
       const emailHtml = `
@@ -1024,7 +1210,7 @@ async function startServer() {
           <div class="container">
             <div class="header">
               <h1>Deon Studios</h1>
-              <p>Client Inquiry & Commission Brief</p>
+              <p>Client Inquiry &amp; Commission Brief</p>
             </div>
             <div class="content">
               <div class="field">
@@ -1046,7 +1232,7 @@ async function startServer() {
                 <div class="value">${cleanProjectType}</div>
               </div>` : ''}
               <div class="field">
-                <div class="label">Brief & Message</div>
+                <div class="label">Brief &amp; Message</div>
                 <div class="message-box">${cleanMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
               </div>
               <a href="mailto:${cleanEmail}?subject=Re: Photography Inquiry — Deon Studios" class="btn">Reply Directly to Client</a>
@@ -1059,39 +1245,74 @@ async function startServer() {
         </html>
       `;
 
-      if (smtpHost && smtpUser && smtpPass) {
-        // Asynchronously dispatch email without blocking the client response
-        (async () => {
-          try {
-            const transporter = nodemailer.createTransport({
-              host: smtpHost,
-              port: smtpPort,
-              secure: smtpPort === 465,
-              auth: {
-                user: smtpUser,
-                pass: smtpPass,
-              },
-              connectionTimeout: 3000,
-              greetingTimeout: 2000,
-              socketTimeout: 3000,
-            });
-
-            await transporter.sendMail({
-              from: smtpFrom,
-              to: targetDestination,
-              replyTo: `${cleanName} <${cleanEmail}>`,
+      // 1. Try Resend if configured
+      if (resendApiKey && resendApiKey.trim().length > 5) {
+        try {
+          const resendRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: process.env.RESEND_FROM || 'Deon Studios <onboarding@resend.dev>',
+              to: [targetDestination],
+              reply_to: cleanEmail,
               subject: emailSubject,
-              text: `New Studio Inquiry from ${cleanName} (${cleanEmail})\n\nProject Type: ${cleanProjectType}\nPhone: ${cleanPhone}\n\nMessage:\n${cleanMessage}`,
               html: emailHtml,
-            });
-            console.log(`[Email Dispatch] Successfully sent email to ${targetDestination}`);
-          } catch (smtpErr: any) {
-            console.warn('[Email Dispatch] SMTP note (inquiry preserved in studio database):', smtpErr?.message || smtpErr);
+            }),
+          });
+          if (resendRes.ok) {
+            emailDispatched = true;
+            emailProvider = 'resend';
+            console.log(`[Email Dispatch] Successfully sent email to ${targetDestination} via Resend`);
+          } else {
+            const errJson = await resendRes.json();
+            emailError = errJson?.message || 'Resend error';
+            console.error('[Email Dispatch] Resend error:', emailError);
           }
-        })();
-        emailDispatched = true;
-      } else {
-        // Safe logging when SMTP credentials not provided
+        } catch (rErr: any) {
+          emailError = rErr?.message || String(rErr);
+          console.error('[Email Dispatch] Resend exception:', emailError);
+        }
+      }
+
+      // 2. Try SMTP if not dispatched yet and SMTP is configured
+      if (!emailDispatched && smtpHost && smtpUser && smtpPass) {
+        try {
+          const isSecure = smtpPort === 465 || process.env.SMTP_SECURE === 'true';
+          const transporter = nodemailer.createTransport({
+            host: smtpHost,
+            port: smtpPort,
+            secure: isSecure,
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+            connectionTimeout: 8000,
+            greetingTimeout: 5000,
+            socketTimeout: 8000,
+          });
+
+          await transporter.sendMail({
+            from: smtpFrom,
+            to: targetDestination,
+            replyTo: `${cleanName} <${cleanEmail}>`,
+            subject: emailSubject,
+            text: `New Studio Inquiry from ${cleanName} (${cleanEmail})\n\nProject Type: ${cleanProjectType}\nPhone: ${cleanPhone}\n\nMessage:\n${cleanMessage}`,
+            html: emailHtml,
+          });
+          console.log(`[Email Dispatch] Successfully sent email to ${targetDestination} via SMTP`);
+          emailDispatched = true;
+          emailProvider = 'smtp';
+        } catch (smtpErr: any) {
+          emailError = smtpErr?.message || String(smtpErr);
+          console.error('[Email Dispatch] SMTP note:', emailError);
+        }
+      }
+
+      if (!emailDispatched) {
+        // Safe logging when email provider not configured
         console.log(`\n============================================================`);
         console.log(`[EMAIL DISPATCH SERVICE] Routing message to: ${targetDestination}`);
         console.log(`From: "${cleanName}" <${cleanEmail}>`);
@@ -1099,16 +1320,22 @@ async function startServer() {
         console.log(`Project: ${cleanProjectType}`);
         if (cleanPhone) console.log(`Phone: ${cleanPhone}`);
         console.log(`Message:\n${cleanMessage}`);
+        console.log(`Notice: Message saved in studio inbox. Outgoing email requires SMTP or Resend credentials in .env`);
         console.log(`============================================================\n`);
-        emailDispatched = true;
       }
 
       return res.status(200).json({
         success: true,
-        message: `Your message has been sent successfully to ${targetDestination}.`,
+        message: emailDispatched
+          ? `Your message has been emailed directly to ${targetDestination}.`
+          : `Your inquiry has been received by Deon Studios and saved to the studio inbox.`,
         inquiryId: newInquiry.id,
         destination: targetDestination,
-        dispatched: true,
+        emailDelivered: emailDispatched,
+        deliveryProvider: emailProvider,
+        smtpConfigured: Boolean(smtpHost && smtpUser && smtpPass),
+        resendConfigured: Boolean(resendApiKey),
+        smtpError: emailError,
       });
     } catch (err: any) {
       console.error('[Contact API Error]:', err);
