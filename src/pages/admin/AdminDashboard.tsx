@@ -20,6 +20,7 @@ import {
   AlertCircle,
   RefreshCw,
   Key,
+  Copy,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -40,6 +41,7 @@ import {
   useUpdateInquiryStatus,
   useDeleteInquiry,
 } from '../../hooks/usePortfolioQueries';
+import { useConfirm, useToast } from '../../context/AdminUIContext';
 import { AdminTab } from '../../components/layouts/AdminLayout';
 
 interface AdminDashboardProps {
@@ -52,15 +54,87 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onNavigateTab,
 }) => {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: analytics } = useDetailedAnalytics();
-  const { data: inquiries = [], isLoading: inquiriesLoading } = useInquiries();
+  const {
+    data: inquiries = [],
+    isLoading: inquiriesLoading,
+    refetch: refetchInquiries,
+  } = useInquiries();
   const updateStatus = useUpdateInquiryStatus();
   const deleteInquiry = useDeleteInquiry();
 
   const totalViews = stats?.totalViews ?? 0;
   const uniqueVisitors = stats?.uniqueVisitors ?? 0;
   const unreadCount = inquiries.filter((inq: any) => inq.status !== 'read').length;
+
+  const [inquiryFilter, setInquiryFilter] = React.useState<'all' | 'unread' | 'read'>('all');
+  const [isRefreshingInquiries, setIsRefreshingInquiries] = React.useState(false);
+  const [copiedId, setCopiedId] = React.useState<string | null>(null);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshingInquiries(true);
+    try {
+      await refetchInquiries();
+      toast.success('Inquiries updated from studio server.', 'REFRESHED');
+    } catch {
+      toast.error('Failed to reload inquiries', 'ERROR');
+    } finally {
+      setIsRefreshingInquiries(false);
+    }
+  };
+
+  const handleCopy = (text: string, id: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    toast.info(`${label} copied to clipboard.`, 'COPIED');
+    setTimeout(() => setCopiedId(null), 2500);
+  };
+
+  const handleDeleteInquiry = async (inq: any) => {
+    const ok = await confirm({
+      title: 'DELETE CLIENT INQUIRY',
+      subtitle: 'PERMANENT REMOVAL',
+      message: `Are you sure you want to permanently delete the inquiry from "${inq.name || 'Client'}" (${inq.email})? This action cannot be undone.`,
+      confirmText: 'DELETE INQUIRY',
+      cancelText: 'CANCEL',
+      variant: 'danger',
+    });
+
+    if (ok) {
+      try {
+        await deleteInquiry.mutateAsync(inq.id);
+        toast.success(`Inquiry from ${inq.name || 'Client'} has been removed.`, 'INQUIRY DELETED');
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to delete inquiry', 'ERROR');
+      }
+    }
+  };
+
+  const handleToggleRead = async (inq: any) => {
+    const isUnread = inq.status !== 'read';
+    const nextStatus = isUnread ? 'read' : 'unread';
+    try {
+      await updateStatus.mutateAsync({
+        id: inq.id,
+        status: nextStatus,
+      });
+      toast.info(
+        isUnread ? `Inquiry from ${inq.name || 'Client'} marked as read.` : `Inquiry marked as unread.`,
+        'STATUS UPDATED'
+      );
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update inquiry status', 'ERROR');
+    }
+  };
+
+  const filteredInquiries = React.useMemo(() => {
+    if (inquiryFilter === 'unread') return inquiries.filter((inq: any) => inq.status !== 'read');
+    if (inquiryFilter === 'read') return inquiries.filter((inq: any) => inq.status === 'read');
+    return inquiries;
+  }, [inquiries, inquiryFilter]);
 
   const [testingEmail, setTestingEmail] = React.useState(false);
   const [testResult, setTestResult] = React.useState<{
@@ -425,13 +499,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 )}
               </div>
               <p className="text-xs text-neutral-500 mt-0.5">
-                Messages dispatched from the website contact and booking forms
+                Real-time messages dispatched from the website contact and booking forms
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-neutral-500 font-mono">
-            <span>Total: <strong>{inquiries.length}</strong></span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1 p-0.5 bg-neutral-100 rounded-lg text-xs font-mono">
+              <button
+                type="button"
+                onClick={() => setInquiryFilter('all')}
+                className={`px-2.5 py-1 rounded transition ${
+                  inquiryFilter === 'all'
+                    ? 'bg-white text-neutral-950 font-semibold shadow-xs'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                All ({inquiries.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setInquiryFilter('unread')}
+                className={`px-2.5 py-1 rounded transition ${
+                  inquiryFilter === 'unread'
+                    ? 'bg-white text-neutral-950 font-semibold shadow-xs'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                Unread ({unreadCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setInquiryFilter('read')}
+                className={`px-2.5 py-1 rounded transition ${
+                  inquiryFilter === 'read'
+                    ? 'bg-white text-neutral-950 font-semibold shadow-xs'
+                    : 'text-neutral-600 hover:text-neutral-900'
+                }`}
+              >
+                Read ({inquiries.length - unreadCount})
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleManualRefresh}
+              disabled={isRefreshingInquiries}
+              className="px-2.5 py-1.5 text-xs text-neutral-700 hover:text-neutral-950 border border-neutral-300 hover:border-neutral-400 bg-white rounded transition flex items-center gap-1.5 cursor-pointer font-medium"
+              title="Refresh from studio server"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingInquiries ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
           </div>
         </div>
 
@@ -569,20 +689,33 @@ CONTACT_DESTINATION_EMAIL=studio@gideonboadi.com`}
         </div>
 
         {inquiriesLoading ? (
-          <div className="py-12 text-center text-xs text-neutral-400 font-mono">
-            Loading studio inquiries...
+          <div className="py-12 text-center text-xs text-neutral-400 font-mono flex items-center justify-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin text-neutral-500" />
+            <span>Loading studio inquiries...</span>
           </div>
         ) : inquiries.length === 0 ? (
           <div className="py-12 text-center space-y-2 bg-neutral-50/50 rounded-lg border border-dashed border-neutral-200">
             <MessageSquare className="w-8 h-8 text-neutral-300 mx-auto" />
-            <p className="text-xs font-medium text-neutral-700">No client inquiries received yet</p>
+            <p className="text-xs font-semibold text-neutral-800">No client inquiries received yet</p>
             <p className="text-[11px] text-neutral-500 max-w-sm mx-auto">
-              Inquiries submitted through the studio contact form will appear here and route to studio@gideonboadi.com.
+              Inquiries submitted through the studio contact form will appear here dynamically in real-time and route to studio@gideonboadi.com.
             </p>
+          </div>
+        ) : filteredInquiries.length === 0 ? (
+          <div className="py-10 text-center space-y-1.5 bg-neutral-50/50 rounded-lg border border-dashed border-neutral-200">
+            <CheckCircle2 className="w-6 h-6 text-neutral-300 mx-auto" />
+            <p className="text-xs font-medium text-neutral-700">No {inquiryFilter} inquiries found</p>
+            <button
+              type="button"
+              onClick={() => setInquiryFilter('all')}
+              className="text-[11px] text-neutral-900 underline font-medium cursor-pointer"
+            >
+              Show all inquiries ({inquiries.length})
+            </button>
           </div>
         ) : (
           <div className="divide-y divide-neutral-100 border border-neutral-100 rounded-lg overflow-hidden">
-            {inquiries.map((inq: any) => {
+            {filteredInquiries.map((inq: any) => {
               const isUnread = inq.status !== 'read';
               return (
                 <div
@@ -594,8 +727,10 @@ CONTACT_DESTINATION_EMAIL=studio@gideonboadi.com`}
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-2.5">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        {isUnread && (
-                          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Unread" />
+                        {isUnread ? (
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" title="Unread Inquiry" />
+                        ) : (
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/60 shrink-0" title="Read" />
                         )}
                         <span className="text-xs sm:text-sm font-semibold text-neutral-900">
                           {inq.name}
@@ -603,17 +738,37 @@ CONTACT_DESTINATION_EMAIL=studio@gideonboadi.com`}
                         <span className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 bg-neutral-100 text-neutral-700 rounded">
                           {inq.projectType || 'General Inquiry'}
                         </span>
+                        {isUnread && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.2 bg-amber-100 text-amber-800 rounded font-medium">
+                            UNREAD
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">
                         <a
                           href={`mailto:${inq.email}?subject=Re: Studio Inquiry — Gideon Boadi`}
                           className="underline hover:text-black font-medium"
+                          title="Click to write email"
                         >
                           {inq.email}
                         </a>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(inq.email, `email-${inq.id}`, 'Email')}
+                          className="text-[10px] text-neutral-400 hover:text-neutral-700 flex items-center gap-0.5 font-mono cursor-pointer"
+                          title="Copy email to clipboard"
+                        >
+                          <Copy className="w-2.5 h-2.5" />
+                          <span>{copiedId === `email-${inq.id}` ? 'Copied' : 'Copy'}</span>
+                        </button>
                         {inq.phone && (
-                          <span>• Tel: {inq.phone}</span>
+                          <span>
+                            • Tel:{' '}
+                            <a href={`tel:${inq.phone}`} className="underline hover:text-black">
+                              {inq.phone}
+                            </a>
+                          </span>
                         )}
                         <span>
                           • {inq.created_at ? new Date(inq.created_at).toLocaleDateString(undefined, {
@@ -627,10 +782,10 @@ CONTACT_DESTINATION_EMAIL=studio@gideonboadi.com`}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                       <a
                         href={`mailto:${inq.email}?subject=Re: Studio Inquiry — Gideon Boadi`}
-                        className="px-2.5 py-1 text-[11px] rounded bg-neutral-900 text-white hover:bg-black transition flex items-center gap-1"
+                        className="px-2.5 py-1 text-[11px] rounded bg-neutral-900 text-white hover:bg-black transition flex items-center gap-1 cursor-pointer font-medium"
                       >
                         <Mail className="w-3 h-3" />
                         <span>Reply</span>
@@ -638,13 +793,13 @@ CONTACT_DESTINATION_EMAIL=studio@gideonboadi.com`}
 
                       <button
                         type="button"
-                        onClick={() =>
-                          updateStatus.mutate({
-                            id: inq.id,
-                            status: isUnread ? 'read' : 'unread',
-                          })
-                        }
-                        className="px-2.5 py-1 text-[11px] rounded border border-neutral-200 hover:bg-neutral-100 text-neutral-700 transition cursor-pointer flex items-center gap-1"
+                        onClick={() => handleToggleRead(inq)}
+                        className={`px-2.5 py-1 text-[11px] rounded border transition cursor-pointer flex items-center gap-1 font-medium ${
+                          isUnread
+                            ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                            : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100'
+                        }`}
+                        title={isUnread ? 'Mark inquiry as read' : 'Mark inquiry as unread'}
                       >
                         <Check className="w-3 h-3" />
                         <span>{isUnread ? 'Mark Read' : 'Mark Unread'}</span>
@@ -652,12 +807,8 @@ CONTACT_DESTINATION_EMAIL=studio@gideonboadi.com`}
 
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm('Delete this inquiry?')) {
-                            deleteInquiry.mutate(inq.id);
-                          }
-                        }}
-                        className="p-1 text-neutral-400 hover:text-rose-600 transition cursor-pointer rounded"
+                        onClick={() => handleDeleteInquiry(inq)}
+                        className="p-1.5 text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer rounded border border-transparent hover:border-rose-200"
                         title="Delete inquiry"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

@@ -489,11 +489,14 @@ export function useInquiries() {
   return useQuery<any[]>({
     queryKey: ['inquiries'],
     queryFn: async () => {
-      const res = await fetch('/api/inquiries');
+      const res = await fetch('/api/inquiries', {
+        headers: { 'Cache-Control': 'no-cache, no-store' },
+      });
       if (!res.ok) return [];
       return res.json();
     },
-    staleTime: 1000 * 5,
+    staleTime: 0,
+    refetchInterval: 15000, // Poll every 15s so incoming client messages appear dynamically
     refetchOnWindowFocus: true,
   });
 }
@@ -510,7 +513,25 @@ export function useUpdateInquiryStatus() {
       if (!res.ok) throw new Error('Failed to update inquiry status');
       return res.json();
     },
-    onSuccess: () => {
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['inquiries'] });
+      const previousInquiries = queryClient.getQueryData<any[]>(['inquiries']);
+      if (previousInquiries) {
+        queryClient.setQueryData<any[]>(
+          ['inquiries'],
+          previousInquiries.map((inq) =>
+            inq.id === id ? { ...inq, status } : inq
+          )
+        );
+      }
+      return { previousInquiries };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousInquiries) {
+        queryClient.setQueryData(['inquiries'], context.previousInquiries);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['inquiries'] });
     },
   });
@@ -524,7 +545,23 @@ export function useDeleteInquiry() {
       if (!res.ok) throw new Error('Failed to delete inquiry');
       return res.json();
     },
-    onSuccess: () => {
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['inquiries'] });
+      const previousInquiries = queryClient.getQueryData<any[]>(['inquiries']);
+      if (previousInquiries) {
+        queryClient.setQueryData<any[]>(
+          ['inquiries'],
+          previousInquiries.filter((inq) => inq.id !== id)
+        );
+      }
+      return { previousInquiries };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previousInquiries) {
+        queryClient.setQueryData(['inquiries'], context.previousInquiries);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['inquiries'] });
     },
   });

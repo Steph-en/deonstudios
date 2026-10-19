@@ -1163,6 +1163,13 @@ async function startServer() {
 
       // Persist in local database so no messages are ever lost
       try {
+        if (fs.existsSync(DB_FILE)) {
+          const raw = fs.readFileSync(DB_FILE, 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed.inquiries)) {
+            db.inquiries = parsed.inquiries;
+          }
+        }
         if (!Array.isArray(db.inquiries)) {
           db.inquiries = [];
         }
@@ -1376,24 +1383,58 @@ async function startServer() {
 
   // Endpoints to manage received inquiries (for Admin)
   api.get('/inquiries', (_req: Request, res: Response) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    try {
+      if (fs.existsSync(DB_FILE)) {
+        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.inquiries)) {
+          db.inquiries = parsed.inquiries;
+        } else {
+          db.inquiries = [];
+        }
+      }
+    } catch {}
     res.json(db.inquiries || []);
   });
 
   api.patch('/inquiries/:id', (req: Request, res: Response) => {
     const { id } = req.params;
     const { status } = req.body || {};
+    try {
+      if (fs.existsSync(DB_FILE)) {
+        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.inquiries)) {
+          db.inquiries = parsed.inquiries;
+        }
+      }
+    } catch {}
+
+    let updatedTarget = null;
     if (Array.isArray(db.inquiries)) {
       const target = db.inquiries.find((inq: any) => inq.id === id);
       if (target && status) {
         target.status = status;
+        updatedTarget = target;
         saveDatabase(db);
       }
     }
-    res.json({ success: true, id });
+    res.json({ success: true, id, inquiry: updatedTarget });
   });
 
   api.delete('/inquiries/:id', (req: Request, res: Response) => {
     const { id } = req.params;
+    try {
+      if (fs.existsSync(DB_FILE)) {
+        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.inquiries)) {
+          db.inquiries = parsed.inquiries;
+        }
+      }
+    } catch {}
+
     db.inquiries = (db.inquiries || []).filter((inq: any) => inq.id !== id);
     saveDatabase(db);
     res.json({ success: true, id });
