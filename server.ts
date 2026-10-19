@@ -1094,11 +1094,15 @@ async function startServer() {
           message: `Verification email successfully sent via SMTP (${smtpHost}) to ${targetDestination}.`,
         });
       } catch (err: any) {
+        const isBadCredentials =
+          err?.message?.includes('535') || err?.message?.includes('BadCredentials');
         return res.status(400).json({
           success: false,
           provider: 'smtp',
           error: err?.message || 'SMTP Authentication or Connection failed',
-          hint: 'Check your SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS (e.g. Gmail App Password).',
+          hint: isBadCredentials
+            ? 'Google rejected the login credentials (535 Bad Credentials). Regular passwords do not work with Gmail SMTP. You must generate a 16-character App Password at https://myaccount.google.com/apppasswords (with 2-Step Verification enabled on the Google account) and set it as SMTP_PASS. Alternatively, use Resend (RESEND_API_KEY) which is recommended for Vercel serverless.'
+            : 'Check your SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASS in .env or hosting environment variables.',
         });
       }
     }

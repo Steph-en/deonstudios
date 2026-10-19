@@ -648,37 +648,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Collapsible Secrets & Configuration Reference */}
           {showConfigGuide && (
-            <div className="mt-3 p-3.5 bg-white border border-neutral-200 rounded text-xs space-y-3 font-sans">
+            <div className="mt-3 p-4 bg-white border border-neutral-200 rounded-lg text-xs space-y-4 font-sans shadow-xs">
               <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-                <span className="font-semibold text-neutral-900 uppercase tracking-wider text-[11px]">
-                  Required Variables in .env / Hosting Secrets
-                </span>
+                <div>
+                  <span className="font-semibold text-neutral-900 uppercase tracking-wider text-[11px] block">
+                    How & Where to Fix Email Dispatch Across Environments
+                  </span>
+                  <span className="text-[11px] text-neutral-500">
+                    Follow these steps for Vercel, Google AI Studio, and Localhost
+                  </span>
+                </div>
                 <span className="text-[10px] text-neutral-500 font-mono">Target: studio@gideonboadi.com</span>
               </div>
 
+              {/* Environments Guide */}
+              <div className="p-3 bg-neutral-900 text-neutral-100 rounded-lg space-y-2 text-[11px]">
+                <div className="font-semibold text-amber-300 uppercase tracking-wider text-[10px]">
+                  Where to configure variables:
+                </div>
+                <ul className="space-y-1.5 list-disc list-inside text-neutral-300">
+                  <li>
+                    <strong className="text-white">In Vercel (Production):</strong> Go to your{' '}
+                    <span className="text-neutral-200 font-mono">Vercel Project &rarr; Settings &rarr; Environment Variables</span>, add the variables below, and click <strong className="text-white">Redeploy</strong>.
+                  </li>
+                  <li>
+                    <strong className="text-white">In Google AI Studio &amp; Localhost:</strong> Update the{' '}
+                    <code className="text-amber-200 font-mono bg-neutral-800 px-1 py-0.5 rounded">.env</code> file in the project root.
+                  </li>
+                </ul>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5 p-3 bg-neutral-50 rounded border border-neutral-200/80">
-                  <span className="font-semibold text-neutral-900 block text-[11px]">Option A: Resend API (Recommended)</span>
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                    Create a free account at <strong>resend.com</strong>, copy API key, and set in <code className="bg-neutral-200 px-1 py-0.5 rounded font-mono">.env</code>:
+                {/* Option A: Resend API */}
+                <div className="space-y-2 p-3.5 bg-emerald-50/50 border border-emerald-200/80 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-emerald-950 block text-[12px]">Option A: Resend (Recommended for Vercel)</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-mono px-1.5 py-0.5 rounded font-medium">100% Free</span>
+                  </div>
+                  <p className="text-[11px] text-neutral-600 leading-relaxed">
+                    Fastest setup. Works natively in Vercel serverless without SMTP timeouts or Gmail 2FA blocks:
                   </p>
-                  <pre className="p-2 bg-neutral-900 text-neutral-100 font-mono text-[10px] rounded overflow-x-auto">
-{`RESEND_API_KEY=re_your_api_key
+                  <ol className="text-[11px] text-neutral-600 space-y-1 list-decimal list-inside">
+                    <li>Sign up free at <strong>resend.com</strong></li>
+                    <li>Copy your API key (starts with <code className="bg-neutral-200 px-1 py-0.5 rounded font-mono">re_</code>)</li>
+                    <li>Add these variables:</li>
+                  </ol>
+                  <pre className="p-2.5 bg-neutral-900 text-neutral-100 font-mono text-[10px] rounded overflow-x-auto">
+{`RESEND_API_KEY=re_your_api_key_here
 RESEND_FROM=Deon Studios <onboarding@resend.dev>
 CONTACT_DESTINATION_EMAIL=studio@gideonboadi.com`}
                   </pre>
                 </div>
 
-                <div className="space-y-1.5 p-3 bg-neutral-50 rounded border border-neutral-200/80">
-                  <span className="font-semibold text-neutral-900 block text-[11px]">Option B: SMTP (Gmail / Titan / cPanel)</span>
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                    Use your mail provider's SMTP credentials. For Gmail, generate a 16-digit App Password at <em>myaccount.google.com/apppasswords</em>:
+                {/* Option B: Gmail SMTP */}
+                <div className="space-y-2 p-3.5 bg-neutral-50 border border-neutral-200 rounded-lg">
+                  <span className="font-semibold text-neutral-900 block text-[12px]">Option B: Gmail / Google Workspace SMTP</span>
+                  <p className="text-[11px] text-neutral-600 leading-relaxed">
+                    <strong className="text-rose-600">Important:</strong> Google blocks normal account passwords (535 Bad Credentials). You MUST use a 16-character App Password:
                   </p>
-                  <pre className="p-2 bg-neutral-900 text-neutral-100 font-mono text-[10px] rounded overflow-x-auto">
-{`SMTP_HOST=smtp.gmail.com (or smtp.titan.email)
-SMTP_PORT=587 (or 465)
-SMTP_USER=studio@gideonboadi.com
-SMTP_PASS=your_16_digit_app_password
+                  <ol className="text-[11px] text-neutral-600 space-y-1 list-decimal list-inside">
+                    <li>Enable 2-Step Verification on your Google account</li>
+                    <li>Go to: <strong>myaccount.google.com/apppasswords</strong></li>
+                    <li>Create an app named &ldquo;Deon Studios&rdquo; &amp; copy the 16-letter code</li>
+                  </ol>
+                  <pre className="p-2.5 bg-neutral-900 text-neutral-100 font-mono text-[10px] rounded overflow-x-auto">
+{`SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=studio@gideonboadi.com (or your Google email)
+SMTP_PASS=your_16_letter_app_password
 SMTP_FROM="Deon Studios" <studio@gideonboadi.com>
 CONTACT_DESTINATION_EMAIL=studio@gideonboadi.com`}
                   </pre>
