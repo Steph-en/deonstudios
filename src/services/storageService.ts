@@ -129,6 +129,35 @@ export class StorageService {
       ? `${destinationPath}${cleanBase}-${timestamp}.${fileExt}`
       : destinationPath;
 
+    // 1. Prioritize Server-Side Asset Optimization Proxy:
+    // This routes the image through Sharp (MozJPEG / WebP / 2560px max)
+    // compressing camera raw files (15MB - 30MB) down to ~800KB before storing in Supabase,
+    // protecting the 5GB Supabase free quota from bloating.
+    try {
+      const base64 = await fileToBase64(file);
+      const serverRes = await ApiClient.post<any>('/upload', {
+        fileName: file.name,
+        mimeType: file.type,
+        base64,
+        destinationPath,
+      });
+
+      if (serverRes?.url) {
+        return {
+          path: serverRes.path || finalPath,
+          url: serverRes.url,
+          fileName: serverRes.fileName || file.name,
+          fileSize: serverRes.fileSize || file.size,
+          mimeType: serverRes.mimeType || file.type,
+          width: serverRes.width || width,
+          height: serverRes.height || height,
+        };
+      }
+    } catch (serverErr: any) {
+      console.warn('Backend upload proxy notice, attempting direct Supabase fallback:', serverErr?.message || serverErr);
+    }
+
+    // 2. Direct Supabase Storage Client Fallback
     if (isSupabaseConfigured()) {
       try {
         // Ensure active Supabase Auth session if possible
@@ -178,7 +207,7 @@ export class StorageService {
 
       try {
         const { data, error } = await supabase.storage.from(BUCKET_NAME).upload(finalPath, file, {
-          cacheControl: '3600',
+          cacheControl: 'public, max-age=31536000',
           upsert,
           contentType: file.type,
         });
@@ -197,38 +226,11 @@ export class StorageService {
         }
 
         if (error) {
-          console.warn('Supabase storage upload notice:', error.message);
+          console.warn('Supabase direct upload notice:', error.message);
         }
       } catch (err: any) {
-        console.warn('Supabase storage upload error:', err?.message || err);
+        console.warn('Supabase direct upload error:', err?.message || err);
       }
-    }
-
-    // Universal Server Proxy Fallback:
-    // Guarantees that the image is saved to Supabase Storage or server-hosted storage
-    // and returns a universally accessible HTTP URL that works across all client laptops.
-    try {
-      const base64 = await fileToBase64(file);
-      const serverRes = await ApiClient.post<any>('/upload', {
-        fileName: file.name,
-        mimeType: file.type,
-        base64,
-        destinationPath,
-      });
-
-      if (serverRes?.url) {
-        return {
-          path: serverRes.path || finalPath,
-          url: serverRes.url,
-          fileName: serverRes.fileName || file.name,
-          fileSize: serverRes.fileSize || file.size,
-          mimeType: serverRes.mimeType || file.type,
-          width,
-          height,
-        };
-      }
-    } catch (serverErr: any) {
-      console.warn('Backend upload proxy notice:', serverErr?.message || serverErr);
     }
 
     throw new Error('Upload failed: Could not persist media asset to storage. Please ensure your network connection is active.');

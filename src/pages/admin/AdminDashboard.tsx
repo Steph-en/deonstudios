@@ -43,6 +43,7 @@ import {
 } from '../../hooks/usePortfolioQueries';
 import { useConfirm, useToast } from '../../context/AdminUIContext';
 import { AdminTab } from '../../components/layouts/AdminLayout';
+import { StorageOptimizerPanel } from '../../components/admin/StorageOptimizerPanel';
 
 interface AdminDashboardProps {
   onNavigateTab: (tab: AdminTab) => void;
@@ -479,6 +480,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Supabase Storage Optimization Panel */}
+      <StorageOptimizerPanel />
 
       {/* Studio Client Inquiries & Briefs */}
       <div className="bg-white border border-neutral-200 rounded-xl p-5 sm:p-6 shadow-xs space-y-5">

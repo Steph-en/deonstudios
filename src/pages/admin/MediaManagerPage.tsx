@@ -11,12 +11,14 @@ import {
   Filter,
   Sparkles,
   Loader2,
+  HardDrive,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MediaUploader } from '../../components/forms/MediaUploader';
 import { MediaService, LibraryMediaAsset } from '../../features/media/services/mediaService';
 import { useConfirm, useToast } from '../../context/AdminUIContext';
 import { BulkActionBar } from '../../components/admin/BulkActionBar';
+import { StorageOptimizerPanel } from '../../components/admin/StorageOptimizerPanel';
 
 export const MediaManagerPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -26,6 +28,7 @@ export const MediaManagerPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [showOptimizer, setShowOptimizer] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -140,6 +143,19 @@ export const MediaManagerPage: React.FC = () => {
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
             type="button"
+            onClick={() => setShowOptimizer(!showOptimizer)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition border cursor-pointer ${
+              showOptimizer
+                ? 'bg-neutral-900 text-white border-neutral-900'
+                : 'bg-white text-neutral-800 border-neutral-200 hover:bg-neutral-50 shadow-xs'
+            }`}
+          >
+            <HardDrive className={`w-4 h-4 ${showOptimizer ? 'text-emerald-400' : 'text-neutral-500'}`} />
+            {showOptimizer ? 'Hide Optimizer' : 'Storage Optimizer'}
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowUpload(!showUpload)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-neutral-950 text-white text-xs font-semibold uppercase tracking-wider hover:bg-neutral-800 transition shadow-sm cursor-pointer"
           >
@@ -147,6 +163,8 @@ export const MediaManagerPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {showOptimizer && <StorageOptimizerPanel />}
 
       {showUpload && (
         <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm">

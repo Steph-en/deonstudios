@@ -7,6 +7,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
+import {
+  optimizeImageBuffer,
+  isImage,
+  isVideo,
+  getMimeType,
+} from './src/services/assetOptimizationEngine';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -790,23 +796,50 @@ async function startServer() {
     res.json({ success: true, count: assets?.length || 0 });
   });
 
-  // 7b. Universal Media Upload Proxy
+  // 7b. Universal Media Upload Proxy with Automatic Asset Optimization
   api.post('/upload', async (req: Request, res: Response) => {
     try {
-      const { fileName, mimeType, base64, destinationPath } = req.body;
+      const { fileName, mimeType, base64, destinationPath, skipOptimization } = req.body;
       if (!base64 || !fileName) {
         return res.status(400).json({ error: 'Missing base64 data or fileName' });
       }
 
       const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, '');
-      const buffer = Buffer.from(cleanBase64, 'base64');
+      const rawBuffer = Buffer.from(cleanBase64, 'base64');
       const fileExt = (path.extname(fileName) || '.jpg').toLowerCase().replace('.', '') || 'jpg';
       const cleanBase = path.basename(fileName, path.extname(fileName)).toLowerCase().replace(/[^a-z0-9]/g, '-');
       const finalFileName = `${cleanBase}-${Date.now()}.${fileExt}`;
       const destClean = (destinationPath || 'general').replace(/^\/+|\/+$/g, '');
       const storagePath = `${destClean}/${finalFileName}`;
 
-      const targetMime = mimeType || (fileExt === 'png' ? 'image/png' : fileExt === 'webp' ? 'image/webp' : 'image/jpeg');
+      const targetMime = mimeType || getMimeType(finalFileName);
+
+      // Perform automatic optimization if image or video
+      let bufferToUpload = rawBuffer;
+      let finalMime = targetMime;
+      let width: number | undefined;
+      let height: number | undefined;
+      let wasOptimized = false;
+      const originalSize = rawBuffer.length;
+
+      if (!skipOptimization && (isImage(fileName) || isImage(targetMime))) {
+        try {
+          const optResult = await optimizeImageBuffer(
+            rawBuffer,
+            { maxWidth: 2560, maxHeight: 2560, quality: 82, format: 'preserve' },
+            targetMime
+          );
+          if (optResult.wasCompressed) {
+            bufferToUpload = optResult.optimizedBuffer;
+            finalMime = optResult.mimeType;
+            width = optResult.width;
+            height = optResult.height;
+            wasOptimized = true;
+          }
+        } catch (optErr) {
+          console.warn('On-the-fly optimization notice:', optErr);
+        }
+      }
 
       // 1. Upload to Supabase Storage bucket 'portfolio-media'
       const sbUrl = process.env.VITE_SUPABASE_URL || 'https://oorbvpnuivsyfxftlqwr.supabase.co';
@@ -818,9 +851,10 @@ async function startServer() {
           const serverSupabase = createClient(sbUrl, sbAnonKey);
           const { data, error } = await serverSupabase.storage
             .from('portfolio-media')
-            .upload(storagePath, buffer, {
-              contentType: targetMime,
+            .upload(storagePath, bufferToUpload, {
+              contentType: finalMime,
               upsert: true,
+              cacheControl: 'public, max-age=31536000',
             });
 
           if (!error && data?.path) {
@@ -833,8 +867,12 @@ async function startServer() {
               path: data.path,
               url: urlData.publicUrl,
               fileName: finalFileName,
-              fileSize: buffer.length,
-              mimeType: targetMime,
+              fileSize: bufferToUpload.length,
+              originalSize,
+              wasOptimized,
+              mimeType: finalMime,
+              width,
+              height,
             });
           } else if (error) {
             console.warn('Server Supabase upload error:', error.message);
@@ -850,7 +888,7 @@ async function startServer() {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
       const localFilePath = path.resolve(uploadsDir, finalFileName);
-      fs.writeFileSync(localFilePath, buffer);
+      fs.writeFileSync(localFilePath, bufferToUpload);
 
       const publicUrl = `/uploads/${finalFileName}`;
       return res.json({
@@ -858,12 +896,92 @@ async function startServer() {
         path: storagePath,
         url: publicUrl,
         fileName: finalFileName,
-        fileSize: buffer.length,
-        mimeType: targetMime,
+        fileSize: bufferToUpload.length,
+        originalSize,
+        wasOptimized,
+        mimeType: finalMime,
+        width,
+        height,
       });
     } catch (err: any) {
       console.error('API /upload fatal error:', err);
       res.status(500).json({ error: err.message || 'Media upload failed' });
+    }
+  });
+
+  // 7c. Supabase Storage Statistics & Analytics
+  api.get('/storage/stats', async (_req: Request, res: Response) => {
+    try {
+      const sbUrl = process.env.VITE_SUPABASE_URL || 'https://oorbvpnuivsyfxftlqwr.supabase.co';
+      const sbAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
+      const { createClient } = await import('@supabase/supabase-js');
+      const sb = createClient(sbUrl, sbAnonKey);
+
+      async function listFolder(folder = ''): Promise<any[]> {
+        let all: any[] = [];
+        const { data, error } = await sb.storage.from('portfolio-media').list(folder, { limit: 1000 });
+        if (error || !data) return all;
+        for (const item of data) {
+          const fullPath = folder ? `${folder}/${item.name}` : item.name;
+          if (item.id === null && !item.metadata) {
+            const sub = await listFolder(fullPath);
+            all = all.concat(sub);
+          } else {
+            all.push({
+              path: fullPath,
+              name: item.name,
+              size: item.metadata?.size || 0,
+              mimetype: item.metadata?.mimetype || getMimeType(item.name),
+              updated_at: item.updated_at,
+            });
+          }
+        }
+        return all;
+      }
+
+      const files = await listFolder();
+      const totalBytes = files.reduce((acc, f) => acc + (f.size || 0), 0);
+      const freeAllowanceBytes = 5 * 1024 * 1024 * 1024; // 5 GB
+
+      // Folder breakdown
+      const folderBreakdown: Record<string, { count: number; bytes: number }> = {};
+      files.forEach((f) => {
+        const topFolder = f.path.split('/')[0] || 'root';
+        if (!folderBreakdown[topFolder]) {
+          folderBreakdown[topFolder] = { count: 0, bytes: 0 };
+        }
+        folderBreakdown[topFolder].count++;
+        folderBreakdown[topFolder].bytes += f.size || 0;
+      });
+
+      // Top largest files
+      const topLargest = [...files]
+        .sort((a, b) => (b.size || 0) - (a.size || 0))
+        .slice(0, 10);
+
+      // Check last optimization report if available
+      let lastReport: any = null;
+      const reportPath = path.resolve(__dirname, 'storage-optimization-report.json');
+      if (fs.existsSync(reportPath)) {
+        try {
+          lastReport = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
+        } catch {}
+      }
+
+      res.json({
+        success: true,
+        totalFiles: files.length,
+        totalBytes,
+        totalMb: Number((totalBytes / (1024 * 1024)).toFixed(2)),
+        totalGb: Number((totalBytes / (1024 * 1024 * 1024)).toFixed(3)),
+        freeAllowanceGb: 5.0,
+        usagePercentage: Number(((totalBytes / freeAllowanceBytes) * 100).toFixed(1)),
+        folderBreakdown,
+        topLargest,
+        lastReport,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to retrieve storage statistics' });
     }
   });
 
