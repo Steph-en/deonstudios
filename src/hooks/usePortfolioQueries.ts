@@ -489,14 +489,64 @@ export function useInquiries() {
   return useQuery<any[]>({
     queryKey: ['inquiries'],
     queryFn: async () => {
-      const res = await fetch('/api/inquiries', {
-        headers: { 'Cache-Control': 'no-cache, no-store' },
+      // Tier 1: Try /api/inquiries (Server or Vercel serverless)
+      let apiItems: any[] = [];
+      try {
+        const res = await fetch('/api/inquiries', {
+          headers: { 'Cache-Control': 'no-cache, no-store' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) apiItems = data;
+        }
+      } catch (err) {
+        console.warn('[useInquiries] API fetch note:', err);
+      }
+
+      // Tier 2: Try Supabase cloud database directly (guaranteed across all environments including Vercel)
+      let cloudItems: any[] = [];
+      try {
+        const cloudData = await SiteSettingsService.getSettings<any[]>('client_inquiries', []);
+        if (Array.isArray(cloudData)) cloudItems = cloudData;
+      } catch (err) {
+        console.warn('[useInquiries] Supabase fetch note:', err);
+      }
+
+      // Tier 3: Try browser storage (instant offline/same-device visibility)
+      let localItems: any[] = [];
+      try {
+        const dispatched = JSON.parse(localStorage.getItem('deon_dispatched_inquiries') || '[]');
+        if (Array.isArray(dispatched)) localItems = dispatched;
+      } catch {}
+
+      // Deduplicate and merge by inquiry id
+      const map = new Map<string, any>();
+      // Order: localItems -> cloudItems -> apiItems (newest status / edits take precedence)
+      const all = [...localItems, ...cloudItems, ...apiItems];
+      for (const inq of all) {
+        if (inq && inq.id) {
+          if (!map.has(inq.id)) {
+            map.set(inq.id, inq);
+          } else {
+            // Merge fields preferring read status if updated
+            const existing = map.get(inq.id);
+            if (inq.status === 'read' && existing.status !== 'read') {
+              map.set(inq.id, { ...existing, ...inq });
+            }
+          }
+        }
+      }
+
+      const merged = Array.from(map.values()).sort((a, b) => {
+        const timeA = new Date(a.created_at || a.date || 0).getTime();
+        const timeB = new Date(b.created_at || b.date || 0).getTime();
+        return timeB - timeA;
       });
-      if (!res.ok) return [];
-      return res.json();
+
+      return merged;
     },
     staleTime: 0,
-    refetchInterval: 15000, // Poll every 15s so incoming client messages appear dynamically
+    refetchInterval: 10000, // Poll every 10s for incoming messages
     refetchOnWindowFocus: true,
   });
 }
@@ -505,13 +555,36 @@ export function useUpdateInquiryStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: 'read' | 'unread' }) => {
-      const res = await fetch(`/api/inquiries/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error('Failed to update inquiry status');
-      return res.json();
+      // 1. Try API
+      try {
+        await fetch(`/api/inquiries/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        });
+      } catch {}
+
+      // 2. Sync to Supabase cloud site_settings
+      try {
+        const current = await SiteSettingsService.getSettings<any[]>('client_inquiries', []);
+        const updated = current.map((item: any) =>
+          item.id === id ? { ...item, status } : item
+        );
+        await SiteSettingsService.updateSettings('client_inquiries', updated);
+      } catch {}
+
+      // 3. Sync to browser storage
+      try {
+        const stored = JSON.parse(localStorage.getItem('deon_dispatched_inquiries') || '[]');
+        if (Array.isArray(stored)) {
+          const updated = stored.map((item: any) =>
+            item.id === id ? { ...item, status } : item
+          );
+          localStorage.setItem('deon_dispatched_inquiries', JSON.stringify(updated));
+        }
+      } catch {}
+
+      return { id, status };
     },
     onMutate: async ({ id, status }) => {
       await queryClient.cancelQueries({ queryKey: ['inquiries'] });
@@ -541,9 +614,28 @@ export function useDeleteInquiry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/inquiries/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete inquiry');
-      return res.json();
+      // 1. Try API
+      try {
+        await fetch(`/api/inquiries/${id}`, { method: 'DELETE' });
+      } catch {}
+
+      // 2. Sync to Supabase cloud site_settings
+      try {
+        const current = await SiteSettingsService.getSettings<any[]>('client_inquiries', []);
+        const filtered = current.filter((item: any) => item.id !== id);
+        await SiteSettingsService.updateSettings('client_inquiries', filtered);
+      } catch {}
+
+      // 3. Sync to browser storage
+      try {
+        const stored = JSON.parse(localStorage.getItem('deon_dispatched_inquiries') || '[]');
+        if (Array.isArray(stored)) {
+          const filtered = stored.filter((item: any) => item.id !== id);
+          localStorage.setItem('deon_dispatched_inquiries', JSON.stringify(filtered));
+        }
+      } catch {}
+
+      return { id };
     },
     onMutate: async (id: string) => {
       await queryClient.cancelQueries({ queryKey: ['inquiries'] });

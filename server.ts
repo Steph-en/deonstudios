@@ -1183,6 +1183,45 @@ async function startServer() {
         console.error('Failed to save inquiry to disk, maintaining in memory:', dbErr);
       }
 
+      // Persist in Supabase site_settings (cloud DB)
+      const sbUrl =
+        process.env.VITE_SUPABASE_URL ||
+        process.env.SUPABASE_URL ||
+        'https://oorbvpnuivsyfxftlqwr.supabase.co';
+      const sbAnonKey =
+        process.env.VITE_SUPABASE_ANON_KEY ||
+        process.env.SUPABASE_ANON_KEY ||
+        'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
+      if (sbUrl && sbAnonKey) {
+        import('@supabase/supabase-js')
+          .then(({ createClient }) => {
+            const sb = createClient(sbUrl, sbAnonKey);
+            sb.from('site_settings')
+              .select('value')
+              .eq('key', 'client_inquiries')
+              .maybeSingle()
+              .then(({ data }) => {
+                const list: any[] = Array.isArray((data as any)?.value)
+                  ? [...(data as any).value]
+                  : [];
+                if (!list.some((i: any) => i.id === newInquiry.id)) {
+                  list.unshift(newInquiry);
+                  sb.from('site_settings')
+                    .upsert(
+                      {
+                        key: 'client_inquiries',
+                        value: list,
+                        updated_at: new Date().toISOString(),
+                      },
+                      { onConflict: 'key' }
+                    )
+                    .then(() => {});
+                }
+              });
+          })
+          .catch(() => {});
+      }
+
       // Email dispatch using Resend API (Priority 1) or Nodemailer SMTP (Priority 2)
       let emailDispatched = false;
       let emailProvider = 'database_only';
@@ -1386,8 +1425,39 @@ async function startServer() {
   });
 
   // Endpoints to manage received inquiries (for Admin)
-  api.get('/inquiries', (_req: Request, res: Response) => {
+  api.get('/inquiries', async (_req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+
+    // 1. Try Supabase cloud inquiries
+    const sbUrl =
+      process.env.VITE_SUPABASE_URL ||
+      process.env.SUPABASE_URL ||
+      'https://oorbvpnuivsyfxftlqwr.supabase.co';
+    const sbAnonKey =
+      process.env.VITE_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_ANON_KEY ||
+      'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
+
+    let cloudInquiries: any[] | null = null;
+    if (sbUrl && sbAnonKey) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(sbUrl, sbAnonKey);
+        const { data, error } = await sb
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'client_inquiries')
+          .maybeSingle();
+
+        if (!error && data && Array.isArray((data as any).value)) {
+          cloudInquiries = (data as any).value;
+        }
+      } catch (err) {
+        console.warn('[server /inquiries] Supabase note:', err);
+      }
+    }
+
+    // 2. Read local db.json
     try {
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
@@ -1399,10 +1469,27 @@ async function startServer() {
         }
       }
     } catch {}
+
+    if (cloudInquiries !== null) {
+      // Merge cloud and local inquiries
+      const map = new Map<string, any>();
+      for (const inq of [...(db.inquiries || []), ...cloudInquiries]) {
+        if (inq && inq.id) map.set(inq.id, inq);
+      }
+      const merged = Array.from(map.values()).sort((a, b) => {
+        const timeA = new Date(a.created_at || a.date || 0).getTime();
+        const timeB = new Date(b.created_at || b.date || 0).getTime();
+        return timeB - timeA;
+      });
+      db.inquiries = merged;
+      saveDatabase(db);
+      return res.json(merged);
+    }
+
     res.json(db.inquiries || []);
   });
 
-  api.patch('/inquiries/:id', (req: Request, res: Response) => {
+  api.patch('/inquiries/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { status } = req.body || {};
     try {
@@ -1424,10 +1511,48 @@ async function startServer() {
         saveDatabase(db);
       }
     }
+
+    // Also update in Supabase
+    const sbUrl =
+      process.env.VITE_SUPABASE_URL ||
+      process.env.SUPABASE_URL ||
+      'https://oorbvpnuivsyfxftlqwr.supabase.co';
+    const sbAnonKey =
+      process.env.VITE_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_ANON_KEY ||
+      'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
+    if (sbUrl && sbAnonKey) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(sbUrl, sbAnonKey);
+        const { data } = await sb
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'client_inquiries')
+          .maybeSingle();
+
+        const list: any[] = Array.isArray((data as any)?.value)
+          ? [...(data as any).value]
+          : [];
+        const item = list.find((i: any) => i.id === id);
+        if (item) {
+          item.status = status || 'read';
+          await sb.from('site_settings').upsert(
+            {
+              key: 'client_inquiries',
+              value: list,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'key' }
+          );
+        }
+      } catch {}
+    }
+
     res.json({ success: true, id, inquiry: updatedTarget });
   });
 
-  api.delete('/inquiries/:id', (req: Request, res: Response) => {
+  api.delete('/inquiries/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     try {
       if (fs.existsSync(DB_FILE)) {
@@ -1441,6 +1566,41 @@ async function startServer() {
 
     db.inquiries = (db.inquiries || []).filter((inq: any) => inq.id !== id);
     saveDatabase(db);
+
+    // Also delete in Supabase
+    const sbUrl =
+      process.env.VITE_SUPABASE_URL ||
+      process.env.SUPABASE_URL ||
+      'https://oorbvpnuivsyfxftlqwr.supabase.co';
+    const sbAnonKey =
+      process.env.VITE_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_ANON_KEY ||
+      'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
+    if (sbUrl && sbAnonKey) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(sbUrl, sbAnonKey);
+        const { data } = await sb
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'client_inquiries')
+          .maybeSingle();
+
+        const list: any[] = Array.isArray((data as any)?.value)
+          ? [...(data as any).value]
+          : [];
+        const filtered = list.filter((i: any) => i.id !== id);
+        await sb.from('site_settings').upsert(
+          {
+            key: 'client_inquiries',
+            value: filtered,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'key' }
+        );
+      } catch {}
+    }
+
     res.json({ success: true, id });
   });
 

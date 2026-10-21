@@ -3,7 +3,19 @@
   "projects": [],
   "portfolio": [],
   "products": [],
-  "inquiries": [],
+  "inquiries": [
+    {
+      "id": "inq-1792546507753-kw31f",
+      "name": "Mireille Dumas",
+      "email": "mireille@haute-couture.fr",
+      "phone": "+33 6 45 78 90 12",
+      "status": "unread",
+      "message": "High fashion editorial campaign booking request.",
+      "created_at": "2026-10-21T01:35:07.753Z",
+      "projectType": "Editorial Fashion",
+      "destination_email": "studio@gideonboadi.com"
+    }
+  ],
   "media": [],
   "deleted_keys": [],
   "site_settings": {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, CheckCircle2, AlertCircle, Send, Mail } from 'lucide-react';
 import { STUDIO_INFO } from '../data/portfolioData';
+import { SiteSettingsService } from '../services/siteSettingsService';
 import { ThemeMode } from '../types';
 
 interface ContactModalProps {
@@ -157,21 +158,44 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
     setIsSubmitting(true);
 
     const inquiryId = `inq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const cleanName = formData.name.trim();
+    const cleanEmail = formData.email.trim();
+    const cleanMessage = formData.message.trim();
+    const cleanProjectType = formData.projectType || 'General Inquiry';
+
     const inquiryRecord = {
-      ...formData,
       id: inquiryId,
-      date: new Date().toISOString(),
+      name: cleanName,
+      email: cleanEmail,
+      projectType: cleanProjectType,
+      project_type: cleanProjectType,
+      message: cleanMessage,
       destination: destinationEmail,
+      destination_email: destinationEmail,
+      status: 'unread',
+      created_at: new Date().toISOString(),
+      date: new Date().toISOString(),
     };
 
-    // Store in browser storage immediately
+    // 1. Store in browser storage immediately
     try {
       const stored = JSON.parse(localStorage.getItem('deon_dispatched_inquiries') || '[]');
       stored.unshift(inquiryRecord);
-      localStorage.setItem('deon_dispatched_inquiries', JSON.stringify(stored.slice(0, 30)));
-    } catch {
-      // Ignore quota
-    }
+      localStorage.setItem('deon_dispatched_inquiries', JSON.stringify(stored.slice(0, 50)));
+    } catch {}
+
+    // 2. Direct Supabase cloud persistence (shared across Vercel and all devices)
+    try {
+      SiteSettingsService.getSettings<any[]>('client_inquiries', [])
+        .then((list) => {
+          const current = Array.isArray(list) ? [...list] : [];
+          if (!current.some((i: any) => i.id === inquiryRecord.id)) {
+            current.unshift(inquiryRecord);
+            SiteSettingsService.updateSettings('client_inquiries', current);
+          }
+        })
+        .catch(() => {});
+    } catch {}
 
     try {
       const res = await fetch('/api/contact', {

@@ -157,28 +157,42 @@ export default async function handler(req: ExtendedRequest, res: ExtendedRespons
       console.warn('[Contact Function] Could not persist to local db.json (normal in serverless):', dbErr);
     }
 
-    // 2. Try to insert into Supabase inquiries table if configured
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://oorbvpnuivsyfxftlqwr.supabase.co';
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
+    // 2. Persist in Supabase site_settings (shared across Vercel & all environments)
+    const supabaseUrl =
+      process.env.VITE_SUPABASE_URL ||
+      process.env.SUPABASE_URL ||
+      'https://oorbvpnuivsyfxftlqwr.supabase.co';
+    const supabaseKey =
+      process.env.VITE_SUPABASE_ANON_KEY ||
+      process.env.SUPABASE_ANON_KEY ||
+      'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
 
     if (supabaseUrl && supabaseKey) {
       try {
         const supabase = createClient(supabaseUrl, supabaseKey);
-        await supabase.from('inquiries').insert([
-          {
-            id: newInquiry.id,
-            name: cleanName,
-            email: cleanEmail,
-            message: cleanMessage,
-            project_type: cleanProjectType,
-            phone: cleanPhone,
-            destination_email: targetDestination,
-            status: 'unread',
-            created_at: newInquiry.created_at,
-          },
-        ]);
+        const { data: settingData } = await supabase
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'client_inquiries')
+          .maybeSingle();
+
+        const inquiriesList: any[] = Array.isArray((settingData as any)?.value)
+          ? [...(settingData as any).value]
+          : [];
+
+        if (!inquiriesList.some((i: any) => i.id === newInquiry.id)) {
+          inquiriesList.unshift(newInquiry);
+          await supabase.from('site_settings').upsert(
+            {
+              key: 'client_inquiries',
+              value: inquiriesList,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'key' }
+          );
+        }
       } catch (sbErr) {
-        // Table might not exist yet; safe to ignore
+        console.warn('[Contact Function] Supabase client_inquiries note:', sbErr);
       }
     }
 
