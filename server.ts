@@ -796,116 +796,368 @@ async function startServer() {
     res.json({ success: true, count: assets?.length || 0 });
   });
 
-  // 7b. Universal Media Upload Proxy with Automatic Asset Optimization
+  
+  // 7b. Universal Media Upload Proxy with Mandatory Image Optimization
   api.post('/upload', async (req: Request, res: Response) => {
     try {
-      const { fileName, mimeType, base64, destinationPath, skipOptimization } = req.body;
-      if (!base64 || !fileName) {
-        return res.status(400).json({ error: 'Missing base64 data or fileName' });
+      const { fileName, mimeType, base64, destinationPath } = req.body ?? {};
+
+      // Validate required request fields.
+      if (
+        typeof fileName !== 'string' ||
+        !fileName.trim() ||
+        typeof base64 !== 'string' ||
+        !base64.trim()
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: 'A valid fileName and base64 payload are required.',
+        });
       }
 
-      const cleanBase64 = base64.replace(/^data:[^;]+;base64,/, '');
-      const rawBuffer = Buffer.from(cleanBase64, 'base64');
-      const fileExt = (path.extname(fileName) || '.jpg').toLowerCase().replace('.', '') || 'jpg';
-      const cleanBase = path.basename(fileName, path.extname(fileName)).toLowerCase().replace(/[^a-z0-9]/g, '-');
-      const finalFileName = `${cleanBase}-${Date.now()}.${fileExt}`;
-      const destClean = (destinationPath || 'general').replace(/^\/+|\/+$/g, '');
+      if (
+        typeof mimeType !== 'string' ||
+        (!mimeType.startsWith('image/') && !mimeType.startsWith('video/'))
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: 'A valid image or video MIME type is required.',
+        });
+      }
+
+      // Only allow supported upload formats.
+      const allowedImageTypes = new Set([
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/svg+xml',
+      ]);
+
+      const allowedVideoTypes = new Set([
+        'video/mp4',
+        'video/webm',
+      ]);
+
+      const imageUpload = allowedImageTypes.has(mimeType);
+      const videoUpload = allowedVideoTypes.has(mimeType);
+
+      if (!imageUpload && !videoUpload) {
+        return res.status(415).json({
+          success: false,
+          error: 'Unsupported media format.',
+        });
+      }
+
+      // Reject oversized encoded payloads before decoding.
+      // The request body parser is configured above with a 50 MB limit.
+      const cleanBase64 = base64.replace(
+        /^data:[^;]+;base64,/i,
+        ''
+      );
+
+      if (
+        !cleanBase64 ||
+        cleanBase64.length > Math.ceil((20 * 1024 * 1024 * 4) / 3) + 8 &&
+          imageUpload ||
+        cleanBase64.length > Math.ceil((150 * 1024 * 1024 * 4) / 3) + 8 &&
+          videoUpload
+      ) {
+        return res.status(413).json({
+          success: false,
+          error: 'The uploaded file exceeds the permitted size.',
+        });
+      }
+
+      // Validate base64 rather than accepting arbitrary decoded input.
+      const normalizedBase64 = cleanBase64.replace(/\s/g, '');
+
+      if (
+        !/^[A-Za-z0-9+/]*={0,2}$/.test(normalizedBase64) ||
+        normalizedBase64.length % 4 !== 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: 'The file payload is not valid base64.',
+        });
+      }
+
+      const rawBuffer = Buffer.from(normalizedBase64, 'base64');
+
+      if (rawBuffer.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'The uploaded file is empty.',
+        });
+      }
+
+      const maxBytes = imageUpload
+        ? 20 * 1024 * 1024
+        : 150 * 1024 * 1024;
+
+      if (rawBuffer.length > maxBytes) {
+        return res.status(413).json({
+          success: false,
+          error: 'The uploaded file exceeds the permitted size.',
+        });
+      }
+
+      // Sanitize filename and storage destination.
+      const originalName = path.basename(fileName);
+      const originalExtension = path.extname(originalName).toLowerCase();
+
+      const cleanBase =
+        path
+          .basename(originalName, originalExtension)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '') || 'upload';
+
+      const extensionByMime: Record<string, string> = {
+        'image/jpeg': '.jpg',
+        'image/png': '.png',
+        'image/webp': '.webp',
+        'image/svg+xml': '.svg',
+        'video/mp4': '.mp4',
+        'video/webm': '.webm',
+      };
+
+      let finalExtension = extensionByMime[mimeType];
+
+      // Do not trust the original extension to determine the content type.
+      if (!finalExtension) {
+        finalExtension = '.bin';
+      }
+
+      const finalFileName =
+        `${cleanBase}-${Date.now()}${finalExtension}`;
+
+      const rawDestination =
+        typeof destinationPath === 'string'
+          ? destinationPath
+          : 'general';
+
+      const destClean = rawDestination
+        .replace(/\\/g, '/')
+        .replace(/^\/+|\/+$/g, '')
+        .trim();
+
+      // Prevent path traversal and malformed storage keys.
+      const pathSegments = destClean.split('/');
+
+      if (
+        !destClean ||
+        pathSegments.some(
+          (segment: string) =>
+            !segment ||
+            segment === '.' ||
+            segment === '..' ||
+            !/^[a-zA-Z0-9_-]+$/.test(segment)
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: 'The destination path is invalid.',
+        });
+      }
+
       const storagePath = `${destClean}/${finalFileName}`;
 
-      const targetMime = mimeType || getMimeType(finalFileName);
-
-      // Perform automatic optimization if image or video
-      let bufferToUpload = rawBuffer;
-      let finalMime = targetMime;
+      const originalSize = rawBuffer.length;
+      let bufferToUpload: Buffer = rawBuffer;;
+      let finalMime = mimeType;
       let width: number | undefined;
       let height: number | undefined;
       let wasOptimized = false;
-      const originalSize = rawBuffer.length;
+      let optimizationProcessed = false;
 
-      if (!skipOptimization && (isImage(fileName) || isImage(targetMime))) {
+      /*
+       * Mandatory image optimization.
+       *
+       * There is deliberately no client-controlled skipOptimization
+       * parameter. Raster image optimization failures cancel the upload.
+       *
+       * SVG is preserved as vector data instead of being passed through
+       * raster compression. Video files are uploaded without image
+       * optimization.
+       */
+      if (imageUpload && mimeType !== 'image/svg+xml') {
         try {
           const optResult = await optimizeImageBuffer(
             rawBuffer,
-            { maxWidth: 2560, maxHeight: 2560, quality: 82, format: 'preserve' },
-            targetMime
+            {
+              maxWidth: 2560,
+              maxHeight: 2560,
+              quality: 82,
+              format: 'preserve',
+            },
+            mimeType
           );
-          if (optResult.wasCompressed) {
-            bufferToUpload = optResult.optimizedBuffer;
-            finalMime = optResult.mimeType;
-            width = optResult.width;
-            height = optResult.height;
-            wasOptimized = true;
+
+          if (
+            !optResult ||
+            !Buffer.isBuffer(optResult.optimizedBuffer) ||
+            optResult.optimizedBuffer.length === 0
+          ) {
+            throw new Error(
+              'The image optimizer returned an invalid result.'
+            );
           }
-        } catch (optErr) {
-          console.warn('On-the-fly optimization notice:', optErr);
+
+          bufferToUpload = optResult.optimizedBuffer;
+          finalMime = optResult.mimeType;
+          width = optResult.width;
+          height = optResult.height;
+
+          // Optimization was successfully processed, even if the engine
+          // determined that no smaller output was beneficial.
+          optimizationProcessed = true;
+          wasOptimized = optResult.wasCompressed === true;
+
+          if (
+            !['image/jpeg', 'image/png', 'image/webp'].includes(finalMime)
+          ) {
+            throw new Error(
+              `The optimizer returned an unsupported MIME type: ${finalMime}`
+            );
+          }
+        } catch (optErr: unknown) {
+          console.error(
+            'Image optimization failed; upload cancelled:',
+            optErr
+          );
+
+          return res.status(500).json({
+            success: false,
+            error:
+              'Image optimization failed. The image was not uploaded.',
+          });
         }
       }
 
-      // 1. Upload to Supabase Storage bucket 'portfolio-media'
-      const sbUrl = process.env.VITE_SUPABASE_URL || 'https://oorbvpnuivsyfxftlqwr.supabase.co';
-      const sbAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
+      /*
+       * SVG is kept in its original vector form.
+       * Video uploads do not use the image optimization engine.
+       */
+      if (mimeType === 'image/svg+xml') {
+        optimizationProcessed = true;
+      }
 
-      if (sbUrl && sbAnonKey) {
-        try {
-          const { createClient } = await import('@supabase/supabase-js');
-          const serverSupabase = createClient(sbUrl, sbAnonKey);
-          const { data, error } = await serverSupabase.storage
-            .from('portfolio-media')
-            .upload(storagePath, bufferToUpload, {
-              contentType: finalMime,
-              upsert: true,
-              cacheControl: 'public, max-age=31536000',
-            });
+      /*
+       * Server-side Supabase configuration.
+       *
+       * Prefer SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY when the server
+       * is authorized to upload using service-role permissions.
+       *
+       * A server-side anon/publishable key can be used instead only if
+       * your Storage policies explicitly permit the operation.
+       *
+       * Never put a service-role key in a VITE_ environment variable.
+       */
+      const sbUrl =
+        process.env.SUPABASE_URL ||
+        process.env.VITE_SUPABASE_URL;
 
-          if (!error && data?.path) {
-            const { data: urlData } = serverSupabase.storage
-              .from('portfolio-media')
-              .getPublicUrl(data.path);
+      const sbKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.SUPABASE_ANON_KEY ||
+        process.env.VITE_SUPABASE_ANON_KEY;
 
-            return res.json({
-              success: true,
-              path: data.path,
-              url: urlData.publicUrl,
-              fileName: finalFileName,
-              fileSize: bufferToUpload.length,
-              originalSize,
-              wasOptimized,
-              mimeType: finalMime,
-              width,
-              height,
-            });
-          } else if (error) {
-            console.warn('Server Supabase upload error:', error.message);
-          }
-        } catch (supabaseErr: any) {
-          console.warn('Server Supabase upload exception:', supabaseErr?.message || supabaseErr);
+      if (!sbUrl || !sbKey) {
+        console.error(
+          'Supabase upload configuration is missing.'
+        );
+
+        return res.status(500).json({
+          success: false,
+          error: 'Storage upload is not configured.',
+        });
+      }
+
+      /*
+       * Supabase Storage is the only persistence destination.
+       * There is intentionally no local public/uploads fallback.
+       */
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+
+        const serverSupabase = createClient(sbUrl, sbKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+          },
+        });
+
+        const { data, error } = await serverSupabase.storage
+          .from('portfolio-media')
+          .upload(storagePath, bufferToUpload, {
+            contentType: finalMime,
+            upsert: true,
+            cacheControl: '31536000',
+          });
+
+        if (error || !data?.path) {
+          console.error(
+            'Supabase Storage upload failed:',
+            error?.message || 'No storage path returned'
+          );
+
+          return res.status(502).json({
+            success: false,
+            error:
+              'The media could not be saved to Supabase Storage.',
+          });
         }
-      }
 
-      // 2. High-reliability fallback: save to public/uploads directory
-      const uploadsDir = path.resolve(__dirname, 'public', 'uploads');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-      const localFilePath = path.resolve(uploadsDir, finalFileName);
-      fs.writeFileSync(localFilePath, bufferToUpload);
+        const { data: urlData } = serverSupabase.storage
+          .from('portfolio-media')
+          .getPublicUrl(data.path);
 
-      const publicUrl = `/uploads/${finalFileName}`;
-      return res.json({
-        success: true,
-        path: storagePath,
-        url: publicUrl,
-        fileName: finalFileName,
-        fileSize: bufferToUpload.length,
-        originalSize,
-        wasOptimized,
-        mimeType: finalMime,
-        width,
-        height,
+        if (!urlData?.publicUrl) {
+          console.error(
+            'Supabase upload succeeded but no public URL was returned.'
+          );
+
+          return res.status(502).json({
+            success: false,
+            error:
+              'The media was saved, but its public URL could not be generated.',
+            path: data.path,
+          });
+        }
+
+        return res.status(200).json({
+          success: true,
+          path: data.path,
+          url: urlData.publicUrl,
+          fileName: finalFileName,
+          fileSize: bufferToUpload.length,
+          originalSize,
+          mimeType: finalMime,
+          width,
+          height,
+          wasOptimized,
+          optimizationProcessed,
+        });
+      } catch (storageErr: unknown) {
+        console.error(
+          'Supabase Storage upload exception:',
+          storageErr
+        );
+
+        return res.status(502).json({
+          success: false,
+          error:
+            'The media could not be saved to Supabase Storage.',
+        });
+      }
+    } catch (err: unknown) {
+      console.error('API /upload failed:', err);
+
+      return res.status(500).json({
+        success: false,
+        error: 'Media upload failed.',
       });
-    } catch (err: any) {
-      console.error('API /upload fatal error:', err);
-      res.status(500).json({ error: err.message || 'Media upload failed' });
     }
   });
 

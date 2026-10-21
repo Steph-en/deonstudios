@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Supabase Storage backups
+backups/supabase-storage/
+
+# Generated Supabase Storage optimization reports
+storage-optimization-report*.json
+
+# Generated Supabase Storage audit reports
+storage-backup-audit-*.json

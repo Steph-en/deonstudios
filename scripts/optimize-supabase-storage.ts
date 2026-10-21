@@ -1,506 +1,192 @@
-#!/usr/bin/env tsx
 import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
-  optimizeImageBuffer,
-  optimizeVideoFile,
-  calculateChecksum,
-  isImage,
-  isVideo,
-  getMimeType,
+  optimizeImageBuffer, calculateChecksum, isImage, isVideo, getMimeType,
 } from '../src/services/assetOptimizationEngine';
 
-// Parse command line arguments
 const args = process.argv.slice(2);
+const has = (flag: string) => args.includes(flag);
+function arg(flag: string, fallback?: string): string | undefined {
+  const i = args.indexOf(flag);
+  if (i < 0) return fallback;
+  const value = args[i + 1];
+  if (!value || value.startsWith('--')) throw new Error(`Expected a value after ${flag}`);
+  return value;
+}
+const isApply = has('--apply');
+const dryRun = !isApply || has('--dry-run');
+const bucket = arg('--bucket', process.env.SUPABASE_STORAGE_BUCKET || 'portfolio-media')!;
+const maxFiles = Number(arg('--max-files', '0'));
+const minSize = Number(arg('--min-size', '300000'));
+const maxWidth = Number(arg('--max-width', '2560'));
+const maxHeight = Number(arg('--max-height', '2560'));
+const quality = Number(arg('--quality', '82'));
+const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const expectedRef = arg('--confirm-project-ref');
 
-function getArg(flag: string, defaultValue: string): string {
-  const idx = args.indexOf(flag);
-  if (idx !== -1 && idx + 1 < args.length) {
-    return args[idx + 1];
+if (has('--clean-orphans')) throw new Error('Orphan deletion is disabled.');
+if (!url || !key) throw new Error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the shell.');
+const parsedUrl = new URL(url);
+if (parsedUrl.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(parsedUrl.hostname)) throw new Error('SUPABASE_URL must use HTTPS.');
+const projectRef = parsedUrl.hostname.split('.')[0];
+if (isApply) {
+  if (!has('--backup')) throw new Error('Apply mode requires --backup.');
+  if (!expectedRef || expectedRef !== projectRef) throw new Error(`Apply blocked. Confirm the project with --confirm-project-ref ${projectRef}`);
+}
+for (const [name, value] of Object.entries({ maxFiles, minSize, maxWidth, maxHeight, quality })) {
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${name} must be a non-negative number.`);
+}
+if (maxWidth < 1 || maxHeight < 1 || quality < 1 || quality > 100) throw new Error('Dimensions must be positive and quality must be 1–100.');
+
+const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+interface ObjectInfo { path: string; name: string; size: number; mimeType: string }
+interface Result { path: string; status: string; originalSize: number; optimizedSize: number; savedBytes: number; error?: string; checksumBefore?: string; checksumAfter?: string; restoreVerified?: boolean }
+
+async function listFiles(folder = ''): Promise<ObjectInfo[]> {
+  const out: ObjectInfo[] = [];
+  const pageSize = 1000;
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase.storage.from(bucket).list(folder, { limit: pageSize, offset, sortBy: { column: 'name', order: 'asc' } });
+    if (error || !data) throw new Error(`List failed for ${folder || '/'}: ${error?.message || 'no data'}`);
+    for (const item of data) {
+      const objectPath = folder ? `${folder}/${item.name}` : item.name;
+      if (item.id === null && !item.metadata) out.push(...await listFiles(objectPath));
+      else out.push({ path: objectPath, name: item.name, size: Number(item.metadata?.size ?? 0), mimeType: item.metadata?.mimetype || getMimeType(item.name) });
+    }
+    if (data.length < pageSize) break;
+    offset += pageSize;
   }
-  return defaultValue;
+  return out;
 }
-
-const hasFlag = (flag: string) => args.includes(flag);
-
-const isApply = hasFlag('--apply');
-const isDryRun = !isApply || hasFlag('--dry-run');
-const doBackup = hasFlag('--backup') || isApply;
-const cleanOrphans = hasFlag('--clean-orphans') && isApply;
-const maxWidth = parseInt(getArg('--max-width', '2560'), 10);
-const maxHeight = parseInt(getArg('--max-height', '2560'), 10);
-const quality = parseInt(getArg('--quality', '82'), 10);
-const minSize = parseInt(getArg('--min-size', '300000'), 10); // 300 KB threshold
-const concurrency = parseInt(getArg('--concurrency', '2'), 10);
-const bucketName = getArg('--bucket', 'portfolio-media');
-
-const supabaseUrl =
-  process.env.VITE_SUPABASE_URL ||
-  process.env.SUPABASE_URL ||
-  'https://oorbvpnuivsyfxftlqwr.supabase.co';
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  process.env.SUPABASE_ANON_KEY ||
-  'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-interface StorageFile {
-  path: string;
-  name: string;
-  size: number;
-  mimetype: string;
-  updated_at?: string;
-  isReferenced: boolean;
-  references: string[];
+async function download(filePath: string): Promise<Buffer> {
+  const { data, error } = await supabase.storage.from(bucket).download(filePath);
+  if (error || !data) throw new Error(`Download failed for ${filePath}: ${error?.message || 'no data'}`);
+  return Buffer.from(await data.arrayBuffer());
 }
-
-async function listAllFilesInBucket(folder = ''): Promise<StorageFile[]> {
-  let files: StorageFile[] = [];
-  const { data, error } = await supabase.storage.from(bucketName).list(folder, {
-    limit: 1000,
-    sortBy: { column: 'name', order: 'asc' },
+async function upload(filePath: string, bytes: Buffer, contentType: string): Promise<void> {
+  const { error } = await supabase.storage.from(bucket).upload(filePath, bytes, { upsert: true, contentType, cacheControl: '0' });
+  if (error) throw new Error(`Upload failed for ${filePath}: ${error.message}`);
+}
+/** Direct REST GET with a unique query parameter to reduce the chance of verifying a cached prior version. */
+async function downloadForVerification(filePath: string): Promise<Buffer> {
+  const encodedPath = filePath.split('/').map(encodeURIComponent).join('/');
+  const verifyUrl = `${url!.replace(/\/$/, '')}/storage/v1/object/${encodeURIComponent(bucket)}/${encodedPath}?verify=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const response = await fetch(verifyUrl, {
+    headers: { apikey: key!, Authorization: `Bearer ${key}`, 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    cache: 'no-store',
   });
-
-  if (error || !data) {
-    console.error(`Error listing folder "${folder}":`, error?.message || error);
-    return files;
-  }
-
-  for (const item of data) {
-    const fullPath = folder ? `${folder}/${item.name}` : item.name;
-    // Check if item is a directory
-    if (item.id === null && !item.metadata) {
-      const subFiles = await listAllFilesInBucket(fullPath);
-      files = files.concat(subFiles);
-    } else {
-      files.push({
-        path: fullPath,
-        name: item.name,
-        size: item.metadata?.size || 0,
-        mimetype: item.metadata?.mimetype || getMimeType(item.name),
-        updated_at: item.updated_at,
-        isReferenced: false,
-        references: [],
-      });
-    }
-  }
-
-  return files;
+  if (!response.ok) throw new Error(`Verification download returned HTTP ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
 }
 
-async function collectDatabaseReferences(): Promise<{
-  allRefs: Map<string, string[]>;
-  mediaRows: Map<string, any>;
-}> {
-  const allRefs = new Map<string, string[]>();
-  const mediaRows = new Map<string, any>();
+async function main() {
+  const all = await listFiles();
+  const totalBytes = all.reduce((sum, file) => sum + file.size, 0);
+  const eligible = all.filter((f) => (isImage(f.path) || isImage(f.mimeType)) && f.size >= minSize && !f.name.endsWith('.emptyFolderPlaceholder')).sort((a, b) => b.size - a.size);
+  const selected = maxFiles > 0 ? eligible.slice(0, maxFiles) : eligible;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupDir = path.resolve('backups', 'supabase-storage', `backup-${stamp}`);
+  const tempDir = path.resolve('.tmp_optimizer', `run-${stamp}`);
+  fs.mkdirSync(tempDir, { recursive: true });
+  if (isApply) fs.mkdirSync(backupDir, { recursive: true });
+  console.log(`Mode: ${dryRun ? 'DRY RUN' : 'APPLY'} | Project: ${projectRef} | Bucket: ${bucket}`);
+  console.log(`Objects: ${all.length} | Eligible: ${eligible.length} | Selected: ${selected.length} | Listed size: ${(totalBytes / 1048576).toFixed(2)} MiB`);
+  if (isApply) console.log(`Local originals backup: ${backupDir}`);
 
-  const recordRef = (key: string, source: string) => {
-    if (!key) return;
-    const cleanKey = key.trim();
-    if (!allRefs.has(cleanKey)) {
-      allRefs.set(cleanKey, []);
-    }
-    allRefs.get(cleanKey)!.push(source);
-
-    // Also extract clean storage path if full URL
-    const match = cleanKey.match(/portfolio-media\/(.+)$/);
-    if (match && match[1]) {
-      const pathOnly = match[1];
-      if (!allRefs.has(pathOnly)) {
-        allRefs.set(pathOnly, []);
-      }
-      allRefs.get(pathOnly)!.push(source);
-    }
-  };
-
+  const results: Result[] = [];
+  let totalSaved = 0;
   try {
-    // 1. project_media
-    const { data: pm } = await supabase.from('project_media').select('*');
-    (pm || []).forEach((row) => {
-      if (row.storage_path) {
-        recordRef(row.storage_path, `project_media:${row.id}`);
-        mediaRows.set(row.storage_path, row);
-      }
-      if (row.media_url) {
-        recordRef(row.media_url, `project_media:${row.id}`);
-      }
-      if (row.thumbnail_url) {
-        recordRef(row.thumbnail_url, `project_media_thumb:${row.id}`);
-      }
-    });
+    for (let i = 0; i < selected.length; i++) {
+      const file = selected[i];
+      console.log(`[${i + 1}/${selected.length}] ${file.path}`);
+      let original: Buffer;
+      try { original = await download(file.path); }
+      catch (e) { results.push({ path: file.path, status: 'download_failed', originalSize: file.size, optimizedSize: file.size, savedBytes: 0, error: String(e) }); continue; }
 
-    // 2. projects
-    const { data: proj } = await supabase
-      .from('projects')
-      .select('id, title, preview_image, preview_video, hero_image, hero_video');
-    (proj || []).forEach((row) => {
-      if (row.preview_image) recordRef(row.preview_image, `project_preview:${row.title || row.id}`);
-      if (row.preview_video) recordRef(row.preview_video, `project_video:${row.title || row.id}`);
-      if (row.hero_image) recordRef(row.hero_image, `project_hero:${row.title || row.id}`);
-      if (row.hero_video) recordRef(row.hero_video, `project_hero_vid:${row.title || row.id}`);
-    });
-
-    // 3. portfolio_shots
-    const { data: port } = await supabase.from('portfolio_shots').select('id, title, url');
-    (port || []).forEach((row) => {
-      if (row.url) recordRef(row.url, `portfolio_shot:${row.title || row.id}`);
-    });
-
-    // 4. product_shots
-    const { data: prod } = await supabase.from('product_shots').select('id, title, url');
-    (prod || []).forEach((row) => {
-      if (row.url) recordRef(row.url, `product_shot:${row.title || row.id}`);
-    });
-
-    // 5. site_settings
-    const { data: sett } = await supabase.from('site_settings').select('*');
-    (sett || []).forEach((row) => {
-      const raw = JSON.stringify(row);
-      const matches = raw.match(/portfolio-media\/([^\s\"']+)/g) || [];
-      matches.forEach((m) => {
-        const p = m.replace('portfolio-media/', '');
-        recordRef(p, `site_setting:${row.id || 'hero'}`);
-      });
-    });
-  } catch (err: any) {
-    console.warn('Notice querying database tables:', err?.message || err);
-  }
-
-  // Also check local data/db.json
-  try {
-    const dbJsonPath = path.resolve(process.cwd(), 'data', 'db.json');
-    if (fs.existsSync(dbJsonPath)) {
-      const localDb = JSON.parse(fs.readFileSync(dbJsonPath, 'utf-8'));
-      const raw = JSON.stringify(localDb);
-      const matches = raw.match(/portfolio-media\/([^\s\"']+)/g) || [];
-      matches.forEach((m) => {
-        const p = m.replace('portfolio-media/', '');
-        recordRef(p, 'local_db_json');
-      });
-    }
-  } catch {
-    // Ignore local db read error
-  }
-
-  return { allRefs, mediaRows };
-}
-
-async function runOptimization() {
-  console.log('===============================================================');
-  console.log('   DEON STUDIOS — SUPABASE STORAGE ASSET OPTIMIZER');
-  console.log('===============================================================');
-  console.log(`Mode:            ${isDryRun ? 'DRY-RUN (Simulate Only, No Files Modified)' : 'APPLY (Live Optimization & Re-upload)'}`);
-  console.log(`Supabase URL:    ${supabaseUrl}`);
-  console.log(`Target Bucket:   ${bucketName}`);
-  console.log(`Max Dimensions:  ${maxWidth} x ${maxHeight} px`);
-  console.log(`JPEG Quality:    ${quality}% (MozJPEG)`);
-  console.log(`Min File Size:   ${(minSize / 1024).toFixed(0)} KB threshold`);
-  console.log(`Backup Enabled:  ${doBackup}`);
-  console.log(`Clean Orphans:   ${cleanOrphans}`);
-  console.log('---------------------------------------------------------------\n');
-
-  console.log('Step 1: Enumerating all storage assets in Supabase...');
-  const allFiles = await listAllFilesInBucket();
-  console.log(`Found ${allFiles.length} total files in bucket "${bucketName}".`);
-
-  console.log('Step 2: Cross-referencing database records & active settings...');
-  const { allRefs, mediaRows } = await collectDatabaseReferences();
-
-  let referencedCount = 0;
-  let unreferencedCount = 0;
-  let totalBytes = 0;
-  let unreferencedBytes = 0;
-
-  for (const file of allFiles) {
-    totalBytes += file.size;
-    const directMatches = allRefs.get(file.path) || [];
-    const publicUrl = `https://oorbvpnuivsyfxftlqwr.supabase.co/storage/v1/object/public/portfolio-media/${file.path}`;
-    const urlMatches = allRefs.get(publicUrl) || [];
-    const combinedRefs = [...directMatches, ...urlMatches];
-
-    if (combinedRefs.length > 0) {
-      file.isReferenced = true;
-      file.references = combinedRefs;
-      referencedCount++;
-    } else {
-      file.isReferenced = false;
-      unreferencedCount++;
-      unreferencedBytes += file.size;
-    }
-  }
-
-  console.log(`- Referenced Assets:   ${referencedCount} files (${( (totalBytes - unreferencedBytes) / (1024 * 1024) ).toFixed(2)} MB)`);
-  console.log(`- Unreferenced Assets: ${unreferencedCount} files (${(unreferencedBytes / (1024 * 1024)).toFixed(2)} MB)`);
-  console.log(`- Total Current Usage: ${(totalBytes / (1024 * 1024)).toFixed(2)} MB (${(totalBytes / (1024 * 1024 * 1024)).toFixed(3)} GB)`);
-  console.log(`- Supabase Free Limit: 5,000 MB (5.00 GB)\n`);
-
-  // Filter eligible assets for optimization
-  const eligibleFiles = allFiles
-    .filter((f) => {
-      // Must be image or video and meet minimum size threshold
-      if (f.name.endsWith('.emptyFolderPlaceholder')) return false;
-      const isImg = isImage(f.path) || isImage(f.mimetype);
-      const isVid = isVideo(f.path) || isVideo(f.mimetype);
-      return (isImg || isVid) && f.size >= minSize;
-    })
-    .sort((a, b) => b.size - a.size); // Largest files first!
-
-  console.log(`Step 3: Found ${eligibleFiles.length} files >= ${(minSize / 1024).toFixed(0)} KB eligible for compression.\n`);
-
-  const results: any[] = [];
-  let totalOptimizedOriginalBytes = 0;
-  let totalOptimizedResultBytes = 0;
-  let totalBytesSaved = 0;
-
-  const backupDir = path.resolve(process.cwd(), 'backups', 'supabase-storage', `backup-${Date.now()}`);
-  if (doBackup && isApply) {
-    fs.mkdirSync(backupDir, { recursive: true });
-    console.log(`Created backup folder: ${backupDir}\n`);
-  }
-
-  const tmpDir = path.resolve(process.cwd(), '.tmp_optimizer');
-  if (!fs.existsSync(tmpDir)) {
-    fs.mkdirSync(tmpDir, { recursive: true });
-  }
-
-  // Process files sequentially or with controlled concurrency
-  for (let i = 0; i < eligibleFiles.length; i++) {
-    const file = eligibleFiles[i];
-    const progress = `[${i + 1}/${eligibleFiles.length}]`;
-    const originalMb = (file.size / (1024 * 1024)).toFixed(2);
-
-    process.stdout.write(`${progress} Downloading "${file.path}" (${originalMb} MB)... `);
-
-    try {
-      const { data: blob, error: downloadError } = await supabase.storage
-        .from(bucketName)
-        .download(file.path);
-
-      if (downloadError || !blob) {
-        console.log(`FAILED download: ${downloadError?.message}`);
-        continue;
-      }
-
-      const arrayBuf = await blob.arrayBuffer();
-      const inputBuffer = Buffer.from(arrayBuf);
-
-      // Backup if apply mode
-      if (doBackup && isApply) {
-        const destBackup = path.join(backupDir, file.path);
-        fs.mkdirSync(path.dirname(destBackup), { recursive: true });
-        fs.writeFileSync(destBackup, inputBuffer);
-      }
-
-      const fileChecksum = calculateChecksum(inputBuffer);
-      const isImg = isImage(file.path) || isImage(file.mimetype);
-      const isVid = isVideo(file.path) || isVideo(file.mimetype);
-
-      let optimizedBuffer: Buffer | null = null;
-      let newWidth: number | undefined;
-      let newHeight: number | undefined;
-      let newMimeType = file.mimetype || getMimeType(file.path);
-
-      if (isImg) {
-        const optRes = await optimizeImageBuffer(
-          inputBuffer,
-          { maxWidth, maxHeight, quality, format: 'preserve' },
-          file.mimetype
-        );
-        optimizedBuffer = optRes.optimizedBuffer;
-        newWidth = optRes.width;
-        newHeight = optRes.height;
-        newMimeType = optRes.mimeType;
-      } else if (isVid) {
-        const tempIn = path.join(tmpDir, `in-${Date.now()}-${file.name}`);
-        const tempOut = path.join(tmpDir, `out-${Date.now()}-${file.name}`);
-        fs.writeFileSync(tempIn, inputBuffer);
-
-        try {
-          const vidRes = await optimizeVideoFile(tempIn, tempOut, {
-            maxHeight: 1080,
-            maxWidth: 1920,
-            crf: 26,
-            audioBitrate: '128k',
-          });
-          optimizedBuffer = fs.readFileSync(vidRes.outputPath);
-        } finally {
-          if (fs.existsSync(tempIn)) fs.unlinkSync(tempIn);
-          if (fs.existsSync(tempOut)) fs.unlinkSync(tempOut);
-        }
-      }
-
-      if (!optimizedBuffer || optimizedBuffer.length >= inputBuffer.length) {
-        console.log(`Already optimal (No reduction).`);
-        results.push({
-          path: file.path,
-          originalSize: file.size,
-          optimizedSize: file.size,
-          savedBytes: 0,
-          savedPercentage: 0,
-          status: 'skipped_no_savings',
-        });
-        continue;
-      }
-
-      const optSize = optimizedBuffer.length;
-      const savedBytes = inputBuffer.length - optSize;
-      const savedPct = ((savedBytes / inputBuffer.length) * 100).toFixed(1);
-      const optMb = (optSize / (1024 * 1024)).toFixed(2);
-
-      totalOptimizedOriginalBytes += inputBuffer.length;
-      totalOptimizedResultBytes += optSize;
-      totalBytesSaved += savedBytes;
-
-      console.log(`Optimized: ${originalMb} MB -> ${optMb} MB (${savedPct}% reduction)`);
-
-      // If apply mode: upload back to Supabase Storage at identical path
+      const beforeHash = calculateChecksum(original);
       if (isApply) {
-        const { error: uploadError } = await supabase.storage
-          .from(bucketName)
-          .upload(file.path, optimizedBuffer, {
-            contentType: newMimeType,
-            upsert: true,
-            cacheControl: 'public, max-age=31536000',
-          });
+        const localBackup = path.join(backupDir, file.path);
+        fs.mkdirSync(path.dirname(localBackup), { recursive: true });
+        fs.writeFileSync(localBackup, original, { flag: 'wx' });
+        const check = fs.readFileSync(localBackup);
+        if (check.length !== original.length || calculateChecksum(check) !== beforeHash) throw new Error(`Backup verification failed; stopping before modifying ${file.path}`);
+      }
 
-        if (uploadError) {
-          console.error(`  -> Upload error: ${uploadError.message}`);
-          results.push({
-            path: file.path,
-            originalSize: file.size,
-            optimizedSize: optSize,
-            savedBytes: 0,
-            status: 'upload_failed',
-            error: uploadError.message,
-          });
+      let optimized = original;
+      let outputMime = file.mimeType || getMimeType(file.path);
+      try {
+        if (isImage(file.path) || isImage(file.mimeType)) {
+          const result = await optimizeImageBuffer(original, { maxWidth, maxHeight, quality, format: 'preserve', minFileSizeToProcess: minSize }, outputMime);
+          optimized = result.optimizedBuffer;
+          outputMime = result.mimeType || outputMime;
+        } else if (isVideo(file.path) || isVideo(file.mimeType)) {
+          // Video output is MP4; do not overwrite a differently suffixed source in place.
+          // This safe script skips video conversion until an explicit extension/URL migration is designed.
+          results.push({ path: file.path, status: 'skipped_video_requires_migration', originalSize: original.length, optimizedSize: original.length, savedBytes: 0, checksumBefore: beforeHash, checksumAfter: beforeHash });
           continue;
         }
+      } catch (e) {
+        results.push({ path: file.path, status: 'optimization_failed', originalSize: original.length, optimizedSize: original.length, savedBytes: 0, error: String(e), checksumBefore: beforeHash });
+        continue;
+      }
 
-        // Update project_media row in DB if exists
-        const pmRow = mediaRows.get(file.path);
-        if (pmRow && pmRow.id) {
-          try {
-            await supabase
-              .from('project_media')
-              .update({
-                file_size: optSize,
-                width: newWidth || pmRow.width,
-                height: newHeight || pmRow.height,
-              })
-              .eq('id', pmRow.id);
-          } catch {
-            // Non-fatal
-          }
+      if (optimized.length >= original.length) {
+        results.push({ path: file.path, status: 'skipped_no_savings', originalSize: original.length, optimizedSize: original.length, savedBytes: 0, checksumBefore: beforeHash, checksumAfter: beforeHash });
+        continue;
+      }
+      const afterHash = calculateChecksum(optimized);
+      if (dryRun) {
+        totalSaved += original.length - optimized.length;
+        results.push({ path: file.path, status: 'dry_run_candidate', originalSize: original.length, optimizedSize: optimized.length, savedBytes: original.length - optimized.length, checksumBefore: beforeHash, checksumAfter: afterHash });
+        console.log(`  Would save ${((original.length - optimized.length) / 1048576).toFixed(2)} MiB`);
+        continue;
+      }
+
+      try {
+        await upload(file.path, optimized, outputMime);
+        const remote = await downloadForVerification(file.path);
+        if (remote.length !== optimized.length || calculateChecksum(remote) !== afterHash) {
+          throw new Error('Post-upload verification mismatch after cache-busting direct REST read.');
         }
-      }
-
-      results.push({
-        path: file.path,
-        originalSize: inputBuffer.length,
-        optimizedSize: optSize,
-        savedBytes,
-        savedPercentage: Number(savedPct),
-        checksum: fileChecksum,
-        width: newWidth,
-        height: newHeight,
-        status: isApply ? 'applied' : 'simulated',
-        isReferenced: file.isReferenced,
-      });
-    } catch (err: any) {
-      console.log(`Error processing file: ${err?.message || err}`);
-    }
-  }
-
-  // Cleanup temp dir
-  try {
-    if (fs.existsSync(tmpDir)) {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-    }
-  } catch {}
-
-  // Handle unreferenced files
-  let cleanedOrphanCount = 0;
-  let cleanedOrphanBytes = 0;
-
-  if (cleanOrphans && isApply) {
-    console.log('\nStep 4: Cleaning verified unreferenced files...');
-    const unreferencedFiles = allFiles.filter((f) => !f.isReferenced && !f.name.endsWith('.emptyFolderPlaceholder'));
-
-    for (const orphan of unreferencedFiles) {
-      const { error: rmErr } = await supabase.storage.from(bucketName).remove([orphan.path]);
-      if (!rmErr) {
-        cleanedOrphanCount++;
-        cleanedOrphanBytes += orphan.size;
-        console.log(`  Removed orphan: ${orphan.path} (${(orphan.size / (1024 * 1024)).toFixed(2)} MB)`);
+        totalSaved += original.length - optimized.length;
+        results.push({ path: file.path, status: 'applied_verified', originalSize: original.length, optimizedSize: optimized.length, savedBytes: original.length - optimized.length, checksumBefore: beforeHash, checksumAfter: afterHash, restoreVerified: undefined });
+        console.log('  Applied and verified.');
+      } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        console.error(`  Apply/verify failed: ${errorMessage}`);
+        let restoreVerified = false;
+        try {
+          const localBackup = fs.readFileSync(path.join(backupDir, file.path));
+          await upload(file.path, localBackup, file.mimeType || getMimeType(file.path));
+          const restored = await downloadForVerification(file.path);
+          restoreVerified = restored.length === localBackup.length && calculateChecksum(restored) === beforeHash;
+          if (!restoreVerified) throw new Error('Restoration bytes did not match the original backup.');
+          console.error('  Original restored and verified.');
+        } catch (restoreError) {
+          console.error(`  CRITICAL: restoration NOT verified. Preserve backup at ${path.join(backupDir, file.path)}. ${String(restoreError)}`);
+        }
+        results.push({ path: file.path, status: restoreVerified ? 'failed_restored_verified' : 'CRITICAL_restore_unverified', originalSize: original.length, optimizedSize: optimized.length, savedBytes: 0, error: errorMessage, checksumBefore: beforeHash, checksumAfter: afterHash, restoreVerified });
       }
     }
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
   }
 
-  // Generate Report
-  const totalOriginalEligibleMb = (totalOptimizedOriginalBytes / (1024 * 1024)).toFixed(2);
-  const totalOptimizedEligibleMb = (totalOptimizedResultBytes / (1024 * 1024)).toFixed(2);
-  const totalSavedMb = (totalBytesSaved / (1024 * 1024)).toFixed(2);
-  const overallReductionPct = totalOptimizedOriginalBytes > 0
-    ? ((totalBytesSaved / totalOptimizedOriginalBytes) * 100).toFixed(1)
-    : '0';
-
-  const newProjectedTotalBytes = totalBytes - totalBytesSaved - (cleanOrphans ? cleanedOrphanBytes : 0);
-  const newProjectedTotalMb = (newProjectedTotalBytes / (1024 * 1024)).toFixed(2);
-
-  console.log('\n===============================================================');
-  console.log('   OPTIMIZATION REPORT SUMMARY');
-  console.log('===============================================================');
-  console.log(`Files Processed:           ${results.length}`);
-  console.log(`Original Eligible Size:    ${totalOriginalEligibleMb} MB`);
-  console.log(`Optimized Size:            ${totalOptimizedEligibleMb} MB`);
-  console.log(`Storage Reclaimed:         ${totalSavedMb} MB (${overallReductionPct}% reduction)`);
-  if (cleanOrphans) {
-    console.log(`Orphans Deleted:           ${cleanedOrphanCount} files (${(cleanedOrphanBytes / (1024 * 1024)).toFixed(2)} MB)`);
-  }
-  console.log(`Starting Total Storage:    ${(totalBytes / (1024 * 1024)).toFixed(2)} MB`);
-  console.log(`Projected Total Storage:   ${newProjectedTotalMb} MB ( ${(newProjectedTotalBytes / (1024 * 1024 * 1024)).toFixed(3)} GB )`);
-  console.log(`Supabase Free Allowance:   5,000 MB (5.00 GB)`);
-  console.log(`Plan Status:               WITHIN SAFE FREE LIMIT (${((newProjectedTotalBytes / (5 * 1024 * 1024 * 1024)) * 100).toFixed(1)}% of 5GB allowance)`);
-  console.log('===============================================================\n');
-
-  // Write JSON report
-  const reportPath = path.resolve(process.cwd(), 'storage-optimization-report.json');
-  fs.writeFileSync(
-    reportPath,
-    JSON.stringify(
-      {
-        timestamp: new Date().toISOString(),
-        mode: isApply ? 'applied' : 'dry-run',
-        bucketName,
-        totalFiles: allFiles.length,
-        eligibleFiles: eligibleFiles.length,
-        processedFiles: results.length,
-        totalBytesBefore: totalBytes,
-        totalBytesAfter: newProjectedTotalBytes,
-        bytesSaved: totalBytesSaved,
-        savedMb: Number(totalSavedMb),
-        reductionPercent: Number(overallReductionPct),
-        unreferencedFilesCount: unreferencedCount,
-        unreferencedBytes,
-        results,
-      },
-      null,
-      2
-    )
-  );
-  console.log(`Detailed report written to: ${reportPath}`);
-
-  if (isDryRun) {
-    console.log('\nTo apply these optimizations and re-upload to Supabase Storage, run:');
-    console.log('  npm run optimize:storage:apply\n');
-  }
+  const reportPath = path.resolve(`storage-optimization-report-${stamp}.json`);
+  fs.writeFileSync(reportPath, JSON.stringify({
+    timestamp: new Date().toISOString(), mode: dryRun ? 'dry-run' : 'applied', projectRef, bucket,
+    totalObjectsListed: all.length, eligibleObjects: eligible.length, selectedObjects: selected.length,
+    bucketBytesBefore: totalBytes, estimatedBytesSaved: totalSaved,
+    bucketBytesProjectedAfter: Math.max(0, totalBytes - totalSaved), backupDir: isApply ? backupDir : null,
+    counts: Object.fromEntries([...new Set(results.map((r) => r.status))].map((s) => [s, results.filter((r) => r.status === s).length])),
+    note: 'Bucket-level estimate only. Video rewriting is deliberately skipped. Do not infer project quota/billing changes from this report.', results,
+  }, null, 2));
+  console.log(`\nEstimated saved: ${(totalSaved / 1048576).toFixed(2)} MiB`);
+  console.log(`Report: ${reportPath}`);
+  if (dryRun) console.log('Dry run only: no remote objects were changed.');
 }
 
-runOptimization().catch((err) => {
-  console.error('Fatal error during asset optimization:', err);
-  process.exit(1);
-});
+main().catch((error) => { console.error('\nFATAL — run stopped:', error instanceof Error ? error.message : error); process.exitCode = 1; });

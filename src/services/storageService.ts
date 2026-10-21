@@ -1,17 +1,9 @@
+
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { fileToPersistentDataUrl } from './indexedDbStorage';
 import { ApiClient } from '../lib/api';
 
 const BUCKET_NAME = 'portfolio-media';
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (err) => reject(err);
-    reader.readAsDataURL(file);
-  });
-}
+const UPLOAD_ENDPOINT = '/upload';
 
 export interface UploadProgressCallback {
   (progress: number): void;
@@ -25,6 +17,20 @@ export interface UploadResult {
   mimeType: string;
   width?: number;
   height?: number;
+}
+
+interface ServerUploadResponse {
+  success?: boolean;
+  path?: string;
+  url?: string;
+  fileName?: string;
+  fileSize?: number;
+  originalSize?: number;
+  wasOptimized?: boolean;
+  mimeType?: string;
+  width?: number;
+  height?: number;
+  error?: string;
 }
 
 export const ALLOWED_IMAGE_TYPES = [
@@ -42,38 +48,137 @@ export const ALLOWED_VIDEO_TYPES = [
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20 MB
 const MAX_VIDEO_SIZE = 150 * 1024 * 1024; // 150 MB
 
+/**
+ * Convert a browser File to a base64 data URL for the server upload endpoint.
+ */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        reject(new Error('Could not read the selected file.'));
+        return;
+      }
+
+      resolve(reader.result);
+    };
+
+    reader.onerror = () => {
+      reject(reader.error ?? new Error('Failed to read the selected file.'));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Validate that the server returned a real Supabase public Storage URL.
+ *
+ * This deliberately rejects relative URLs such as /uploads/image.jpg,
+ * which could indicate that the server used a local filesystem fallback.
+ */
+function isSupabaseStorageUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+
+    return (
+      parsedUrl.protocol === 'https:' &&
+      parsedUrl.pathname.includes(
+        `/storage/v1/object/public/${BUCKET_NAME}/`
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build a safe client-side fallback path for non-image uploads.
+ */
+function createStoragePath(
+  fileName: string,
+  destinationPath: string
+): string {
+  const extension = fileName.split('.').pop()?.toLowerCase() || 'bin';
+
+  const cleanBase = fileName
+    .replace(/\.[^/.]+$/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'upload';
+
+  const timestamp = Date.now();
+  const generatedFileName = `${cleanBase}-${timestamp}.${extension}`;
+
+  const normalizedDestination = destinationPath
+    .replace(/^\/+|\/+$/g, '');
+
+  return normalizedDestination
+    ? `${normalizedDestination}/${generatedFileName}`
+    : generatedFileName;
+}
+
 export class StorageService {
   /**
-   * Helper to get public URL for a file in portfolio-media bucket
+   * Get a public URL for a file in the portfolio-media bucket.
    */
   static getPublicUrl(storagePath: string): string {
     if (!storagePath) return '';
-    if (storagePath.startsWith('http://') || storagePath.startsWith('https://')) {
+
+    if (
+      storagePath.startsWith('http://') ||
+      storagePath.startsWith('https://')
+    ) {
       return storagePath;
     }
+
     if (!isSupabaseConfigured()) {
       return storagePath;
     }
-    const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
+
+    const { data } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(storagePath);
+
     return data.publicUrl;
   }
 
   /**
-   * Helper to get signed URL for private media
+   * Get a signed URL for private media.
    */
-  static async getSignedUrl(storagePath: string, expiresIn = 3600): Promise<string> {
-    if (!isSupabaseConfigured()) return storagePath;
+  static async getSignedUrl(
+    storagePath: string,
+    expiresIn = 3600
+  ): Promise<string> {
+    if (!isSupabaseConfigured()) {
+      return storagePath;
+    }
+
     const { data, error } = await supabase.storage
       .from(BUCKET_NAME)
       .createSignedUrl(storagePath, expiresIn);
+
     if (error || !data?.signedUrl) {
       return this.getPublicUrl(storagePath);
     }
+
     return data.signedUrl;
   }
 
   /**
-   * Universal upload method for Supabase Storage
+   * Upload media.
+   *
+   * Images:
+   * - Must go through the server-side optimization endpoint.
+   * - Must not fall back to a direct browser-to-Supabase upload.
+   * - Are considered successful only when the server returns a valid
+   *   Supabase Storage URL.
+   *
+   * Videos:
+   * - Try the server endpoint first.
+   * - May use the direct Supabase upload fallback if the server endpoint
+   *   fails, provided Supabase is configured.
    */
   static async uploadMedia({
     file,
@@ -88,158 +193,190 @@ export class StorageService {
     const isVideo = ALLOWED_VIDEO_TYPES.includes(file.type);
 
     if (!isImage && !isVideo) {
-      throw new Error(`Unsupported media format (${file.type}). Supported: JPG, PNG, WebP, SVG, MP4, WebM.`);
+      throw new Error(
+        `Unsupported media format (${file.type}). Supported: JPG, PNG, WebP, SVG, MP4 and WebM.`
+      );
+    }
+
+    if (file.size === 0) {
+      throw new Error('The selected file is empty.');
     }
 
     if (isImage && file.size > MAX_IMAGE_SIZE) {
-      throw new Error('Image size exceeds 20MB limit.');
+      throw new Error('Image size exceeds the 20 MB limit.');
     }
 
     if (isVideo && file.size > MAX_VIDEO_SIZE) {
-      throw new Error('Video size exceeds 150MB limit.');
+      throw new Error('Video size exceeds the 150 MB limit.');
     }
 
-    // Measure image dimensions if applicable
     let width: number | undefined;
     let height: number | undefined;
 
-    if (isImage && typeof window !== 'undefined') {
+    // Read image dimensions for metadata.
+    if (isImage && file.type !== 'image/svg+xml' && typeof window !== 'undefined') {
+      const objectUrl = URL.createObjectURL(file);
+
       try {
-        const dimensions = await new Promise<{ w: number; h: number }>((resolve) => {
+        const dimensions = await new Promise<{
+          width: number;
+          height: number;
+        }>((resolve, reject) => {
           const img = new Image();
-          img.onload = () => resolve({ w: img.width, h: img.height });
-          img.onerror = () => resolve({ w: 0, h: 0 });
-          img.src = URL.createObjectURL(file);
+
+          img.onload = () => {
+            resolve({
+              width: img.naturalWidth,
+              height: img.naturalHeight,
+            });
+          };
+
+          img.onerror = () => {
+            reject(new Error('Could not read image dimensions.'));
+          };
+
+          img.src = objectUrl;
         });
-        width = dimensions.w;
-        height = dimensions.h;
+
+        width = dimensions.width;
+        height = dimensions.height;
       } catch {
-        // dimensions optional
+        // Image dimensions are optional; the server remains responsible
+        // for processing and validating the uploaded image.
+      } finally {
+        URL.revokeObjectURL(objectUrl);
       }
     }
 
-    // Clean up filename and build unique storage path
-    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin';
-    const cleanBase = file.name
-      .replace(/\.[^/.]+$/, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '-');
-    const timestamp = Date.now();
-    const finalPath = destinationPath.endsWith('/')
-      ? `${destinationPath}${cleanBase}-${timestamp}.${fileExt}`
-      : destinationPath;
+    const fallbackPath = createStoragePath(file.name, destinationPath);
 
-    // 1. Prioritize Server-Side Asset Optimization Proxy:
-    // This routes the image through Sharp (MozJPEG / WebP / 2560px max)
-    // compressing camera raw files (15MB - 30MB) down to ~800KB before storing in Supabase,
-    // protecting the 5GB Supabase free quota from bloating.
+    let serverUploadError: unknown;
+
+    // 1. Always attempt the server-side upload/optimization pipeline first.
     try {
       const base64 = await fileToBase64(file);
-      const serverRes = await ApiClient.post<any>('/upload', {
-        fileName: file.name,
-        mimeType: file.type,
-        base64,
-        destinationPath,
-      });
 
-      if (serverRes?.url) {
+      const serverRes = (await ApiClient.post<ServerUploadResponse>(
+        UPLOAD_ENDPOINT,
+        {
+          fileName: file.name,
+          mimeType: file.type,
+          base64,
+          destinationPath,
+        }
+      )) as ServerUploadResponse;
+
+      const responseUrl =
+        typeof serverRes?.url === 'string' ? serverRes.url : '';
+
+      const responsePath =
+        typeof serverRes?.path === 'string' ? serverRes.path : '';
+
+      if (
+        serverRes?.success === true &&
+        responsePath &&
+        responseUrl &&
+        isSupabaseStorageUrl(responseUrl)
+      ) {
         return {
-          path: serverRes.path || finalPath,
-          url: serverRes.url,
-          fileName: serverRes.fileName || file.name,
-          fileSize: serverRes.fileSize || file.size,
-          mimeType: serverRes.mimeType || file.type,
-          width: serverRes.width || width,
-          height: serverRes.height || height,
+          path: responsePath,
+          url: responseUrl,
+          fileName:
+            serverRes.fileName || file.name,
+          fileSize:
+            typeof serverRes.fileSize === 'number'
+              ? serverRes.fileSize
+              : file.size,
+          mimeType:
+            serverRes.mimeType || file.type,
+          width:
+            typeof serverRes.width === 'number'
+              ? serverRes.width
+              : width,
+          height:
+            typeof serverRes.height === 'number'
+              ? serverRes.height
+              : height,
         };
       }
-    } catch (serverErr: any) {
-      console.warn('Backend upload proxy notice, attempting direct Supabase fallback:', serverErr?.message || serverErr);
+
+      serverUploadError = new Error(
+        serverRes?.error ||
+          'The upload service did not confirm a valid Supabase Storage upload.'
+      );
+    } catch (error: unknown) {
+      serverUploadError = error;
     }
 
-    // 2. Direct Supabase Storage Client Fallback
-    if (isSupabaseConfigured()) {
-      try {
-        // Ensure active Supabase Auth session if possible
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData?.session) {
-          const sessionRaw =
-            typeof window !== 'undefined'
-              ? localStorage.getItem('demo_admin_session')
-              : null;
-          let targetEmail = 'appahstephen9@gmail.com';
-          if (sessionRaw) {
-            try {
-              const parsed = JSON.parse(sessionRaw);
-              if (parsed?.email) targetEmail = parsed.email;
-            } catch {
-              // fallback
-            }
-          }
+    // 2. Never upload images directly from the browser if the server fails.
+    if (isImage) {
+      const details =
+        serverUploadError instanceof Error
+          ? ` Details: ${serverUploadError.message}`
+          : '';
 
-          const savedAdminPass =
-            typeof window !== 'undefined'
-              ? localStorage.getItem('demo_admin_password')
-              : null;
+      console.error(
+        'Image upload cancelled because the server optimization pipeline failed.',
+        serverUploadError
+      );
 
-          let authRes = await supabase.auth.signInWithPassword({
-            email: targetEmail,
-            password: savedAdminPass || 'admin123',
-          });
+      throw new Error(
+        'Image upload failed. The image was not uploaded through the direct-upload fallback. Please check the server optimization service and try again.' +
+          details
+      );
+    }
 
-          if (authRes.error && targetEmail !== 'appahstephen9@gmail.com') {
-            authRes = await supabase.auth.signInWithPassword({
-              email: targetEmail,
-              password: targetEmail,
-            });
-          }
+    // 3. Videos may use direct Supabase upload if the server endpoint fails.
+    if (!isSupabaseConfigured()) {
+      const details =
+        serverUploadError instanceof Error
+          ? ` Details: ${serverUploadError.message}`
+          : '';
 
-          if (authRes.error) {
-            await supabase.auth.signInWithPassword({
-              email: 'appahstephen9@gmail.com',
-              password: 'admin123',
-            });
-          }
-        }
-      } catch {
-        // Continue to upload attempt
-      }
+      throw new Error(
+        'Video upload failed because the server upload endpoint failed and Supabase is not configured.' +
+          details
+      );
+    }
 
-      try {
-        const { data, error } = await supabase.storage.from(BUCKET_NAME).upload(finalPath, file, {
-          cacheControl: 'public, max-age=31536000',
+    try {
+      const { data, error } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(fallbackPath, file, {
+          cacheControl: '31536000',
           upsert,
           contentType: file.type,
         });
 
-        if (!error && data?.path) {
-          const publicUrl = this.getPublicUrl(data.path);
-          return {
-            path: data.path,
-            url: publicUrl,
-            fileName: file.name,
-            fileSize: file.size,
-            mimeType: file.type,
-            width,
-            height,
-          };
-        }
-
-        if (error) {
-          console.warn('Supabase direct upload notice:', error.message);
-        }
-      } catch (err: any) {
-        console.warn('Supabase direct upload error:', err?.message || err);
+      if (error || !data?.path) {
+        throw new Error(
+          error?.message || 'Supabase did not return an uploaded file path.'
+        );
       }
-    }
 
-    throw new Error('Upload failed: Could not persist media asset to storage. Please ensure your network connection is active.');
+      return {
+        path: data.path,
+        url: this.getPublicUrl(data.path),
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+      };
+    } catch (error: unknown) {
+      const details =
+        error instanceof Error ? error.message : String(error);
+
+      throw new Error(`Video upload failed: ${details}`);
+    }
   }
 
   /**
-   * Upload image to project path
+   * Upload an image to a project folder.
    */
-  static async uploadImage(file: File, projectId = 'general', folder = 'gallery'): Promise<UploadResult> {
+  static async uploadImage(
+    file: File,
+    projectId = 'general',
+    folder = 'gallery'
+  ): Promise<UploadResult> {
     return this.uploadMedia({
       file,
       destinationPath: `projects/${projectId}/${folder}/`,
@@ -247,9 +384,12 @@ export class StorageService {
   }
 
   /**
-   * Upload video to project path
+   * Upload a video to a project folder.
    */
-  static async uploadVideo(file: File, projectId = 'general'): Promise<UploadResult> {
+  static async uploadVideo(
+    file: File,
+    projectId = 'general'
+  ): Promise<UploadResult> {
     return this.uploadMedia({
       file,
       destinationPath: `projects/${projectId}/videos/`,
@@ -257,20 +397,27 @@ export class StorageService {
   }
 
   /**
-   * Delete media file from Supabase Storage
+   * Delete media from Supabase Storage.
    */
   static async deleteMedia(storagePath: string): Promise<boolean> {
-    if (!isSupabaseConfigured() || !storagePath) return true;
-    const { error } = await supabase.storage.from(BUCKET_NAME).remove([storagePath]);
+    if (!isSupabaseConfigured() || !storagePath) {
+      return true;
+    }
+
+    const { error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .remove([storagePath]);
+
     if (error) {
       console.error('Failed to delete media from storage:', error);
       return false;
     }
+
     return true;
   }
 
   /**
-   * Replace existing media with a new file at same or new path
+   * Replace existing media with a new file.
    */
   static async replaceMedia(
     oldStoragePath: string | null | undefined,
@@ -278,8 +425,15 @@ export class StorageService {
     destinationPath: string
   ): Promise<UploadResult> {
     if (oldStoragePath) {
-      await this.deleteMedia(oldStoragePath);
+      const deleted = await this.deleteMedia(oldStoragePath);
+
+      if (!deleted) {
+        throw new Error(
+          'The existing media could not be deleted. Replacement was cancelled.'
+        );
+      }
     }
+
     return this.uploadMedia({
       file: newFile,
       destinationPath,
@@ -288,21 +442,41 @@ export class StorageService {
   }
 
   /**
-   * List files in a bucket directory
+   * List files in a bucket directory.
    */
-  static async listFiles(folder = 'projects'): Promise<Array<{ name: string; path: string; url: string; size?: number; updated_at?: string }>> {
+  static async listFiles(
+    folder = 'projects'
+  ): Promise<
+    Array<{
+      name: string;
+      path: string;
+      url: string;
+      size?: number;
+      updated_at?: string | null;
+    }>
+  > {
     if (!isSupabaseConfigured()) {
       return [];
     }
-    const { data, error } = await supabase.storage.from(BUCKET_NAME).list(folder, {
-      limit: 100,
-      offset: 0,
-      sortBy: { column: 'created_at', order: 'desc' },
-    });
-    if (error || !data) return [];
+
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .list(folder, {
+        limit: 100,
+        offset: 0,
+        sortBy: {
+          column: 'created_at',
+          order: 'desc',
+        },
+      });
+
+    if (error || !data) {
+      return [];
+    }
 
     return data.map((item) => {
       const fullPath = `${folder}/${item.name}`;
+
       return {
         name: item.name,
         path: fullPath,

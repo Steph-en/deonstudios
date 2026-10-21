@@ -1,23 +1,24 @@
 import sharp from 'sharp';
-import { spawn } from 'child_process';
-import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
+import { spawn } from 'node:child_process';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export interface ImageOptimizationOptions {
   maxWidth?: number;
   maxHeight?: number;
-  quality?: number; // 1-100, default: 82
-  format?: 'preserve' | 'jpeg' | 'webp' | 'png';
-  minFileSizeToProcess?: number; // bytes, default: 300 * 1024 (300 KB)
+  quality?: number;
+  /** preserve is safest: output bytes keep the source format. */
+  format?: 'preserve' | 'jpeg' | 'webp' | 'png' | 'avif';
+  minFileSizeToProcess?: number;
 }
 
 export interface VideoOptimizationOptions {
-  maxHeight?: number; // e.g. 1080
-  maxWidth?: number;  // e.g. 1920
-  crf?: number;       // default: 26 (visually lossless)
-  audioBitrate?: string; // default: '128k'
-  preset?: string;    // default: 'fast'
+  maxHeight?: number;
+  maxWidth?: number;
+  crf?: number;
+  audioBitrate?: string;
+  preset?: string;
 }
 
 export interface OptimizationResult {
@@ -42,75 +43,62 @@ export interface VideoOptimizationResult {
   wasCompressed: boolean;
 }
 
-/**
- * Calculates SHA-256 hash for exact asset deduplication
- */
 export function calculateChecksum(buffer: Buffer): string {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
 
-/**
- * Checks if a MIME type or file path represents an image
- */
 export function isImage(filePathOrMime: string): boolean {
-  const lower = filePathOrMime.toLowerCase();
-  return (
-    lower.startsWith('image/') ||
-    /\.(jpg|jpeg|png|webp|avif|tiff|gif)$/i.test(lower)
-  );
+  const value = filePathOrMime.toLowerCase();
+  return value.startsWith('image/') || /\.(jpg|jpeg|png|webp|avif|tiff|tif|gif|svg)$/i.test(value);
 }
 
-/**
- * Checks if a MIME type or file path represents a video
- */
 export function isVideo(filePathOrMime: string): boolean {
-  const lower = filePathOrMime.toLowerCase();
-  return (
-    lower.startsWith('video/') ||
-    /\.(mp4|mov|webm|mkv|avi)$/i.test(lower)
-  );
+  const value = filePathOrMime.toLowerCase();
+  return value.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(value);
 }
 
-/**
- * Normalizes MIME type from extension or input
- */
 export function getMimeType(filePathOrExt: string): string {
-  const ext = filePathOrExt.split('.').pop()?.toLowerCase() || '';
+  const ext = path.extname(filePathOrExt).slice(1).toLowerCase() || filePathOrExt.toLowerCase();
   switch (ext) {
     case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg';
-    case 'png':
-      return 'image/png';
-    case 'webp':
-      return 'image/webp';
-    case 'avif':
-      return 'image/avif';
-    case 'svg':
-      return 'image/svg+xml';
-    case 'gif':
-      return 'image/gif';
+    case 'jpeg': return 'image/jpeg';
+    case 'png': return 'image/png';
+    case 'webp': return 'image/webp';
+    case 'avif': return 'image/avif';
+    case 'tif':
+    case 'tiff': return 'image/tiff';
+    case 'svg': return 'image/svg+xml';
+    case 'gif': return 'image/gif';
     case 'mp4':
-      return 'video/mp4';
-    case 'webm':
-      return 'video/webm';
-    case 'mov':
-      return 'video/quicktime';
-    default:
-      return 'application/octet-stream';
+    case 'm4v': return 'video/mp4';
+    case 'webm': return 'video/webm';
+    case 'mov': return 'video/quicktime';
+    case 'mkv': return 'video/x-matroska';
+    case 'avi': return 'video/x-msvideo';
+    default: return 'application/octet-stream';
   }
 }
 
-/**
- * Optimizes an image buffer using Sharp.
- * Preserves transparency for PNGs and avoids re-compressing already-optimized files.
- */
+function unchanged(inputBuffer: Buffer, format: string, mimeType: string, width?: number, height?: number): OptimizationResult {
+  return {
+    optimizedBuffer: inputBuffer,
+    originalSize: inputBuffer.length,
+    optimizedSize: inputBuffer.length,
+    savedBytes: 0,
+    savedPercentage: 0,
+    format,
+    width,
+    height,
+    wasCompressed: false,
+    mimeType,
+  };
+}
+
 export async function optimizeImageBuffer(
   inputBuffer: Buffer,
   options: ImageOptimizationOptions = {},
-  fallbackMime = 'image/jpeg'
+  fallbackMime = 'application/octet-stream',
 ): Promise<OptimizationResult> {
-  const originalSize = inputBuffer.length;
   const {
     maxWidth = 2560,
     maxHeight = 2560,
@@ -119,155 +107,86 @@ export async function optimizeImageBuffer(
     minFileSizeToProcess = 300 * 1024,
   } = options;
 
+  if (!inputBuffer.length || inputBuffer.length < minFileSizeToProcess) {
+    return unchanged(inputBuffer, 'unchanged', fallbackMime, undefined, undefined);
+  }
+  if (!Number.isInteger(maxWidth) || maxWidth < 1 || !Number.isInteger(maxHeight) || maxHeight < 1) {
+    throw new Error('maxWidth and maxHeight must be positive integers.');
+  }
+  if (!Number.isFinite(quality) || quality < 1 || quality > 100) {
+    throw new Error('quality must be between 1 and 100.');
+  }
+
   try {
-    const pipeline = sharp(inputBuffer, { failOn: 'none' });
-    const metadata = await pipeline.metadata();
+    const metadata = await sharp(inputBuffer, { failOn: 'none', animated: false }).metadata();
+    const originalFormat = metadata.format || 'unknown';
+    const originalMime = fallbackMime || `image/${originalFormat}`;
+    const width = metadata.width || 0;
+    const height = metadata.height || 0;
 
-    const origWidth = metadata.width || 0;
-    const origHeight = metadata.height || 0;
-    const origFormat = metadata.format || 'jpeg';
-
-    // SVG or animated GIFs without resizing should be preserved
-    if (origFormat === 'svg' || (metadata.pages && metadata.pages > 1)) {
-      return {
-        optimizedBuffer: inputBuffer,
-        originalSize,
-        optimizedSize: originalSize,
-        savedBytes: 0,
-        savedPercentage: 0,
-        format: origFormat,
-        width: origWidth,
-        height: origHeight,
-        wasCompressed: false,
-        mimeType: `image/${origFormat}`,
-      };
+    // Preserve vector and multi-page/animated assets byte-for-byte.
+    if (originalFormat === 'svg' || (metadata.pages ?? 1) > 1) {
+      return unchanged(inputBuffer, originalFormat, originalMime, width, height);
     }
 
-    // Determine target format
-    let targetFormat: string = origFormat;
-    if (format !== 'preserve') {
-      targetFormat = format;
+    // In preserve mode, only re-encode formats whose extension/MIME can remain unchanged.
+    const targetFormat = format === 'preserve' ? originalFormat : format;
+    if (!['jpeg', 'jpg', 'png', 'webp', 'avif'].includes(targetFormat)) {
+      return unchanged(inputBuffer, originalFormat, originalMime, width, height);
     }
 
-    // Auto-orient based on EXIF tag
-    pipeline.rotate();
-
-    // Resize inside bounding box without enlargement
-    if (
-      (maxWidth && origWidth > maxWidth) ||
-      (maxHeight && origHeight > maxHeight)
-    ) {
-      pipeline.resize({
-        width: maxWidth,
-        height: maxHeight,
-        fit: 'inside',
-        withoutEnlargement: true,
-      });
+    const pipeline = sharp(inputBuffer, { failOn: 'none' }).rotate();
+    if (width > maxWidth || height > maxHeight) {
+      pipeline.resize({ width: maxWidth, height: maxHeight, fit: 'inside', withoutEnlargement: true });
     }
 
-    // Apply format-specific high-efficiency compression
-    let targetMime = fallbackMime;
-    if (targetFormat === 'jpeg' || targetFormat === 'jpg') {
-      targetMime = 'image/jpeg';
-      pipeline.jpeg({
-        quality,
-        mozjpeg: true,
-        chromaSubsampling: '4:2:0',
-        trellisQuantisation: true,
-        overshootDeringing: true,
-      });
+    let mimeType: string;
+    if (targetFormat === 'jpeg') {
+      mimeType = 'image/jpeg';
+      pipeline.jpeg({ quality, mozjpeg: true, chromaSubsampling: '4:2:0' });
     } else if (targetFormat === 'png') {
-      targetMime = 'image/png';
-      // If image has no alpha, compressing with palette or pngquant is very effective
-      if (!metadata.hasAlpha) {
-        pipeline.png({
-          compressionLevel: 9,
-          palette: true,
-          quality: Math.min(quality + 10, 95),
-        });
-      } else {
-        pipeline.png({
-          compressionLevel: 9,
-          progressive: true,
-        });
-      }
+      mimeType = 'image/png';
+      pipeline.png({ compressionLevel: 9, palette: !metadata.hasAlpha, quality: Math.min(quality + 10, 100) });
     } else if (targetFormat === 'webp') {
-      targetMime = 'image/webp';
-      pipeline.webp({
-        quality,
-        effort: 5,
-      });
-    } else if (targetFormat === 'avif') {
-      targetMime = 'image/avif';
-      pipeline.avif({
-        quality: Math.max(quality - 10, 60),
-        effort: 5,
-      });
+      mimeType = 'image/webp';
+      pipeline.webp({ quality, effort: 5 });
     } else {
-      // Default fallback to high quality jpeg
-      targetMime = 'image/jpeg';
-      pipeline.jpeg({ quality, mozjpeg: true });
+      mimeType = 'image/avif';
+      pipeline.avif({ quality: Math.max(quality - 10, 45), effort: 5 });
     }
 
     const optimizedBuffer = await pipeline.toBuffer();
     const optimizedMetadata = await sharp(optimizedBuffer).metadata();
-    const optimizedSize = optimizedBuffer.length;
 
-    // Safety check: Never return an optimized image if it became larger or failed to shrink meaningfully
-    if (optimizedSize >= originalSize) {
-      return {
-        optimizedBuffer: inputBuffer,
-        originalSize,
-        optimizedSize: originalSize,
-        savedBytes: 0,
-        savedPercentage: 0,
-        format: origFormat,
-        width: origWidth,
-        height: origHeight,
-        wasCompressed: false,
-        mimeType: fallbackMime,
-      };
+    // Never replace an object unless the result is strictly smaller.
+    if (optimizedBuffer.length >= inputBuffer.length) {
+      return unchanged(inputBuffer, originalFormat, originalMime, width, height);
     }
 
-    const savedBytes = originalSize - optimizedSize;
-    const savedPercentage = Number(((savedBytes / originalSize) * 100).toFixed(1));
-
+    const savedBytes = inputBuffer.length - optimizedBuffer.length;
     return {
       optimizedBuffer,
-      originalSize,
-      optimizedSize,
+      originalSize: inputBuffer.length,
+      optimizedSize: optimizedBuffer.length,
       savedBytes,
-      savedPercentage,
+      savedPercentage: Number(((savedBytes / inputBuffer.length) * 100).toFixed(2)),
       format: targetFormat,
-      width: optimizedMetadata.width || origWidth,
-      height: optimizedMetadata.height || origHeight,
+      width: optimizedMetadata.width ?? width,
+      height: optimizedMetadata.height ?? height,
       wasCompressed: true,
-      mimeType: targetMime,
+      mimeType,
     };
-  } catch (err: any) {
-    console.warn('Image optimization fallback to original due to:', err?.message || err);
-    return {
-      optimizedBuffer: inputBuffer,
-      originalSize,
-      optimizedSize: originalSize,
-      savedBytes: 0,
-      savedPercentage: 0,
-      format: 'unknown',
-      wasCompressed: false,
-      mimeType: fallbackMime,
-    };
+  } catch (error) {
+    // Fail closed: optimization errors return the original bytes unchanged.
+    console.warn('Image optimization failed; preserving original:', error instanceof Error ? error.message : error);
+    return unchanged(inputBuffer, 'unknown', fallbackMime);
   }
 }
 
-/**
- * Optimizes a video file using system FFmpeg.
- * Scales down oversized resolutions, applies H.264 / AAC compression,
- * and adds +faststart for immediate web playback.
- */
 export async function optimizeVideoFile(
   inputPath: string,
   outputPath: string,
-  options: VideoOptimizationOptions = {}
+  options: VideoOptimizationOptions = {},
 ): Promise<VideoOptimizationResult> {
   const {
     maxHeight = 1080,
@@ -276,73 +195,40 @@ export async function optimizeVideoFile(
     audioBitrate = '128k',
     preset = 'fast',
   } = options;
-
-  const originalStat = fs.statSync(inputPath);
-  const originalSize = originalStat.size;
-
-  const filter = `scale='min(${maxWidth},iw)':min'(${maxHeight},ih)':force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2`;
-
+  const originalSize = fs.statSync(inputPath).size;
+  const filter = `scale=w='min(${maxWidth},iw)':h='min(${maxHeight},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2`;
   const args = [
-    '-y',
-    '-i', inputPath,
-    '-c:v', 'libx264',
-    '-crf', String(crf),
-    '-preset', preset,
-    '-vf', filter,
-    '-c:a', 'aac',
-    '-b:a', audioBitrate,
-    '-movflags', '+faststart',
-    outputPath,
+    '-nostdin', '-hide_banner', '-loglevel', 'error', '-y', '-i', inputPath,
+    '-vf', filter, '-c:v', 'libx264', '-crf', String(crf), '-preset', preset,
+    '-c:a', 'aac', '-b:a', audioBitrate, '-movflags', '+faststart', '-f', 'mp4', outputPath,
   ];
 
-  return new Promise((resolve, reject) => {
-    const proc = spawn('ffmpeg', args);
-
+  await new Promise<void>((resolve, reject) => {
+    const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] });
     let stderr = '';
-    proc.stderr.on('data', (d) => {
-      stderr += d.toString();
-    });
-
-    proc.on('close', (code) => {
-      if (code !== 0) {
-        return reject(new Error(`FFmpeg failed with exit code ${code}: ${stderr.slice(-300)}`));
-      }
-
-      if (!fs.existsSync(outputPath)) {
-        return reject(new Error('FFmpeg completed but output file not found.'));
-      }
-
-      const optimizedStat = fs.statSync(outputPath);
-      const optimizedSize = optimizedStat.size;
-
-      // If output is larger than original, revert to original
-      if (optimizedSize >= originalSize) {
-        fs.copyFileSync(inputPath, outputPath);
-        return resolve({
-          outputPath,
-          originalSize,
-          optimizedSize: originalSize,
-          savedBytes: 0,
-          savedPercentage: 0,
-          wasCompressed: false,
-        });
-      }
-
-      const savedBytes = originalSize - optimizedSize;
-      const savedPercentage = Number(((savedBytes / originalSize) * 100).toFixed(1));
-
-      resolve({
-        outputPath,
-        originalSize,
-        optimizedSize,
-        savedBytes,
-        savedPercentage,
-        wasCompressed: true,
-      });
-    });
-
-    proc.on('error', (err) => {
-      reject(err);
+    proc.stderr.on('data', (chunk: Buffer) => { stderr = (stderr + chunk.toString()).slice(-4000); });
+    proc.once('error', reject);
+    proc.once('close', (code) => {
+      if (code !== 0) reject(new Error(`FFmpeg failed (${code}): ${stderr.slice(-1000)}`));
+      else resolve();
     });
   });
+
+  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) {
+    throw new Error('FFmpeg did not produce a non-empty output file.');
+  }
+  const optimizedSize = fs.statSync(outputPath).size;
+  if (optimizedSize >= originalSize) {
+    fs.copyFileSync(inputPath, outputPath);
+    return { outputPath, originalSize, optimizedSize: originalSize, savedBytes: 0, savedPercentage: 0, wasCompressed: false };
+  }
+  const savedBytes = originalSize - optimizedSize;
+  return {
+    outputPath,
+    originalSize,
+    optimizedSize,
+    savedBytes,
+    savedPercentage: Number(((savedBytes / originalSize) * 100).toFixed(2)),
+    wasCompressed: true,
+  };
 }
