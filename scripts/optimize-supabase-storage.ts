@@ -22,11 +22,12 @@ const minSize = Number(arg('--min-size', '300000'));
 const maxWidth = Number(arg('--max-width', '2560'));
 const maxHeight = Number(arg('--max-height', '2560'));
 const quality = Number(arg('--quality', '82'));
-const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://oorbvpnuivsyfxftlqwr.supabase.co';
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || (!isApply ? 'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV' : undefined);
 const expectedRef = arg('--confirm-project-ref');
 
 if (has('--clean-orphans')) throw new Error('Orphan deletion is disabled.');
+if (isApply && !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('Apply mode requires SUPABASE_SERVICE_ROLE_KEY in the shell.');
 if (!url || !key) throw new Error('Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the shell.');
 const parsedUrl = new URL(url);
 if (parsedUrl.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(parsedUrl.hostname)) throw new Error('SUPABASE_URL must use HTTPS.');

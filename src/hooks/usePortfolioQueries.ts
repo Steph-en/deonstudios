@@ -47,8 +47,7 @@ export function useProjects(options?: {
   return useQuery({
     queryKey: QUERY_KEYS.projects(options),
     queryFn: () => ProjectService.getProjects(options),
-    staleTime: 1000 * 5, // 5 seconds for fast cross-device sync
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }
 
@@ -56,8 +55,7 @@ export function usePublishedProjects() {
   return useQuery({
     queryKey: QUERY_KEYS.projects({ status: 'published' }),
     queryFn: () => ProjectService.getPublishedProjects(),
-    staleTime: 1000 * 5, // 5 seconds for fast cross-device sync
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }
 
@@ -214,8 +212,7 @@ export function usePortfolioShots(options?: {
   return useQuery({
     queryKey: QUERY_KEYS.portfolioShots(options),
     queryFn: () => PortfolioService.getShots(options),
-    staleTime: 1000 * 5, // 5 seconds
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }
 
@@ -223,8 +220,7 @@ export function usePublishedPortfolioShots() {
   return useQuery({
     queryKey: QUERY_KEYS.portfolioShots({ status: 'published' }),
     queryFn: () => PortfolioService.getPublishedShots(),
-    staleTime: 1000 * 5, // 5 seconds
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }
 
@@ -233,8 +229,7 @@ export function usePortfolioShot(id: string | null) {
     queryKey: QUERY_KEYS.portfolioShot(id || ''),
     queryFn: () => (id ? PortfolioService.getShotById(id) : Promise.resolve(null)),
     enabled: Boolean(id),
-    staleTime: 1000 * 5,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2,
   });
 }
 
@@ -331,8 +326,7 @@ export function useProductShots(options?: {
   return useQuery({
     queryKey: QUERY_KEYS.productShots(options),
     queryFn: () => ProductService.getProducts(options),
-    staleTime: 1000 * 5, // 5 seconds
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }
 
@@ -340,8 +334,7 @@ export function usePublishedProductShots() {
   return useQuery({
     queryKey: QUERY_KEYS.productShots({ status: 'published' }),
     queryFn: () => ProductService.getPublishedProducts(),
-    staleTime: 1000 * 5, // 5 seconds
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 }
 
@@ -447,8 +440,7 @@ export function useHeroSettings() {
     queryKey: QUERY_KEYS.siteSettings('hero_settings'),
     queryFn: () => SiteSettingsService.getSettings<HeroSettings>('hero_settings', DEFAULT_HERO_SETTINGS),
     initialData: () => SiteSettingsService.getLocalCache<HeroSettings>('hero_settings') ?? DEFAULT_HERO_SETTINGS,
-    staleTime: 1000 * 5,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2,
   });
 }
 
@@ -468,8 +460,7 @@ export function useAboutSettings() {
   return useQuery<AboutSettings>({
     queryKey: QUERY_KEYS.siteSettings('about_settings'),
     queryFn: () => SiteSettingsService.getSettings<AboutSettings>('about_settings', DEFAULT_ABOUT_SETTINGS),
-    staleTime: 1000 * 5,
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 2,
   });
 }
 
@@ -545,9 +536,9 @@ export function useInquiries() {
 
       return merged;
     },
-    staleTime: 0,
-    refetchInterval: 10000, // Poll every 10s for incoming messages
-    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60, // 1 minute
+    refetchInterval: false, // Disabled continuous 10s polling to prevent reload loop and Supabase egress spike
+    refetchOnWindowFocus: false,
   });
 }
 

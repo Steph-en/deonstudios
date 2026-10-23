@@ -57,7 +57,7 @@ export const StorageOptimizerPanel: React.FC = () => {
   const [showDetails, setShowDetails] = useState<boolean>(false);
   const [fileFilter, setFileFilter] = useState<'all' | 'large' | 'orphans'>('all');
 
-  // Fetch Storage Stats
+  // Fetch Storage Stats (cached 5 min to protect Supabase egress)
   const {
     data: stats,
     isLoading,
@@ -70,6 +70,8 @@ export const StorageOptimizerPanel: React.FC = () => {
       if (!res.ok) throw new Error('Failed to load storage statistics');
       return res.json();
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 
   const lastReport = stats?.lastReport;
@@ -106,7 +108,20 @@ export const StorageOptimizerPanel: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => refetch()}
+          onClick={async () => {
+            try {
+              const res = await fetch('/api/storage/stats?fresh=true');
+              if (res.ok) {
+                const freshData = await res.json();
+                queryClient.setQueryData(['storage-stats'], freshData);
+                toast.info('Storage statistics updated');
+              } else {
+                refetch();
+              }
+            } catch {
+              refetch();
+            }
+          }}
           disabled={isFetching}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 text-xs text-neutral-700 hover:bg-neutral-50 font-medium transition cursor-pointer self-start sm:self-auto disabled:opacity-50"
         >

@@ -17,7 +17,29 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = Number(process.env.PORT) || 3000;
+// Parse --port from command line arguments (e.g. --port 3000)
+function getPort(): number {
+  const args = process.argv.slice(2);
+  const portIdx = args.indexOf('--port');
+  if (portIdx !== -1 && args[portIdx + 1]) {
+    const p = parseInt(args[portIdx + 1], 10);
+    if (!isNaN(p) && p > 0) return p;
+  }
+  const pIdx = args.indexOf('-p');
+  if (pIdx !== -1 && args[pIdx + 1]) {
+    const p = parseInt(args[pIdx + 1], 10);
+    if (!isNaN(p) && p > 0) return p;
+  }
+  // In Cloud Run containers, process.env.PORT is 8080 (where nginx runs and forwards to port 3000).
+  // The Node application must always bind to port 3000 unless a non-8080 custom port is specified.
+  if (process.env.PORT && process.env.PORT !== '8080') {
+    const p = parseInt(process.env.PORT, 10);
+    if (!isNaN(p) && p > 0) return p;
+  }
+  return 3000;
+}
+
+const PORT = getPort();
 const DATA_DIR = path.resolve(__dirname, 'data');
 const DB_FILE = path.resolve(DATA_DIR, 'db.json');
 
@@ -623,7 +645,7 @@ async function startServer() {
     if (!db.site_settings) db.site_settings = {};
     let value = db.site_settings[key] || null;
 
-    // Purge obsolete legacy single image if it exists
+    // Purge obsolete legacy single image if it exists in memory for backwards compatibility response
     if (key === 'hero_settings' && value && typeof value === 'object') {
       if (value.mediaUrl && typeof value.mediaUrl === 'string' && value.mediaUrl.includes('l1060844')) {
         value = {
@@ -631,8 +653,6 @@ async function startServer() {
           mode: 'rotation',
           mediaUrl: '',
         };
-        db.site_settings[key] = value;
-        saveDatabase(db);
       }
     }
 
@@ -963,7 +983,7 @@ async function startServer() {
       const storagePath = `${destClean}/${finalFileName}`;
 
       const originalSize = rawBuffer.length;
-      let bufferToUpload: Buffer = rawBuffer;;
+      let bufferToUpload: Buffer = rawBuffer;
       let finalMime = mimeType;
       let width: number | undefined;
       let height: number | undefined;
@@ -1055,12 +1075,14 @@ async function startServer() {
        */
       const sbUrl =
         process.env.SUPABASE_URL ||
-        process.env.VITE_SUPABASE_URL;
+        process.env.VITE_SUPABASE_URL ||
+        'https://oorbvpnuivsyfxftlqwr.supabase.co';
 
       const sbKey =
         process.env.SUPABASE_SERVICE_ROLE_KEY ||
         process.env.SUPABASE_ANON_KEY ||
-        process.env.VITE_SUPABASE_ANON_KEY;
+        process.env.VITE_SUPABASE_ANON_KEY ||
+        'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
 
       if (!sbUrl || !sbKey) {
         console.error(
@@ -1162,8 +1184,16 @@ async function startServer() {
   });
 
   // 7c. Supabase Storage Statistics & Analytics
-  api.get('/storage/stats', async (_req: Request, res: Response) => {
+  let cachedStorageStats: { data: any; timestamp: number } | null = null;
+  const STORAGE_STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+
+  api.get('/storage/stats', async (req: Request, res: Response) => {
     try {
+      const forceFresh = req.query.fresh === 'true';
+      if (!forceFresh && cachedStorageStats && Date.now() - cachedStorageStats.timestamp < STORAGE_STATS_CACHE_TTL) {
+        return res.json(cachedStorageStats.data);
+      }
+
       const sbUrl = process.env.VITE_SUPABASE_URL || 'https://oorbvpnuivsyfxftlqwr.supabase.co';
       const sbAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
       const { createClient } = await import('@supabase/supabase-js');
@@ -1220,7 +1250,7 @@ async function startServer() {
         } catch {}
       }
 
-      res.json({
+      const responsePayload = {
         success: true,
         totalFiles: files.length,
         totalBytes,
@@ -1231,7 +1261,10 @@ async function startServer() {
         folderBreakdown,
         topLargest,
         lastReport,
-      });
+      };
+
+      cachedStorageStats = { data: responsePayload, timestamp: Date.now() };
+      res.json(responsePayload);
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to retrieve storage statistics' });
     }
@@ -1852,7 +1885,6 @@ async function startServer() {
         return timeB - timeA;
       });
       db.inquiries = merged;
-      saveDatabase(db);
       return res.json(merged);
     }
 
@@ -2017,6 +2049,16 @@ async function startServer() {
       server: {
         middlewareMode: true,
         hmr: process.env.DISABLE_HMR !== 'true',
+        watch: process.env.DISABLE_HMR === 'true' ? null : {
+          ignored: [
+            '**/data/**',
+            '**/backups/**',
+            '**/.tmp*/**',
+            '**/storage-*',
+            '**/public/uploads/**',
+            '**/*.log',
+          ],
+        },
       },
       appType: 'custom',
     });
