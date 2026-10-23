@@ -1,9 +1,32 @@
+# Dependencies
 node_modules/
+
+# Build output and coverage
 build/
 dist/
 coverage/
+
+# Local tooling and cache output
+.vercel/
+.vite/
+.turbo/
+.cache/
+.parcel-cache/
+.tmp_optimizer/
+*.tsbuildinfo
+
+# Local runtime data
+data/db.json
+
+# Operating system files
 .DS_Store
+Thumbs.db
+
+# Logs
 *.log
+*.log.*
+
+# Local environment variables (keep the example template)
 .env*
 !.env.example
 
