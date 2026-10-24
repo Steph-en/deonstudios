@@ -66,69 +66,183 @@ function dbShotToSingleShot(shot: any): SingleShot {
   };
 }
 
+interface ParsedRoute {
+  page: PageView;
+  adminTab: AdminTab;
+  adminSubroute: string;
+  editingProjectId: string | null;
+  editingPortfolioShotId: string | null;
+  editingProductId: string | null;
+  projectSlug: string | null;
+}
+
+function parseRoute(rawPath: string, rawHash: string): ParsedRoute {
+  const hash = rawHash || '';
+  const pathname = rawPath.replace(/\/+$/, '') || '/';
+
+  const isAdminRoute =
+    hash.startsWith('#admin') ||
+    hash.startsWith('#login') ||
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/') ||
+    pathname === '/login' ||
+    pathname.startsWith('/login/');
+
+  if (isAdminRoute) {
+    const adminRoute = hash.startsWith('#admin')
+      ? hash
+      : hash.startsWith('#login')
+      ? '#admin/overview'
+      : pathname.startsWith('/login')
+      ? '#admin/overview'
+      : `#admin${pathname.slice('/admin'.length)}`;
+
+    let tab: AdminTab = 'overview';
+    let editProjectId: string | null = null;
+    let editPortfolioId: string | null = null;
+    let editProductId: string | null = null;
+
+    if (adminRoute === '#admin' || adminRoute === '#admin/' || adminRoute === '#admin/overview') {
+      tab = 'overview';
+    } else if (adminRoute === '#admin/hero') {
+      tab = 'hero';
+    } else if (adminRoute === '#admin/about') {
+      tab = 'about';
+    } else if (adminRoute === '#admin/projects') {
+      tab = 'projects';
+    } else if (adminRoute === '#admin/new-project') {
+      tab = 'projects';
+      editProjectId = 'new';
+    } else if (adminRoute.startsWith('#admin/edit-project-')) {
+      tab = 'projects';
+      editProjectId = adminRoute.replace('#admin/edit-project-', '');
+    } else if (adminRoute === '#admin/portfolio') {
+      tab = 'portfolio';
+    } else if (adminRoute === '#admin/new-portfolio') {
+      tab = 'portfolio';
+      editPortfolioId = 'new';
+    } else if (adminRoute.startsWith('#admin/edit-portfolio-')) {
+      tab = 'portfolio';
+      editPortfolioId = adminRoute.replace('#admin/edit-portfolio-', '');
+    } else if (adminRoute === '#admin/products') {
+      tab = 'products';
+    } else if (adminRoute === '#admin/new-product') {
+      tab = 'products';
+      editProductId = 'new';
+    } else if (adminRoute.startsWith('#admin/edit-product-')) {
+      tab = 'products';
+      editProductId = adminRoute.replace('#admin/edit-product-', '');
+    } else if (adminRoute === '#admin/categories') {
+      tab = 'categories';
+    } else if (adminRoute === '#admin/media') {
+      tab = 'media';
+    } else if (adminRoute === '#admin/analytics') {
+      tab = 'analytics';
+    } else if (adminRoute === '#admin/profile') {
+      tab = 'profile';
+    } else {
+      tab = 'overview';
+    }
+
+    return {
+      page: 'admin',
+      adminTab: tab,
+      adminSubroute: adminRoute,
+      editingProjectId: editProjectId,
+      editingPortfolioShotId: editPortfolioId,
+      editingProductId: editProductId,
+      projectSlug: null,
+    };
+  }
+
+  if (hash === '#about' || pathname === '/about') {
+    return {
+      page: 'about',
+      adminTab: 'overview',
+      adminSubroute: '',
+      editingProjectId: null,
+      editingPortfolioShotId: null,
+      editingProductId: null,
+      projectSlug: null,
+    };
+  }
+
+  if (hash === '#contact' || pathname === '/contact') {
+    return {
+      page: 'contact',
+      adminTab: 'overview',
+      adminSubroute: '',
+      editingProjectId: null,
+      editingPortfolioShotId: null,
+      editingProductId: null,
+      projectSlug: null,
+    };
+  }
+
+  if (hash.startsWith('#project-') || pathname.startsWith('/project/')) {
+    const slug = hash.startsWith('#project-')
+      ? hash.replace('#project-', '')
+      : pathname.replace('/project/', '');
+    return {
+      page: 'project',
+      adminTab: 'overview',
+      adminSubroute: '',
+      editingProjectId: null,
+      editingPortfolioShotId: null,
+      editingProductId: null,
+      projectSlug: slug,
+    };
+  }
+
+  return {
+    page: 'home',
+    adminTab: 'overview',
+    adminSubroute: '',
+    editingProjectId: null,
+    editingPortfolioShotId: null,
+    editingProductId: null,
+    projectSlug: null,
+  };
+}
+
 export default function App() {
   // Pure light theme as requested
   const [theme] = useState<ThemeMode>('light');
 
-  // Determine initial route from path or hash (supporting /admin, /about, /contact, #admin, etc.)
-  const initialRoute = useMemo(() => {
-    if (typeof window === 'undefined') return { page: 'home' as PageView, adminTab: 'overview' as AdminTab, intro: true };
-    const hash = window.location.hash || '';
-    const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
-    
-    const isAdminPath =
-      hash.startsWith('#admin') ||
-      hash.startsWith('#login') ||
-      pathname === '/admin' ||
-      pathname.startsWith('/admin/') ||
-      pathname === '/login' ||
-      pathname.startsWith('/login/');
+  // Track browser location in a single stable state
+  const [locationState, setLocationState] = useState(() => ({
+    pathname: typeof window !== 'undefined' ? (window.location.pathname.replace(/\/+$/, '') || '/') : '/',
+    hash: typeof window !== 'undefined' ? (window.location.hash || '') : '',
+  }));
 
-    if (isAdminPath) {
-      const sub = hash.startsWith('#admin')
-        ? hash.replace('#admin', '')
-        : hash.startsWith('#login')
-        ? ''
-        : pathname.startsWith('/admin')
-        ? pathname.replace('/admin', '')
-        : '';
-      let tab: AdminTab = 'overview';
-      if (sub.includes('projects') || sub.includes('project')) tab = 'projects';
-      else if (sub.includes('portfolio')) tab = 'portfolio';
-      else if (sub.includes('product')) tab = 'products';
-      else if (sub.includes('categories')) tab = 'categories';
-      else if (sub.includes('media')) tab = 'media';
-      else if (sub.includes('analytics')) tab = 'analytics';
-      else if (sub.includes('profile')) tab = 'profile';
-      return { page: 'admin' as PageView, adminTab: tab, intro: false };
-    }
-    if (hash === '#about' || pathname === '/about') {
-      return { page: 'about' as PageView, adminTab: 'overview' as AdminTab, intro: false };
-    }
-    if (hash === '#contact' || pathname === '/contact') {
-      return { page: 'contact' as PageView, adminTab: 'overview' as AdminTab, intro: false };
-    }
-    return { page: 'home' as PageView, adminTab: 'overview' as AdminTab, intro: true };
-  }, []);
+  // Synchronize route calculations with useMemo based on current URL
+  const currentRoute = useMemo(
+    () => parseRoute(locationState.pathname, locationState.hash),
+    [locationState.pathname, locationState.hash]
+  );
 
-  // Navigation state: 'home' | 'project' | 'about' | 'admin'
-  const [activePage, setActivePage] = useState<PageView>(initialRoute.page);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-
-  // Admin routing state
-  const [adminTab, setAdminTab] = useState<AdminTab>(initialRoute.adminTab);
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [editingPortfolioShotId, setEditingPortfolioShotId] = useState<string | null>(null);
-  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const activePage = currentRoute.page;
+  const adminTab = currentRoute.adminTab;
+  const editingProjectId = currentRoute.editingProjectId;
+  const editingPortfolioShotId = currentRoute.editingPortfolioShotId;
+  const editingProductId = currentRoute.editingProductId;
 
   // GSAP Intro animation state
-  const [introActive, setIntroActive] = useState(initialRoute.intro);
+  const [introActive, setIntroActive] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const initial = parseRoute(
+      window.location.pathname.replace(/\/+$/, '') || '/',
+      window.location.hash || ''
+    );
+    return initial.page === 'home';
+  });
+
   const navbarLogoRef = useRef<HTMLDivElement>(null);
 
   // Auth Hook for CMS Access
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
-  // Dynamic projects query from Supabase
+  // Dynamic projects query from Supabase / localStorage persister
   const { data: dbProjects } = usePublishedProjects();
 
   // Dynamic portfolio shots & product shots
@@ -159,152 +273,40 @@ export default function App() {
     return [];
   }, [dbProductShots]);
 
+  // Memoized resolution of selected project for detail view
+  const selectedProject = useMemo(() => {
+    if (currentRoute.page === 'project' && currentRoute.projectSlug) {
+      return publishedProjects.find((p) => p.slug === currentRoute.projectSlug) || null;
+    }
+    return null;
+  }, [currentRoute.page, currentRoute.projectSlug, publishedProjects]);
+
+  // Listen to popstate and hashchange events for browser forward/back buttons
+  useEffect(() => {
+    const onLocationChange = () => {
+      const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+      const currentHash = window.location.hash || '';
+      setLocationState((prev) => {
+        if (prev.pathname === currentPath && prev.hash === currentHash) return prev;
+        return { pathname: currentPath, hash: currentHash };
+      });
+    };
+
+    window.addEventListener('popstate', onLocationChange);
+    window.addEventListener('hashchange', onLocationChange);
+    return () => {
+      window.removeEventListener('popstate', onLocationChange);
+      window.removeEventListener('hashchange', onLocationChange);
+    };
+  }, []);
+
   // Anonymous analytics tracking on page navigation
   useEffect(() => {
     if (activePage !== 'admin') {
-      const currentHash = window.location.hash || '#home';
+      const currentHash = locationState.hash || '#home';
       AnalyticsService.trackView(currentHash, selectedProject?.id);
     }
-  }, [activePage, selectedProject]);
-
-  // Synchronize initial URL (path or hash) on mount and listen to navigation events
-  useEffect(() => {
-    const handleNavigation = () => {
-      const hash = window.location.hash || '';
-      const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
-
-      // Check both path routing (/admin, /login, etc.) and hash routing (#admin, #login, etc.)
-      const isAdminRoute =
-        hash.startsWith('#admin') ||
-        hash.startsWith('#login') ||
-        pathname === '/admin' ||
-        pathname.startsWith('/admin/') ||
-        pathname === '/login' ||
-        pathname.startsWith('/login/');
-
-      if (isAdminRoute) {
-        setActivePage('admin');
-        setSelectedProject(null);
-
-        // Normalize target route from either hash or path
-        const adminRoute = hash.startsWith('#admin')
-          ? hash
-          : hash.startsWith('#login')
-          ? '#admin/overview'
-          : pathname.startsWith('/login')
-          ? '#admin/overview'
-          : `#admin${pathname.slice('/admin'.length)}`;
-
-        if (adminRoute === '#admin' || adminRoute === '#admin/' || adminRoute === '#admin/overview') {
-          setAdminTab('overview');
-          setEditingProjectId(null);
-          setEditingPortfolioShotId(null);
-          setEditingProductId(null);
-        } else if (adminRoute === '#admin/hero') {
-          setAdminTab('hero');
-          setEditingProjectId(null);
-          setEditingPortfolioShotId(null);
-          setEditingProductId(null);
-        } else if (adminRoute === '#admin/about') {
-          setAdminTab('about');
-          setEditingProjectId(null);
-          setEditingPortfolioShotId(null);
-          setEditingProductId(null);
-        } else if (adminRoute === '#admin/projects') {
-          setAdminTab('projects');
-          setEditingProjectId(null);
-          setEditingPortfolioShotId(null);
-          setEditingProductId(null);
-        } else if (adminRoute === '#admin/new-project') {
-          setAdminTab('projects');
-          setEditingProjectId('new');
-        } else if (adminRoute.startsWith('#admin/edit-project-')) {
-          const id = adminRoute.replace('#admin/edit-project-', '');
-          setAdminTab('projects');
-          setEditingProjectId(id);
-        } else if (adminRoute === '#admin/portfolio') {
-          setAdminTab('portfolio');
-          setEditingPortfolioShotId(null);
-          setEditingProjectId(null);
-          setEditingProductId(null);
-        } else if (adminRoute === '#admin/new-portfolio') {
-          setAdminTab('portfolio');
-          setEditingPortfolioShotId('new');
-        } else if (adminRoute.startsWith('#admin/edit-portfolio-')) {
-          const id = adminRoute.replace('#admin/edit-portfolio-', '');
-          setAdminTab('portfolio');
-          setEditingPortfolioShotId(id);
-        } else if (adminRoute === '#admin/products') {
-          setAdminTab('products');
-          setEditingProductId(null);
-          setEditingProjectId(null);
-          setEditingPortfolioShotId(null);
-        } else if (adminRoute === '#admin/new-product') {
-          setAdminTab('products');
-          setEditingProductId('new');
-        } else if (adminRoute.startsWith('#admin/edit-product-')) {
-          const id = adminRoute.replace('#admin/edit-product-', '');
-          setAdminTab('products');
-          setEditingProductId(id);
-        } else if (adminRoute === '#admin/categories') {
-          setAdminTab('categories');
-          setEditingProjectId(null);
-          setEditingPortfolioShotId(null);
-          setEditingProductId(null);
-        } else if (adminRoute === '#admin/media') {
-          setAdminTab('media');
-          setEditingProjectId(null);
-          setEditingPortfolioShotId(null);
-          setEditingProductId(null);
-        } else if (adminRoute === '#admin/analytics') {
-          setAdminTab('analytics');
-          setEditingProjectId(null);
-          setEditingPortfolioShotId(null);
-          setEditingProductId(null);
-        } else if (adminRoute === '#admin/profile') {
-          setAdminTab('profile');
-          setEditingProjectId(null);
-          setEditingPortfolioShotId(null);
-          setEditingProductId(null);
-        } else {
-          // Default to overview for any other admin subroute
-          setAdminTab('overview');
-        }
-      } else if (hash === '#about' || pathname === '/about') {
-        setActivePage('about');
-        setSelectedProject(null);
-      } else if (hash === '#contact' || pathname === '/contact') {
-        setActivePage('contact');
-        setSelectedProject(null);
-      } else if (hash.startsWith('#project-') || pathname.startsWith('/project/')) {
-        const slug = hash.startsWith('#project-')
-          ? hash.replace('#project-', '')
-          : pathname.replace('/project/', '');
-        const found = publishedProjects.find((p) => p.slug === slug);
-        if (found) {
-          setSelectedProject(found);
-          setActivePage('project');
-        }
-      } else if (
-        !hash ||
-        hash === '#' ||
-        hash === '#home' ||
-        pathname === '/' ||
-        pathname === ''
-      ) {
-        setActivePage('home');
-        setSelectedProject(null);
-      }
-    };
-
-    handleNavigation();
-    window.addEventListener('hashchange', handleNavigation);
-    window.addEventListener('popstate', handleNavigation);
-    return () => {
-      window.removeEventListener('hashchange', handleNavigation);
-      window.removeEventListener('popstate', handleNavigation);
-    };
-  }, [publishedProjects]);
+  }, [activePage, locationState.hash, selectedProject?.id]);
 
   // Apply light theme to document root
   useEffect(() => {
@@ -313,47 +315,53 @@ export default function App() {
     document.body.style.color = '#0a0a0a';
   }, []);
 
-  const handleSelectProject = (project: Project) => {
-    setSelectedProject(project);
-    setActivePage('project');
-    if (window.location.hash !== `#project-${project.slug}`) {
-      window.history.pushState(null, '', `#project-${project.slug}`);
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  // Stable navigation helper that synchronously updates location state and URL history
+  const navigateTo = useCallback(
+    (targetUrl: string, options?: { replace?: boolean; scrollToTop?: boolean }) => {
+      if (typeof window === 'undefined') return;
 
-  const handleNavigateHome = () => {
-    setActivePage('home');
-    setSelectedProject(null);
-    setEditingProjectId(null);
-    if (window.location.hash || window.location.pathname !== '/') {
-      window.history.pushState(null, '', '/');
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+      if (options?.replace) {
+        window.history.replaceState(null, '', targetUrl);
+      } else {
+        window.history.pushState(null, '', targetUrl);
+      }
 
-  const handleNavigateAbout = () => {
-    setActivePage('about');
-    setSelectedProject(null);
-    if (window.location.hash !== '#about') {
-      window.history.pushState(null, '', '#about');
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+      const currentPath = window.location.pathname.replace(/\/+$/, '') || '/';
+      const currentHash = window.location.hash || '';
+      setLocationState((prev) => {
+        if (prev.pathname === currentPath && prev.hash === currentHash) return prev;
+        return { pathname: currentPath, hash: currentHash };
+      });
 
-  const handleNavigateContact = () => {
-    setActivePage('contact');
-    setSelectedProject(null);
-    if (window.location.hash !== '#contact') {
-      window.history.pushState(null, '', '#contact');
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+      if (options?.scrollToTop) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    []
+  );
 
-  const handleScrollToPortfolio = () => {
+  const handleSelectProject = useCallback(
+    (project: Project) => {
+      navigateTo(`#project-${project.slug}`, { scrollToTop: true });
+    },
+    [navigateTo]
+  );
+
+  const handleNavigateHome = useCallback(() => {
+    navigateTo('/', { scrollToTop: true });
+  }, [navigateTo]);
+
+  const handleNavigateAbout = useCallback(() => {
+    navigateTo('#about', { scrollToTop: true });
+  }, [navigateTo]);
+
+  const handleNavigateContact = useCallback(() => {
+    navigateTo('#contact', { scrollToTop: true });
+  }, [navigateTo]);
+
+  const handleScrollToPortfolio = useCallback(() => {
     if (activePage !== 'home') {
-      setActivePage('home');
-      setSelectedProject(null);
+      navigateTo('/', { scrollToTop: false });
       setTimeout(() => {
         const el = document.getElementById('portfolio-section');
         el?.scrollIntoView({ behavior: 'smooth' });
@@ -362,12 +370,11 @@ export default function App() {
       const el = document.getElementById('portfolio-section');
       el?.scrollIntoView({ behavior: 'smooth' });
     }
-  };
+  }, [activePage, navigateTo]);
 
-  const handleScrollToProjects = () => {
+  const handleScrollToProjects = useCallback(() => {
     if (activePage !== 'home') {
-      setActivePage('home');
-      setSelectedProject(null);
+      navigateTo('/', { scrollToTop: false });
       setTimeout(() => {
         const el = document.getElementById('projects-archive-section');
         el?.scrollIntoView({ behavior: 'smooth' });
@@ -376,12 +383,11 @@ export default function App() {
       const el = document.getElementById('projects-archive-section');
       el?.scrollIntoView({ behavior: 'smooth' });
     }
-  };
+  }, [activePage, navigateTo]);
 
-  const handleScrollToProducts = () => {
+  const handleScrollToProducts = useCallback(() => {
     if (activePage !== 'home') {
-      setActivePage('home');
-      setSelectedProject(null);
+      navigateTo('/', { scrollToTop: false });
       setTimeout(() => {
         const el = document.getElementById('products-section');
         el?.scrollIntoView({ behavior: 'smooth' });
@@ -390,76 +396,80 @@ export default function App() {
       const el = document.getElementById('products-section');
       el?.scrollIntoView({ behavior: 'smooth' });
     }
-  };
+  }, [activePage, navigateTo]);
 
   const handleIntroComplete = useCallback(() => {
     setIntroActive(false);
   }, []);
 
-  const handleReplayIntro = () => {
+  const handleReplayIntro = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
     setIntroActive(true);
-  };
+  }, []);
 
   // ADMIN CMS NAVIGATION HANDLERS
-  const handleAdminTabChange = (tab: AdminTab) => {
-    setAdminTab(tab);
-    setEditingProjectId(null);
-    setEditingPortfolioShotId(null);
-    setEditingProductId(null);
-    window.location.hash = `#admin/${tab}`;
-  };
+  const handleAdminTabChange = useCallback(
+    (tab: AdminTab) => {
+      navigateTo(`#admin/${tab}`, { scrollToTop: false });
+    },
+    [navigateTo]
+  );
 
-  const handleAdminNewProject = () => {
-    setAdminTab('projects');
-    setEditingProjectId('new');
-    setEditingPortfolioShotId(null);
-    setEditingProductId(null);
-    window.location.hash = '#admin/new-project';
-  };
+  const handleAdminNewProject = useCallback(() => {
+    navigateTo('#admin/new-project', { scrollToTop: false });
+  }, [navigateTo]);
 
-  const handleAdminEditProject = (id: string) => {
-    setAdminTab('projects');
-    setEditingProjectId(id);
-    window.location.hash = `#admin/edit-project-${id}`;
-  };
+  const handleAdminEditProject = useCallback(
+    (id: string) => {
+      navigateTo(`#admin/edit-project-${id}`, { scrollToTop: false });
+    },
+    [navigateTo]
+  );
 
-  const handleAdminNewPortfolio = () => {
-    setAdminTab('portfolio');
-    setEditingPortfolioShotId('new');
-    setEditingProjectId(null);
-    setEditingProductId(null);
-    window.location.hash = '#admin/new-portfolio';
-  };
+  const handleAdminNewPortfolio = useCallback(() => {
+    navigateTo('#admin/new-portfolio', { scrollToTop: false });
+  }, [navigateTo]);
 
-  const handleAdminEditPortfolio = (id: string) => {
-    setAdminTab('portfolio');
-    setEditingPortfolioShotId(id);
-    window.location.hash = `#admin/edit-portfolio-${id}`;
-  };
+  const handleAdminEditPortfolio = useCallback(
+    (id: string) => {
+      navigateTo(`#admin/edit-portfolio-${id}`, { scrollToTop: false });
+    },
+    [navigateTo]
+  );
 
-  const handleAdminNewProduct = () => {
-    setAdminTab('products');
-    setEditingProductId('new');
-    setEditingProjectId(null);
-    setEditingPortfolioShotId(null);
-    window.location.hash = '#admin/new-product';
-  };
+  const handleAdminNewProduct = useCallback(() => {
+    navigateTo('#admin/new-product', { scrollToTop: false });
+  }, [navigateTo]);
 
-  const handleAdminEditProduct = (id: string) => {
-    setAdminTab('products');
-    setEditingProductId(id);
-    window.location.hash = `#admin/edit-product-${id}`;
-  };
+  const handleAdminEditProduct = useCallback(
+    (id: string) => {
+      navigateTo(`#admin/edit-product-${id}`, { scrollToTop: false });
+    },
+    [navigateTo]
+  );
 
-  const handleAdminViewPublicProject = (slug: string) => {
-    const found = publishedProjects.find((p) => p.slug === slug);
-    if (found) {
-      handleSelectProject(found);
-    } else {
-      window.location.hash = `#project-${slug}`;
-    }
-  };
+  const handleAdminViewPublicProject = useCallback(
+    (slug: string) => {
+      navigateTo(`#project-${slug}`, { scrollToTop: true });
+    },
+    [navigateTo]
+  );
+
+  const handleBackToAdminProjects = useCallback(() => {
+    navigateTo('#admin/projects', { scrollToTop: false });
+  }, [navigateTo]);
+
+  const handleBackToAdminPortfolio = useCallback(() => {
+    navigateTo('#admin/portfolio', { scrollToTop: false });
+  }, [navigateTo]);
+
+  const handleBackToAdminProducts = useCallback(() => {
+    navigateTo('#admin/products', { scrollToTop: false });
+  }, [navigateTo]);
+
+  const handleLoginSuccess = useCallback(() => {
+    navigateTo('#admin/overview', { scrollToTop: false });
+  }, [navigateTo]);
 
   // -------------------------------------------------------------
   // RENDER ADMIN CMS VIEW
@@ -481,14 +491,7 @@ export default function App() {
         <>
           <DocumentSeo activePage="admin" selectedProject={null} adminTab="overview" />
           <LoginForm
-            onSuccess={() => {
-              setActivePage('admin');
-              setAdminTab('overview');
-              setEditingProjectId(null);
-              setEditingPortfolioShotId(null);
-              setEditingProductId(null);
-              window.location.hash = '#admin/overview';
-            }}
+            onSuccess={handleLoginSuccess}
             onCancel={handleNavigateHome}
           />
         </>
@@ -507,31 +510,19 @@ export default function App() {
         {editingProjectId !== null ? (
           <ProjectEditPage
             projectId={editingProjectId === 'new' ? null : editingProjectId}
-            onBack={() => {
-              setEditingProjectId(null);
-              setAdminTab('projects');
-              window.location.hash = '#admin/projects';
-            }}
+            onBack={handleBackToAdminProjects}
             onViewPublicProject={handleAdminViewPublicProject}
           />
         ) : editingPortfolioShotId !== null ? (
           <PortfolioEditPage
             shotId={editingPortfolioShotId === 'new' ? null : editingPortfolioShotId}
-            onBack={() => {
-              setEditingPortfolioShotId(null);
-              setAdminTab('portfolio');
-              window.location.hash = '#admin/portfolio';
-            }}
+            onBack={handleBackToAdminPortfolio}
             onViewPublicPortfolio={handleScrollToPortfolio}
           />
         ) : editingProductId !== null ? (
           <ProductEditPage
             productId={editingProductId === 'new' ? null : editingProductId}
-            onBack={() => {
-              setEditingProductId(null);
-              setAdminTab('products');
-              window.location.hash = '#admin/products';
-            }}
+            onBack={handleBackToAdminProducts}
             onViewPublicProducts={handleScrollToProducts}
           />
         ) : adminTab === 'overview' ? (
