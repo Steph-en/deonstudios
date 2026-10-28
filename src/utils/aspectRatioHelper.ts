@@ -167,15 +167,6 @@ export function detectOrientationFromClassOrString(str?: string | null): Orienta
   return 'portrait';
 }
 
-/**
- * Gets cached orientation from ratioCache if available
- */
-export function getCachedOrientation(url: string): OrientationType | null {
-  if (!url) return null;
-  const cached = ratioCache.get(url);
-  if (!cached) return null;
-  return detectOrientationFromClassOrString(cached);
-}
 
 /**
  * Gets cached aspect ratio for a URL or returns null if not measured yet
@@ -198,7 +189,7 @@ export function setCachedAspectRatioClass(url: string, cls: string): void {
 /**
  * Pre-measures an image URL asynchronously and returns its detected aspect ratio class
  */
-export function measureImageAspectRatio(url: string): Promise<string> {
+function measureImageAspectRatio(url: string): Promise<string> {
   if (!url) return Promise.resolve('aspect-[3/4]');
   if (ratioCache.has(url)) {
     return Promise.resolve(ratioCache.get(url)!);

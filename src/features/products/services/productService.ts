@@ -32,7 +32,7 @@ function singleProductToDb(s: SingleShot, idx: number): DbProductShot {
   };
 }
 
-export function dbProductToSingleShot(db: DbProductShot): SingleShot {
+function dbProductToSingleShot(db: DbProductShot): SingleShot {
   return {
     id: db.id,
     title: db.title,

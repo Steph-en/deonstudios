@@ -32,39 +32,3 @@ export const projectSchema = z.object({
 });
 
 export type ProjectFormData = z.infer<typeof projectSchema>;
-
-export const categorySchema = z.object({
-  name: z.string().min(2, 'Category name is required'),
-  slug: z
-    .string()
-    .min(2, 'Slug is required')
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must contain only lowercase letters, numbers, and hyphens'),
-  description: z.string().optional().default(''),
-  color: z.string().optional().default('#d4d4d4'),
-  icon: z.string().optional().default('folder'),
-  display_order: z.number().int().default(0),
-});
-
-export type CategoryFormData = z.infer<typeof categorySchema>;
-
-export const sectionSchema = z.object({
-  section_type: z.enum([
-    'overview',
-    'challenge',
-    'research',
-    'strategy',
-    'wireframes',
-    'design_system',
-    'process',
-    'solution',
-    'results',
-    'gallery',
-    'video',
-  ]),
-  title: z.string().optional().default(''),
-  content: z.string().optional().default(''),
-  media_url: z.string().nullable().optional(),
-  display_order: z.number().int().default(0),
-});
-
-export type SectionFormData = z.infer<typeof sectionSchema>;

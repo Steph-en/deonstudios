@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { HeroVideo } from './components/HeroVideo';
 import { PortfolioSection } from './components/PortfolioSection';
@@ -20,25 +20,34 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // Supabase CMS Integrations
 import { useAuth } from './features/auth/hooks/useAuth';
-import { LoginForm } from './features/auth/components/LoginForm';
-import { AdminLayout, AdminTab } from './components/layouts/AdminLayout';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { ProjectListPage } from './pages/admin/ProjectListPage';
-import { ProjectEditPage } from './pages/admin/ProjectEditPage';
-import { PortfolioListPage } from './pages/admin/PortfolioListPage';
-import { PortfolioEditPage } from './pages/admin/PortfolioEditPage';
-import { ProductListPage } from './pages/admin/ProductListPage';
-import { ProductEditPage } from './pages/admin/ProductEditPage';
-import { CategoryManagerPage } from './pages/admin/CategoryManagerPage';
-import { MediaManagerPage } from './pages/admin/MediaManagerPage';
-import { AnalyticsPage } from './pages/admin/AnalyticsPage';
-import { ProfilePage } from './pages/admin/ProfilePage';
-import { HeroCmsPage } from './pages/admin/HeroCmsPage';
-import { AboutCmsPage } from './pages/admin/AboutCmsPage';
+import type { AdminTab } from './components/layouts/AdminLayout';
 import { usePublishedProjects, usePortfolioShots, useProductShots } from './hooks/usePortfolioQueries';
 import { AnalyticsService } from './features/analytics/services/analyticsService';
 import { dbProjectToPortfolioProject } from './features/projects/utils/projectAdapter';
 import { SingleShot } from './types';
+
+// Admin CMS is loaded on demand so public visitors never download it.
+const LoginForm = lazy(() => import('./features/auth/components/LoginForm').then((m) => ({ default: m.LoginForm })));
+const AdminLayout = lazy(() => import('./components/layouts/AdminLayout').then((m) => ({ default: m.AdminLayout })));
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const ProjectListPage = lazy(() => import('./pages/admin/ProjectListPage').then((m) => ({ default: m.ProjectListPage })));
+const ProjectEditPage = lazy(() => import('./pages/admin/ProjectEditPage').then((m) => ({ default: m.ProjectEditPage })));
+const PortfolioListPage = lazy(() => import('./pages/admin/PortfolioListPage').then((m) => ({ default: m.PortfolioListPage })));
+const PortfolioEditPage = lazy(() => import('./pages/admin/PortfolioEditPage').then((m) => ({ default: m.PortfolioEditPage })));
+const ProductListPage = lazy(() => import('./pages/admin/ProductListPage').then((m) => ({ default: m.ProductListPage })));
+const ProductEditPage = lazy(() => import('./pages/admin/ProductEditPage').then((m) => ({ default: m.ProductEditPage })));
+const CategoryManagerPage = lazy(() => import('./pages/admin/CategoryManagerPage').then((m) => ({ default: m.CategoryManagerPage })));
+const MediaManagerPage = lazy(() => import('./pages/admin/MediaManagerPage').then((m) => ({ default: m.MediaManagerPage })));
+const AnalyticsPage = lazy(() => import('./pages/admin/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })));
+const ProfilePage = lazy(() => import('./pages/admin/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const HeroCmsPage = lazy(() => import('./pages/admin/HeroCmsPage').then((m) => ({ default: m.HeroCmsPage })));
+const AboutCmsPage = lazy(() => import('./pages/admin/AboutCmsPage').then((m) => ({ default: m.AboutCmsPage })));
+
+const AdminFallback = (
+  <div className="min-h-screen bg-[#fcfbfa] flex items-center justify-center font-mono text-xs text-neutral-400">
+    Loading...
+  </div>
+);
 
 function dbShotToSingleShot(shot: any): SingleShot {
   return {
@@ -490,15 +499,18 @@ export default function App() {
       return (
         <>
           <DocumentSeo activePage="admin" selectedProject={null} adminTab="overview" />
-          <LoginForm
-            onSuccess={handleLoginSuccess}
-            onCancel={handleNavigateHome}
-          />
+          <Suspense fallback={AdminFallback}>
+            <LoginForm
+              onSuccess={handleLoginSuccess}
+              onCancel={handleNavigateHome}
+            />
+          </Suspense>
         </>
       );
     }
 
     return (
+      <Suspense fallback={AdminFallback}>
       <AdminLayout
         currentTab={adminTab}
         onNavigateTab={handleAdminTabChange}
@@ -564,6 +576,7 @@ export default function App() {
           <ProfilePage />
         ) : null}
       </AdminLayout>
+      </Suspense>
     );
   }
 

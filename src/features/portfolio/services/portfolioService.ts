@@ -32,7 +32,7 @@ function singleShotToDb(s: SingleShot, idx: number): DbPortfolioShot {
   };
 }
 
-export function dbShotToSingleShot(db: DbPortfolioShot): SingleShot {
+function dbShotToSingleShot(db: DbPortfolioShot): SingleShot {
   return {
     id: db.id,
     title: db.title,

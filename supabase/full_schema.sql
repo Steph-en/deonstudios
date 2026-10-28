@@ -87,6 +87,7 @@ create table if not exists public.projects (
   seo_title text,
   seo_description text,
   seo_keywords text,
+  display_order integer not null default 0,
   published_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

@@ -1,7 +1,5 @@
 import sharp from 'sharp';
-import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
-import fs from 'node:fs';
 import path from 'node:path';
 
 export interface ImageOptimizationOptions {
@@ -11,14 +9,6 @@ export interface ImageOptimizationOptions {
   /** preserve is safest: output bytes keep the source format. */
   format?: 'preserve' | 'jpeg' | 'webp' | 'png' | 'avif';
   minFileSizeToProcess?: number;
-}
-
-export interface VideoOptimizationOptions {
-  maxHeight?: number;
-  maxWidth?: number;
-  crf?: number;
-  audioBitrate?: string;
-  preset?: string;
 }
 
 export interface OptimizationResult {
@@ -32,15 +22,6 @@ export interface OptimizationResult {
   height?: number;
   wasCompressed: boolean;
   mimeType: string;
-}
-
-export interface VideoOptimizationResult {
-  outputPath: string;
-  originalSize: number;
-  optimizedSize: number;
-  savedBytes: number;
-  savedPercentage: number;
-  wasCompressed: boolean;
 }
 
 export function calculateChecksum(buffer: Buffer): string {
@@ -181,54 +162,4 @@ export async function optimizeImageBuffer(
     console.warn('Image optimization failed; preserving original:', error instanceof Error ? error.message : error);
     return unchanged(inputBuffer, 'unknown', fallbackMime);
   }
-}
-
-export async function optimizeVideoFile(
-  inputPath: string,
-  outputPath: string,
-  options: VideoOptimizationOptions = {},
-): Promise<VideoOptimizationResult> {
-  const {
-    maxHeight = 1080,
-    maxWidth = 1920,
-    crf = 26,
-    audioBitrate = '128k',
-    preset = 'fast',
-  } = options;
-  const originalSize = fs.statSync(inputPath).size;
-  const filter = `scale=w='min(${maxWidth},iw)':h='min(${maxHeight},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2`;
-  const args = [
-    '-nostdin', '-hide_banner', '-loglevel', 'error', '-y', '-i', inputPath,
-    '-vf', filter, '-c:v', 'libx264', '-crf', String(crf), '-preset', preset,
-    '-c:a', 'aac', '-b:a', audioBitrate, '-movflags', '+faststart', '-f', 'mp4', outputPath,
-  ];
-
-  await new Promise<void>((resolve, reject) => {
-    const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] });
-    let stderr = '';
-    proc.stderr.on('data', (chunk: Buffer) => { stderr = (stderr + chunk.toString()).slice(-4000); });
-    proc.once('error', reject);
-    proc.once('close', (code) => {
-      if (code !== 0) reject(new Error(`FFmpeg failed (${code}): ${stderr.slice(-1000)}`));
-      else resolve();
-    });
-  });
-
-  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) {
-    throw new Error('FFmpeg did not produce a non-empty output file.');
-  }
-  const optimizedSize = fs.statSync(outputPath).size;
-  if (optimizedSize >= originalSize) {
-    fs.copyFileSync(inputPath, outputPath);
-    return { outputPath, originalSize, optimizedSize: originalSize, savedBytes: 0, savedPercentage: 0, wasCompressed: false };
-  }
-  const savedBytes = originalSize - optimizedSize;
-  return {
-    outputPath,
-    originalSize,
-    optimizedSize,
-    savedBytes,
-    savedPercentage: Number(((savedBytes / originalSize) * 100).toFixed(2)),
-    wasCompressed: true,
-  };
 }

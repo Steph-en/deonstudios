@@ -1,79 +1,46 @@
 /**
- * Unified API Client for communicating with the server-side database.
- * Guarantees cross-browser consistency (Safari, Brave, Chrome, Mobile)
- * and persistence across browser sessions and redeployments.
+ * Client for the optional local Express dev server (server.ts), which provides a
+ * JSON-file database used as an offline fallback when Supabase is unreachable.
+ *
+ * In production (Vercel) that server does not exist - only the serverless
+ * functions in /api (contact, inquiries) do - so every call here would 404.
+ * Outside of dev, and unless VITE_API_URL points at a hosted backend, the
+ * client therefore fails immediately without touching the network; callers
+ * already catch this and fall back to Supabase / local cache.
  */
 
-export class ApiClient {
-  private static baseUrl =
-    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL)
-      ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api`
-      : typeof window !== 'undefined'
-      ? '/api'
-      : 'http://localhost:3000/api';
+const REMOTE_BASE = import.meta.env.VITE_API_URL?.replace(/\/+$/, '');
+const BASE_URL = REMOTE_BASE ? `${REMOTE_BASE}/api` : import.meta.env.DEV ? '/api' : null;
 
-  private static async parseResponse<T>(res: Response, endpoint: string): Promise<T> {
-    const contentType = res.headers.get('content-type') || '';
-    if (!res.ok) {
-      let errorMsg = res.statusText;
-      if (contentType.includes('application/json')) {
-        const err = await res.json().catch(() => null);
-        if (err?.error) errorMsg = err.error;
-      }
-      throw new Error(errorMsg || `HTTP ${res.status}: Request failed for ${endpoint}`);
-    }
+async function request<T>(method: string, endpoint: string, data?: unknown): Promise<T> {
+  if (!BASE_URL) throw new Error('Local API server is not available in production.');
 
-    if (!contentType.includes('application/json')) {
-      throw new Error(`Expected JSON from ${endpoint}, but received ${contentType || 'non-JSON'}`);
-    }
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
+    method,
+    headers: {
+      Accept: 'application/json',
+      ...(data !== undefined && { 'Content-Type': 'application/json' }),
+    },
+    body: data !== undefined ? JSON.stringify(data) : undefined,
+  });
 
-    return res.json();
+  const isJson = res.headers.get('content-type')?.includes('application/json');
+  if (!res.ok) {
+    const body = isJson ? await res.json().catch(() => null) : null;
+    const detail = body?.error;
+    throw new Error(
+      (typeof detail === 'string' ? detail : detail?.message) ||
+        res.statusText ||
+        `HTTP ${res.status}: request failed for ${endpoint}`
+    );
   }
-
-  static async get<T>(endpoint: string): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${endpoint}`, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    return this.parseResponse<T>(res, endpoint);
-  }
-
-  static async post<T>(endpoint: string, data?: any): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: data !== undefined ? JSON.stringify(data) : undefined,
-    });
-
-    return this.parseResponse<T>(res, endpoint);
-  }
-
-  static async put<T>(endpoint: string, data: any): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${endpoint}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    return this.parseResponse<T>(res, endpoint);
-  }
-
-  static async delete<T>(endpoint: string): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${endpoint}`, {
-      method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    return this.parseResponse<T>(res, endpoint);
-  }
+  if (!isJson) throw new Error(`Expected JSON from ${endpoint}`);
+  return res.json();
 }
+
+export const ApiClient = {
+  get: <T>(endpoint: string) => request<T>('GET', endpoint),
+  post: <T>(endpoint: string, data?: unknown) => request<T>('POST', endpoint, data),
+  put: <T>(endpoint: string, data: unknown) => request<T>('PUT', endpoint, data),
+  delete: <T>(endpoint: string) => request<T>('DELETE', endpoint),
+};

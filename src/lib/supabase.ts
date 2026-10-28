@@ -3,7 +3,7 @@ import { Database } from '../types/database';
 
 export const PRIMARY_SITE_URL = 'https://www.gideonboadi.com';
 
-export const ALLOWED_AUTH_ORIGINS: readonly string[] = [
+const ALLOWED_AUTH_ORIGINS: readonly string[] = [
   'https://www.gideonboadi.com',
   'https://gideonboadi.com',
   'http://www.gideonboadi.com',
