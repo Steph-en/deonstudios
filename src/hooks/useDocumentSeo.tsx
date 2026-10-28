@@ -3,13 +3,13 @@ import { PageView, Project } from '../types';
 import { SEOHead } from '../components/SEOHead';
 import { AdminTab } from '../components/layouts/AdminLayout';
 
-export interface DocumentSeoProps {
+interface DocumentSeoProps {
   activePage: PageView;
   selectedProject: Project | null;
   adminTab?: AdminTab;
 }
 
-export function getSeoConfig({
+function getSeoConfig({
   activePage,
   selectedProject,
   adminTab,
@@ -204,12 +204,3 @@ export const DocumentSeo: React.FC<DocumentSeoProps> = ({
   );
 };
 
-/**
- * Hook kept for backwards compatibility if needed, but SEO is now handled
- * declaratively via React Helmet and <DocumentSeo />.
- */
-export function useDocumentSeo(options: DocumentSeoProps) {
-  // React Helmet asynchronously updates the document title and head tags
-  // when <DocumentSeo /> or <SEOHead /> is mounted in the React component tree.
-  return options;
-}

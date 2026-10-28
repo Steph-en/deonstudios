@@ -1,21 +1,5 @@
 import { Project, SingleShot } from '../types';
 
-export const HERO_VIDEO_DESKTOP = '/videos/';
-export const HERO_VIDEO_MOBILE = '/videos/';
-
-export const HERO_VIDEOS = [
-  {
-    url: '/videos/',
-    title: 'Deon Studios Reel — Desktop Split-Screen',
-  },
-  {
-    url: '/videos/',
-    title: 'Deon Studios Reel — Mobile Portrait',
-  },
-];
-
-export const FALLBACK_HERO_POSTER = '';
-
 export const PROJECTS: Project[] = [];
 
 export const CLIENT_LIST = [

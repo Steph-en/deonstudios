@@ -30,6 +30,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savings, setSavings] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,16 +43,20 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
 
   const handleFile = async (file: File) => {
     setError(null);
+    setSavings(null);
     setIsUploading(true);
 
     try {
-      const destinationPath = `projects/${projectId}/${folder}/`;
       const result = await StorageService.uploadMedia({
         file,
-        destinationPath,
-        upsert: true,
+        destinationPath: `projects/${projectId}/${folder}/`,
       });
 
+      if (result.wasOptimized) {
+        setSavings(
+          `Optimized ${formatFileSize(result.originalSize)} → ${formatFileSize(result.fileSize)}`
+        );
+      }
       onUploadComplete(result);
     } catch (err: any) {
       console.error('Upload failed:', err);
@@ -108,7 +113,7 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
               {currentUrl}
             </p>
             <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-1">
-              <Check className="w-3.5 h-3.5" /> Media Ready
+              <Check className="w-3.5 h-3.5" /> Media Ready{savings && ` · ${savings}`}
             </p>
             <div className="flex items-center gap-2 mt-2">
               <button
@@ -160,10 +165,10 @@ export const MediaUploader: React.FC<MediaUploaderProps> = ({
               </p>
               <p className="text-[11px] text-neutral-400 mt-1">
                 {accept === 'video'
-                  ? 'MP4, WebM up to 150MB'
+                  ? 'MP4, WebM up to 50MB'
                   : accept === 'image'
-                  ? 'JPG, PNG, WebP, SVG up to 20MB'
-                  : 'Images up to 20MB, Videos up to 150MB'}
+                  ? 'JPG, PNG, WebP, SVG · auto-compressed on upload'
+                  : 'Images auto-compressed · Videos up to 50MB'}
               </p>
             </>
           )}

@@ -23,7 +23,7 @@ import {
   ProjectStatus,
 } from '../types/database';
 
-export const QUERY_KEYS = {
+const QUERY_KEYS = {
   projects: (filters?: any) => ['projects', filters] as const,
   project: (slugOrId: string) => ['project', slugOrId] as const,
   portfolioShots: (filters?: any) => ['portfolio-shots', filters] as const,
@@ -216,13 +216,6 @@ export function usePortfolioShots(options?: {
   });
 }
 
-export function usePublishedPortfolioShots() {
-  return useQuery({
-    queryKey: QUERY_KEYS.portfolioShots({ status: 'published' }),
-    queryFn: () => PortfolioService.getPublishedShots(),
-    staleTime: 1000 * 60 * 2, // 2 minutes
-  });
-}
 
 export function usePortfolioShot(id: string | null) {
   return useQuery({
@@ -330,13 +323,6 @@ export function useProductShots(options?: {
   });
 }
 
-export function usePublishedProductShots() {
-  return useQuery({
-    queryKey: QUERY_KEYS.productShots({ status: 'published' }),
-    queryFn: () => ProductService.getPublishedProducts(),
-    staleTime: 1000 * 60 * 2, // 2 minutes
-  });
-}
 
 export function useProductShot(id: string | null) {
   return useQuery({
