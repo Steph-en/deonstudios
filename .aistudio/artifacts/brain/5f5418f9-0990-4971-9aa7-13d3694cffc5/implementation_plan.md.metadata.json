@@ -1,0 +1,6 @@
+{
+  "summary":  "Implementation plan for dual-asset Desktop & Mobile Hero imagery in Deon Studios CMS and frontend viewer. Enables photographer client to upload dedicated mobile portrait crops paired with desktop landscape shots, with automatic responsive switching at 768px/portrait and graceful desktop focal fallback.",
+  "updatedAt":  "2026-10-29T02:45:26.292311319Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}
