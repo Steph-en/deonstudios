@@ -59,35 +59,33 @@ export interface Database {
         };
         Relationships: [];
       };
-      app_users: {
+      inquiries: {
         Row: {
           id: string;
+          name: string;
           email: string;
-          username?: string | null;
-          full_name: string | null;
-          role: UserRole;
-          password?: string | null;
+          phone: string | null;
+          project_type: string | null;
+          message: string;
+          destination_email: string | null;
+          status: 'unread' | 'read' | 'archived';
           created_at: string;
           updated_at: string;
         };
         Insert: {
-          id?: string;
+          id: string;
+          name: string;
           email: string;
-          username?: string | null;
-          full_name?: string | null;
-          role?: UserRole;
-          password?: string | null;
+          phone?: string | null;
+          project_type?: string | null;
+          message: string;
+          destination_email?: string | null;
+          status?: 'unread' | 'read' | 'archived';
           created_at?: string;
           updated_at?: string;
         };
         Update: {
-          id?: string;
-          email?: string;
-          username?: string | null;
-          full_name?: string | null;
-          role?: UserRole;
-          password?: string | null;
-          created_at?: string;
+          status?: 'unread' | 'read' | 'archived';
           updated_at?: string;
         };
         Relationships: [];
@@ -508,12 +506,9 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       };
-      delete_user_by_admin: {
-        Args: {
-          target_user_email: string;
-          target_user_id?: string | null;
-        };
-        Returns: Json;
+      login_email_for: {
+        Args: { identifier: string };
+        Returns: string | null;
       };
     };
     Enums: {

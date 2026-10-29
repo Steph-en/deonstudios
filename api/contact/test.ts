@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'http';
+import { requireStaff, route } from '../_lib/http.js';
 import nodemailer from 'nodemailer';
 
-export default async function handler(
+async function handle(
   req: IncomingMessage,
   res: ServerResponse & { status?: (code: number) => any; json?: (data: any) => any }
 ) {
@@ -149,3 +150,9 @@ export default async function handler(
     })
   );
 }
+
+// Diagnostic endpoint: exposes mail configuration, so it is restricted to signed-in staff.
+export default route(async (req, res) => {
+  if (req.method !== 'OPTIONS') await requireStaff(req);
+  await handle(req, res as any);
+});

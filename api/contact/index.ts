@@ -1,8 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http';
 import nodemailer from 'nodemailer';
-import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
+import { anonClient } from '../_lib/http.js';
 
 interface ExtendedRequest extends IncomingMessage {
   body?: any;
@@ -95,7 +93,7 @@ export default async function handler(req: ExtendedRequest, res: ExtendedRespons
 
   try {
     const body = await getParsedBody(req);
-    const { name, email, message, projectType, phone, destinationEmail } = body || {};
+    const { name, email, message, projectType, phone } = body || {};
 
     // Server-side form validation
     const errors: Record<string, string> = {};
@@ -125,11 +123,9 @@ export default async function handler(req: ExtendedRequest, res: ExtendedRespons
     const cleanMessage = message.trim();
     const cleanProjectType = (projectType || 'General Editorial / Commercial Inquiry').trim();
     const cleanPhone = (phone || '').trim();
-    const targetDestination = (
-      destinationEmail ||
-      process.env.CONTACT_DESTINATION_EMAIL ||
-      'studio@gideonboadi.com'
-    ).trim();
+    // The recipient is fixed server-side. Accepting it from the request would let anyone
+    // use this endpoint to send mail to arbitrary addresses from the studio's account.
+    const targetDestination = (process.env.CONTACT_DESTINATION_EMAIL || 'studio@gideonboadi.com').trim();
 
     const newInquiry = {
       id: `inq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -143,60 +139,25 @@ export default async function handler(req: ExtendedRequest, res: ExtendedRespons
       created_at: new Date().toISOString(),
     };
 
-    // 1. Try to record inquiry in local db.json if filesystem is available
+    // 1. Save to the protected `inquiries` table. Anonymous visitors may insert but not read
+    //    (see supabase/migrations/019); only signed-in staff can view messages in the dashboard.
     try {
-      const dbPath = path.resolve(process.cwd(), 'data', 'db.json');
-      if (fs.existsSync(dbPath)) {
-        const raw = fs.readFileSync(dbPath, 'utf-8');
-        const db = JSON.parse(raw);
-        if (!Array.isArray(db.inquiries)) db.inquiries = [];
-        db.inquiries.unshift(newInquiry);
-        fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), 'utf-8');
-      }
+      const { error: insertError } = await anonClient().from('inquiries').insert({
+        id: newInquiry.id,
+        name: cleanName.slice(0, 200),
+        email: cleanEmail.slice(0, 320),
+        phone: cleanPhone.slice(0, 50) || null,
+        project_type: cleanProjectType.slice(0, 200),
+        message: cleanMessage.slice(0, 5000),
+        destination_email: targetDestination,
+        status: 'unread',
+      });
+      if (insertError) console.warn('[Contact Function] Could not save inquiry:', insertError.message);
     } catch (dbErr) {
-      console.warn('[Contact Function] Could not persist to local db.json (normal in serverless):', dbErr);
+      console.warn('[Contact Function] Could not save inquiry:', dbErr);
     }
 
-    // 2. Persist in Supabase site_settings (shared across Vercel & all environments)
-    const supabaseUrl =
-      process.env.VITE_SUPABASE_URL ||
-      process.env.SUPABASE_URL ||
-      'https://oorbvpnuivsyfxftlqwr.supabase.co';
-    const supabaseKey =
-      process.env.VITE_SUPABASE_ANON_KEY ||
-      process.env.SUPABASE_ANON_KEY ||
-      'sb_publishable_qbhaFoU1TzHZzWqUKeOCig_rylAdzFV';
-
-    if (supabaseUrl && supabaseKey) {
-      try {
-        const supabase = createClient(supabaseUrl, supabaseKey);
-        const { data: settingData } = await supabase
-          .from('site_settings')
-          .select('value')
-          .eq('key', 'client_inquiries')
-          .maybeSingle();
-
-        const inquiriesList: any[] = Array.isArray((settingData as any)?.value)
-          ? [...(settingData as any).value]
-          : [];
-
-        if (!inquiriesList.some((i: any) => i.id === newInquiry.id)) {
-          inquiriesList.unshift(newInquiry);
-          await supabase.from('site_settings').upsert(
-            {
-              key: 'client_inquiries',
-              value: inquiriesList,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'key' }
-          );
-        }
-      } catch (sbErr) {
-        console.warn('[Contact Function] Supabase client_inquiries note:', sbErr);
-      }
-    }
-
-    // 3. Email dispatch: Check Resend API or SMTP
+    // 2. Email dispatch: Check Resend API or SMTP
     const resendApiKey = process.env.RESEND_API_KEY;
     const smtpHost = process.env.SMTP_HOST;
     const smtpUser = process.env.SMTP_USER;
@@ -204,6 +165,9 @@ export default async function handler(req: ExtendedRequest, res: ExtendedRespons
     const smtpPort = Number(process.env.SMTP_PORT) || 587;
     const smtpFrom =
       process.env.SMTP_FROM || `"Deon Studios Web" <${targetDestination}>`;
+
+    const esc = (v: string) =>
+      v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
     const emailSubject = `New Studio Inquiry from ${cleanName} — Deon Studios`;
     const emailHtml = `
@@ -235,27 +199,27 @@ export default async function handler(req: ExtendedRequest, res: ExtendedRespons
           <div class="content">
             <div class="field">
               <div class="label">Client Name</div>
-              <div class="value"><strong>${cleanName}</strong></div>
+              <div class="value"><strong>${esc(cleanName)}</strong></div>
             </div>
             <div class="field">
               <div class="label">Email Address</div>
-              <div class="value"><a href="mailto:${cleanEmail}?subject=Re: Photography Inquiry — Deon Studios">${cleanEmail}</a></div>
+              <div class="value"><a href="mailto:${esc(cleanEmail)}?subject=Re: Photography Inquiry — Deon Studios">${esc(cleanEmail)}</a></div>
             </div>
             ${cleanPhone ? `
             <div class="field">
               <div class="label">Phone / WhatsApp</div>
-              <div class="value">${cleanPhone}</div>
+              <div class="value">${esc(cleanPhone)}</div>
             </div>` : ''}
             ${cleanProjectType ? `
             <div class="field">
               <div class="label">Project / Campaign Type</div>
-              <div class="value">${cleanProjectType}</div>
+              <div class="value">${esc(cleanProjectType)}</div>
             </div>` : ''}
             <div class="field">
               <div class="label">Brief &amp; Message</div>
-              <div class="message-box">${cleanMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+              <div class="message-box">${esc(cleanMessage)}</div>
             </div>
-            <a href="mailto:${cleanEmail}?subject=Re: Photography Inquiry — Deon Studios" class="btn">Reply Directly to Client</a>
+            <a href="mailto:${esc(cleanEmail)}?subject=Re: Photography Inquiry — Deon Studios" class="btn">Reply Directly to Client</a>
           </div>
           <div class="footer">
             Sent via Deon Studios Contact Service to <strong>${targetDestination}</strong> on ${new Date().toISOString()}.
