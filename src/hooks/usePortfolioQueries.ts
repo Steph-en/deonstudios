@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../lib/supabase';
 import { ProjectService } from '../features/projects/services/projectService';
 import { CategoryService } from '../features/categories/services/categoryService';
 import { MediaService } from '../features/media/services/mediaService';
@@ -462,68 +463,32 @@ export function useUpdateAboutSettings() {
   });
 }
 
+export interface Inquiry {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  projectType: string | null;
+  message: string;
+  status: 'unread' | 'read' | 'archived';
+  created_at: string;
+}
+
+const INQUIRIES_KEY = ['inquiries'] as const;
+
+/** Visitor messages. Readable only by signed-in staff (row level security). */
 export function useInquiries() {
-  return useQuery<any[]>({
-    queryKey: ['inquiries'],
+  return useQuery<Inquiry[]>({
+    queryKey: INQUIRIES_KEY,
     queryFn: async () => {
-      // Tier 1: Try /api/inquiries (Server or Vercel serverless)
-      let apiItems: any[] = [];
-      try {
-        const res = await fetch('/api/inquiries', {
-          headers: { 'Cache-Control': 'no-cache, no-store' },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) apiItems = data;
-        }
-      } catch (err) {
-        console.warn('[useInquiries] API fetch note:', err);
-      }
-
-      // Tier 2: Try Supabase cloud database directly (guaranteed across all environments including Vercel)
-      let cloudItems: any[] = [];
-      try {
-        const cloudData = await SiteSettingsService.getSettings<any[]>('client_inquiries', []);
-        if (Array.isArray(cloudData)) cloudItems = cloudData;
-      } catch (err) {
-        console.warn('[useInquiries] Supabase fetch note:', err);
-      }
-
-      // Tier 3: Try browser storage (instant offline/same-device visibility)
-      let localItems: any[] = [];
-      try {
-        const dispatched = JSON.parse(localStorage.getItem('deon_dispatched_inquiries') || '[]');
-        if (Array.isArray(dispatched)) localItems = dispatched;
-      } catch {}
-
-      // Deduplicate and merge by inquiry id
-      const map = new Map<string, any>();
-      // Order: localItems -> cloudItems -> apiItems (newest status / edits take precedence)
-      const all = [...localItems, ...cloudItems, ...apiItems];
-      for (const inq of all) {
-        if (inq && inq.id) {
-          if (!map.has(inq.id)) {
-            map.set(inq.id, inq);
-          } else {
-            // Merge fields preferring read status if updated
-            const existing = map.get(inq.id);
-            if (inq.status === 'read' && existing.status !== 'read') {
-              map.set(inq.id, { ...existing, ...inq });
-            }
-          }
-        }
-      }
-
-      const merged = Array.from(map.values()).sort((a, b) => {
-        const timeA = new Date(a.created_at || a.date || 0).getTime();
-        const timeB = new Date(b.created_at || b.date || 0).getTime();
-        return timeB - timeA;
-      });
-
-      return merged;
+      const { data, error } = await supabase
+        .from('inquiries')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []).map(({ project_type, ...row }) => ({ ...row, projectType: project_type }));
     },
-    staleTime: 1000 * 60, // 1 minute
-    refetchInterval: false, // Disabled continuous 10s polling to prevent reload loop and Supabase egress spike
+    staleTime: 1000 * 60,
     refetchOnWindowFocus: false,
   });
 }
@@ -532,58 +497,22 @@ export function useUpdateInquiryStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: 'read' | 'unread' }) => {
-      // 1. Try API
-      try {
-        await fetch(`/api/inquiries/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status }),
-        });
-      } catch {}
-
-      // 2. Sync to Supabase cloud site_settings
-      try {
-        const current = await SiteSettingsService.getSettings<any[]>('client_inquiries', []);
-        const updated = current.map((item: any) =>
-          item.id === id ? { ...item, status } : item
-        );
-        await SiteSettingsService.updateSettings('client_inquiries', updated);
-      } catch {}
-
-      // 3. Sync to browser storage
-      try {
-        const stored = JSON.parse(localStorage.getItem('deon_dispatched_inquiries') || '[]');
-        if (Array.isArray(stored)) {
-          const updated = stored.map((item: any) =>
-            item.id === id ? { ...item, status } : item
-          );
-          localStorage.setItem('deon_dispatched_inquiries', JSON.stringify(updated));
-        }
-      } catch {}
-
-      return { id, status };
+      const { error } = await supabase
+        .from('inquiries')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw new Error(error.message);
     },
     onMutate: async ({ id, status }) => {
-      await queryClient.cancelQueries({ queryKey: ['inquiries'] });
-      const previousInquiries = queryClient.getQueryData<any[]>(['inquiries']);
-      if (previousInquiries) {
-        queryClient.setQueryData<any[]>(
-          ['inquiries'],
-          previousInquiries.map((inq) =>
-            inq.id === id ? { ...inq, status } : inq
-          )
-        );
-      }
-      return { previousInquiries };
+      await queryClient.cancelQueries({ queryKey: INQUIRIES_KEY });
+      const previous = queryClient.getQueryData<Inquiry[]>(INQUIRIES_KEY);
+      queryClient.setQueryData<Inquiry[]>(INQUIRIES_KEY, (list) =>
+        list?.map((inq) => (inq.id === id ? { ...inq, status } : inq))
+      );
+      return { previous };
     },
-    onError: (_err, _vars, context) => {
-      if (context?.previousInquiries) {
-        queryClient.setQueryData(['inquiries'], context.previousInquiries);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['inquiries'] });
-    },
+    onError: (_err, _vars, ctx) => queryClient.setQueryData(INQUIRIES_KEY, ctx?.previous),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: INQUIRIES_KEY }),
   });
 }
 
@@ -591,49 +520,16 @@ export function useDeleteInquiry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      // 1. Try API
-      try {
-        await fetch(`/api/inquiries/${id}`, { method: 'DELETE' });
-      } catch {}
-
-      // 2. Sync to Supabase cloud site_settings
-      try {
-        const current = await SiteSettingsService.getSettings<any[]>('client_inquiries', []);
-        const filtered = current.filter((item: any) => item.id !== id);
-        await SiteSettingsService.updateSettings('client_inquiries', filtered);
-      } catch {}
-
-      // 3. Sync to browser storage
-      try {
-        const stored = JSON.parse(localStorage.getItem('deon_dispatched_inquiries') || '[]');
-        if (Array.isArray(stored)) {
-          const filtered = stored.filter((item: any) => item.id !== id);
-          localStorage.setItem('deon_dispatched_inquiries', JSON.stringify(filtered));
-        }
-      } catch {}
-
-      return { id };
+      const { error } = await supabase.from('inquiries').delete().eq('id', id);
+      if (error) throw new Error(error.message);
     },
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: ['inquiries'] });
-      const previousInquiries = queryClient.getQueryData<any[]>(['inquiries']);
-      if (previousInquiries) {
-        queryClient.setQueryData<any[]>(
-          ['inquiries'],
-          previousInquiries.filter((inq) => inq.id !== id)
-        );
-      }
-      return { previousInquiries };
+      await queryClient.cancelQueries({ queryKey: INQUIRIES_KEY });
+      const previous = queryClient.getQueryData<Inquiry[]>(INQUIRIES_KEY);
+      queryClient.setQueryData<Inquiry[]>(INQUIRIES_KEY, (list) => list?.filter((inq) => inq.id !== id));
+      return { previous };
     },
-    onError: (_err, _id, context) => {
-      if (context?.previousInquiries) {
-        queryClient.setQueryData(['inquiries'], context.previousInquiries);
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['inquiries'] });
-    },
+    onError: (_err, _id, ctx) => queryClient.setQueryData(INQUIRIES_KEY, ctx?.previous),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: INQUIRIES_KEY }),
   });
 }
-
-

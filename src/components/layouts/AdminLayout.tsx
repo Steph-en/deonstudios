@@ -52,21 +52,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   onExitAdmin,
   children,
 }) => {
-  const { logout, user, profile, role } = useAuth();
+  const { logout, user, profile, isAdmin } = useAuth();
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isAdmin =
-    role === 'admin' ||
-    profile?.role === 'admin' ||
-    user?.email?.toLowerCase() === 'appahstephen9@gmail.com' ||
-    user?.user_metadata?.role === 'admin';
-
   const userDisplayName =
-    user?.user_metadata?.username ||
-    (user?.email?.toLowerCase() === 'appahstephen9@gmail.com'
-      ? 'appahstephen9'
-      : profile?.full_name || user?.email?.split('@')[0] || 'User');
+    profile?.username || profile?.full_name || user?.email?.split('@')[0] || 'User';
 
   const navItems: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },

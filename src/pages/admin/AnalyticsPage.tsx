@@ -33,12 +33,7 @@ export const AnalyticsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { confirm } = useConfirm();
-  const { user, profile, role } = useAuth();
-  const isAdmin =
-    role === 'admin' ||
-    profile?.role === 'admin' ||
-    user?.email?.toLowerCase() === 'appahstephen9@gmail.com' ||
-    user?.user_metadata?.role === 'admin';
+  const { isAdmin } = useAuth();
 
   const { data: stats } = useDashboardStats();
   const { data: analytics, isLoading } = useDetailedAnalytics();

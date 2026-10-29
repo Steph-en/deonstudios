@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CheckCircle2, AlertCircle, Send, ArrowRight, Mail } from 'lucide-react';
 import { STUDIO_INFO } from '../data/portfolioData';
-import { SiteSettingsService } from '../services/siteSettingsService';
 import { SEOHead } from './SEOHead';
 
 interface FormValues {
@@ -143,7 +142,6 @@ export const ContactView: React.FC = () => {
                 phone: item.phone,
                 projectType: item.projectType,
                 message: item.message,
-                destinationEmail: item.destination || destinationEmail,
               }),
             });
             if (!res.ok) remaining.push(item);
@@ -160,7 +158,7 @@ export const ContactView: React.FC = () => {
     syncPending();
     window.addEventListener('online', syncPending);
     return () => window.removeEventListener('online', syncPending);
-  }, [destinationEmail]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,47 +187,14 @@ export const ContactView: React.FC = () => {
 
     setIsSubmitting(true);
 
-    const inquiryId = `inq-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const cleanName = formData.name.trim();
-    const cleanEmail = formData.email.trim();
-    const cleanMessage = formData.message.trim();
-    const cleanProjectType = formData.projectType || 'General Inquiry';
-    const cleanPhone = formData.phone ? formData.phone.trim() : '';
-
+    // Only kept in the browser if the network request below fails, so it can be retried later.
     const inquiryRecord = {
-      id: inquiryId,
-      name: cleanName,
-      email: cleanEmail,
-      phone: cleanPhone,
-      projectType: cleanProjectType,
-      project_type: cleanProjectType,
-      message: cleanMessage,
-      destination: destinationEmail,
-      destination_email: destinationEmail,
-      status: 'unread',
-      created_at: new Date().toISOString(),
-      date: new Date().toISOString(),
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone ? formData.phone.trim() : '',
+      projectType: formData.projectType || 'General Inquiry',
+      message: formData.message.trim(),
     };
-
-    // 1. Store in browser storage immediately so client data is instantly visible
-    try {
-      const stored = JSON.parse(localStorage.getItem('deon_dispatched_inquiries') || '[]');
-      stored.unshift(inquiryRecord);
-      localStorage.setItem('deon_dispatched_inquiries', JSON.stringify(stored.slice(0, 50)));
-    } catch {}
-
-    // 2. Direct Supabase cloud persistence (shared across Vercel and all devices)
-    try {
-      SiteSettingsService.getSettings<any[]>('client_inquiries', [])
-        .then((list) => {
-          const current = Array.isArray(list) ? [...list] : [];
-          if (!current.some((i: any) => i.id === inquiryRecord.id)) {
-            current.unshift(inquiryRecord);
-            SiteSettingsService.updateSettings('client_inquiries', current);
-          }
-        })
-        .catch(() => {});
-    } catch {}
 
     try {
       const response = await fetch('/api/contact', {
@@ -244,7 +209,6 @@ export const ContactView: React.FC = () => {
           phone: formData.phone,
           projectType: formData.projectType,
           message: formData.message,
-          destinationEmail,
         }),
       });
 

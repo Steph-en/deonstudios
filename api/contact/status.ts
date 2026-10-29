@@ -1,8 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import fs from 'fs';
-import path from 'path';
+import { requireStaff, route } from '../_lib/http.js';
 
-export default async function handler(
+async function handle(
   req: IncomingMessage,
   res: ServerResponse & { status?: (code: number) => any; json?: (data: any) => any }
 ) {
@@ -29,15 +28,6 @@ export default async function handler(
   const hasResend = Boolean(resendApiKey && resendApiKey.trim().length > 5);
   const hasSmtp = Boolean(smtpHost && smtpUser && smtpPass);
 
-  let totalInquiries = 0;
-  try {
-    const dbPath = path.resolve(process.cwd(), 'data', 'db.json');
-    if (fs.existsSync(dbPath)) {
-      const db = JSON.parse(fs.readFileSync(dbPath, 'utf-8'));
-      if (Array.isArray(db.inquiries)) totalInquiries = db.inquiries.length;
-    }
-  } catch {}
-
   const responseData = {
     status: 'ok',
     service: 'Deon Studios Contact & Booking API',
@@ -47,7 +37,6 @@ export default async function handler(
     smtpConfigured: hasSmtp,
     smtpHost: smtpHost ? smtpHost : 'Not set',
     smtpUser: smtpUser ? smtpUser : 'Not set',
-    totalInquiries,
     timestamp: new Date().toISOString(),
   };
 
@@ -55,3 +44,9 @@ export default async function handler(
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(responseData));
 }
+
+// Diagnostic endpoint: exposes mail configuration, so it is restricted to signed-in staff.
+export default route(async (req, res) => {
+  if (req.method !== 'OPTIONS') await requireStaff(req);
+  await handle(req, res as any);
+});

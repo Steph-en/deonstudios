@@ -22,7 +22,7 @@ import { isSupabaseConfigured, supabaseUrl } from '../../lib/supabase';
 import { useConfirm, useToast } from '../../context/AdminUIContext';
 
 export const ProfilePage: React.FC = () => {
-  const { user, profile, role } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const toast = useToast();
   const { confirm } = useConfirm();
   const supabaseConnected = isSupabaseConfigured();
@@ -50,18 +50,8 @@ export const ProfilePage: React.FC = () => {
   const [userActionSuccess, setUserActionSuccess] = useState<string | null>(null);
   const [userActionError, setUserActionError] = useState<string | null>(null);
 
-  const currentEmail = profile?.email || user?.email || 'appahstephen9@gmail.com';
-  const isPrimaryAdminEmail = currentEmail.toLowerCase() === 'appahstephen9@gmail.com';
-  const isAdmin =
-    role === 'admin' ||
-    profile?.role === 'admin' ||
-    user?.user_metadata?.role === 'admin' ||
-    isPrimaryAdminEmail;
-
-  const currentUsername =
-    user?.user_metadata?.username ||
-    profile?.full_name ||
-    (isPrimaryAdminEmail ? 'appahstephen9' : currentEmail.split('@')[0]);
+  const currentEmail = profile?.email || user?.email || '';
+  const currentUsername = profile?.username || profile?.full_name || currentEmail.split('@')[0];
 
   const loadTeamMembers = async () => {
     if (!isAdmin) {
@@ -99,8 +89,8 @@ export const ProfilePage: React.FC = () => {
       return;
     }
 
-    if (newMemberPassword.length < 6) {
-      setUserActionError('Password must be at least 6 characters long.');
+    if (newMemberPassword.length < 8) {
+      setUserActionError('Password must be at least 8 characters long.');
       return;
     }
 
@@ -146,7 +136,7 @@ export const ProfilePage: React.FC = () => {
 
     if (ok) {
       try {
-        await AuthService.removeTeamMember(id, email);
+        await AuthService.removeTeamMember(id);
         toast.success(`Successfully removed account access for ${name}.`, 'ACCESS REVOKED');
         await loadTeamMembers();
       } catch (err: any) {
@@ -160,8 +150,8 @@ export const ProfilePage: React.FC = () => {
     setSuccessMessage(null);
     setErrorMessage(null);
 
-    if (newPassword.length < 6) {
-      const err = 'New password must be at least 6 characters long.';
+    if (newPassword.length < 8) {
+      const err = 'New password must be at least 8 characters long.';
       setErrorMessage(err);
       toast.error(err, 'PASSWORD ERROR');
       return;
@@ -176,7 +166,7 @@ export const ProfilePage: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await AuthService.updatePassword(newPassword);
+      await AuthService.updatePassword(currentEmail, currentPassword, newPassword);
       const msg = 'Your password has been successfully updated.';
       setSuccessMessage(msg);
       toast.success(msg, 'PASSWORD UPDATED');
@@ -184,7 +174,7 @@ export const ProfilePage: React.FC = () => {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      const errorMsg = 'Failed to update password. Please try again.';
+      const errorMsg = err?.message || 'Failed to update password. Please try again.';
       setErrorMessage(errorMsg);
       toast.error(errorMsg, 'UPDATE FAILED');
     } finally {
@@ -494,10 +484,9 @@ export const ProfilePage: React.FC = () => {
           ) : (
             <div className="divide-y divide-neutral-100 border border-neutral-200 rounded-xl overflow-hidden">
               {teamMembers.map((member) => {
-                const isCurrent = member.email.toLowerCase() === currentEmail.toLowerCase();
-                const isPrimary =
-                  member.email.toLowerCase() === 'appahstephen9@gmail.com' ||
-                  member.id === 'admin-appahstephen9';
+                const isCurrent = member.id === profile?.id;
+                // Your own account can't be removed here (the server enforces this too).
+                const isPrimary = isCurrent;
 
                 return (
                   <div

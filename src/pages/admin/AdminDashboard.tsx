@@ -44,6 +44,7 @@ import {
 import { useConfirm, useToast } from '../../context/AdminUIContext';
 import { AdminTab } from '../../components/layouts/AdminLayout';
 import { StorageOptimizerPanel } from '../../components/admin/StorageOptimizerPanel';
+import { authFetch } from '../../lib/authFetch';
 
 interface AdminDashboardProps {
   onNavigateTab: (tab: AdminTab) => void;
@@ -155,7 +156,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showConfigGuide, setShowConfigGuide] = React.useState(false);
 
   const fetchEmailStatus = React.useCallback(() => {
-    fetch('/api/contact/status')
+    authFetch('/api/contact/status')
       .then((res) => res.json())
       .then((data) => setEmailStatus(data))
       .catch(() => {});
@@ -169,7 +170,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setTestingEmail(true);
     setTestResult(null);
     try {
-      const res = await fetch('/api/contact/test', {
+      const res = await authFetch('/api/contact/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });

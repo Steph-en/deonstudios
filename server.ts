@@ -50,7 +50,6 @@ interface DatabaseSchema {
   categories: any[];
   media: any[];
   deleted_keys: string[];
-  users: any[];
   site_settings?: Record<string, any>;
   inquiries?: any[];
   config: {
@@ -117,16 +116,6 @@ function getInitialDatabase(): DatabaseSchema {
     media: [],
     deleted_keys: [],
     site_settings: {},
-    users: [
-      {
-        id: 'admin-appahstephen9',
-        email: 'appahstephen9@gmail.com',
-        username: 'appahstephen9',
-        full_name: 'Stephen Appah',
-        role: 'admin',
-        created_at: new Date().toISOString(),
-      },
-    ],
     config: {
       supabaseUrl: process.env.VITE_SUPABASE_URL || '',
       supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || '',
@@ -812,75 +801,6 @@ async function startServer() {
   });
 
   
-  // 8. Team & User Account Management API
-  api.get('/auth/users', (_req: Request, res: Response) => {
-    // Ensure primary admin has default password in db if missing
-    if (Array.isArray(db.users)) {
-      const admin = db.users.find((u) => u.email?.toLowerCase() === 'appahstephen9@gmail.com');
-      if (admin && !admin.password) {
-        admin.password = 'admin123';
-      }
-    }
-    res.json(db.users || []);
-  });
-
-  api.post('/auth/change-password', (req: Request, res: Response) => {
-    const { password, email } = req.body;
-    if (!password) {
-      return res.status(400).json({ error: 'Password is required' });
-    }
-    const targetEmail = (email || 'appahstephen9@gmail.com').toLowerCase();
-    const user = (db.users || []).find((u) => u.email?.toLowerCase() === targetEmail);
-    if (user) {
-      user.password = password;
-      saveDatabase(db);
-    }
-    res.json({ success: true });
-  });
-
-  api.post('/auth/users', (req: Request, res: Response) => {
-    const { email, password, full_name, role } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-    const existing = (db.users || []).find((u) => u.email.toLowerCase() === cleanEmail);
-    if (existing) {
-      return res.status(409).json({ error: 'User with this email already exists' });
-    }
-
-    const newUser = {
-      id: `usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      email: cleanEmail,
-      password: password, // In production, hash with bcrypt
-      full_name: full_name?.trim() || 'Studio Member',
-      role: role || 'admin',
-      created_at: new Date().toISOString(),
-    };
-
-    db.users = [...(db.users || []), newUser];
-    saveDatabase(db);
-
-    // Return user without exposing raw password in response
-    const { password: _, ...userSafe } = newUser;
-    res.status(201).json(userSafe);
-  });
-
-  api.delete('/auth/users/:id', (req: Request, res: Response) => {
-    const { id } = req.params;
-    const email = ((req.query.email as string) || (req.body?.email as string) || '').trim().toLowerCase();
-    if (id === 'admin-appahstephen9' || id === 'demo-admin-id' || email === 'appahstephen9@gmail.com') {
-      return res.status(400).json({ error: 'Cannot delete primary owner' });
-    }
-    db.users = (db.users || []).filter(
-      (u) => u.id !== id && (email ? u.email?.toLowerCase() !== email : true)
-    );
-    saveDatabase(db);
-    res.json({ success: true, id, email });
-  });
-
-  // -------------------------------------------------------------
   // 12. Contact & Email Dispatch API
   // -------------------------------------------------------------
   const CONTACT_DESTINATION_EMAIL =
