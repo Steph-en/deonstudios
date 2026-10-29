@@ -6,6 +6,7 @@ import { createServer as createViteServer } from 'vite';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 import nodemailer from 'nodemailer';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1547,7 +1548,6 @@ async function startServer() {
 
 function getProcessUsingPort(port: number): string | null {
   try {
-    const { execSync } = require('child_process');
     if (process.platform === 'darwin' || process.platform === 'linux') {
       const output = execSync(`lsof -i :${port} -sTCP:LISTEN -P -n 2>/dev/null || true`, { encoding: 'utf-8' }).trim();
       return output || null;

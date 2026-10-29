@@ -59,17 +59,19 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
     return Math.floor(Date.now() / intervalMs) % config.assets.length;
   }, [config.assets, config.mode, config.rotationIntervalHours, config.rotationIntervalUnit, tick]);
 
-  // Preload all assets in rotation playlist for seamless, flash-free transitions
+  // Preload all assets in rotation playlist (both desktop and mobile crops) for seamless, flash-free transitions
   useEffect(() => {
     if (config.mode !== 'rotation' || !config.assets || config.assets.length === 0) return;
     config.assets.forEach((asset) => {
-      const targetUrl = isMobileOrPortrait && asset.mobileUrl ? asset.mobileUrl : asset.url;
-      if (targetUrl && (asset.mediaType === 'image' || !targetUrl.endsWith('.mp4'))) {
-        const img = new Image();
-        img.src = targetUrl;
-      }
+      const urlsToPreload = [asset.url, asset.mobileUrl].filter(Boolean) as string[];
+      urlsToPreload.forEach((url) => {
+        if (!url.endsWith('.mp4') && !url.endsWith('.webm') && !url.includes('/videos/')) {
+          const img = new Image();
+          img.src = url;
+        }
+      });
     });
-  }, [config.assets, config.mode, isMobileOrPortrait]);
+  }, [config.assets, config.mode]);
 
   // Active asset resolution (single vs rotation playlist — strictly isolated, NO cross-mode fallbacks)
   const activeAsset = React.useMemo(() => {
@@ -103,18 +105,41 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
     return null;
   }, [config, currentSlotIndex]);
 
-  // Framing values for centering the subject and scaling on mobile
+  // Framing values for centering the subject and scaling on mobile (used for desktop fallback)
   const mobileScale = config.mobileScale ?? 1;
   const mobileFocalX = config.mobileFocalX ?? 50;
   const mobileFocalY = config.mobileFocalY ?? 61;
 
-  // Determine media URL based on viewport (strictly from activeAsset, never legacy fallback)
-  const activeMediaUrl =
-    activeAsset
-      ? isMobileOrPortrait && activeAsset.mobileUrl
-        ? activeAsset.mobileUrl
-        : activeAsset.url || ''
-      : '';
+  // Determine whether this asset has a dedicated mobile crop uploaded
+  const isUsingDedicatedMobileCrop = Boolean(isMobileOrPortrait && activeAsset?.mobileUrl);
+
+  // Determine media URL based on viewport (dedicated mobile crop vs desktop asset)
+  const activeMediaUrl = activeAsset
+    ? isUsingDedicatedMobileCrop
+      ? activeAsset.mobileUrl!
+      : activeAsset.url || ''
+    : '';
+
+  // Framing style: dedicated mobile crops display at 100% natural scale; desktop fallbacks use focal centering
+  const mediaStyle = React.useMemo(() => {
+    if (isUsingDedicatedMobileCrop) {
+      return {
+        objectPosition: 'center center',
+        transform: 'scale(1)',
+      };
+    }
+    if (isMobileOrPortrait) {
+      return {
+        objectPosition: `${mobileFocalX}% ${mobileFocalY}%`,
+        transform: `scale(${mobileScale})`,
+        transformOrigin: `${mobileFocalX}% ${mobileFocalY}%`,
+      };
+    }
+    return {
+      objectPosition: 'center center',
+      transform: 'scale(1)',
+    };
+  }, [isUsingDedicatedMobileCrop, isMobileOrPortrait, mobileFocalX, mobileFocalY, mobileScale]);
 
   const isVideoFormat =
     Boolean(activeAsset) &&
@@ -203,13 +228,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
             onError={() => {
               setHasVideoError(true);
             }}
-            style={{
-              objectPosition: isMobileOrPortrait
-                ? `${mobileFocalX}% ${mobileFocalY}%`
-                : 'center center',
-              transform: isMobileOrPortrait ? `scale(${mobileScale})` : 'scale(1)',
-              transformOrigin: `${mobileFocalX}% ${mobileFocalY}%`,
-            }}
+            style={mediaStyle}
             className={`absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-opacity duration-500 ${
               videoLoaded && !hasVideoError ? 'opacity-100' : 'opacity-0'
             }`}
@@ -221,13 +240,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
             src={activeMediaUrl}
             alt="Deon Studios Editorial Cover"
             className="absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-opacity duration-500 opacity-100"
-            style={{
-              objectPosition: isMobileOrPortrait
-                ? `${mobileFocalX}% ${mobileFocalY}%`
-                : 'center center',
-              transform: isMobileOrPortrait ? `scale(${mobileScale})` : 'scale(1)',
-              transformOrigin: `${mobileFocalX}% ${mobileFocalY}%`,
-            }}
+            style={mediaStyle}
             loading="eager"
             decoding="async"
             referrerPolicy="no-referrer"

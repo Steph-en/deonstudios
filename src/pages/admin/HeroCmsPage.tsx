@@ -20,6 +20,7 @@ import {
   Play,
   Calendar,
   Check,
+  X,
 } from 'lucide-react';
 import {
   useHeroSettings,
@@ -43,6 +44,8 @@ export const HeroCmsPage: React.FC = () => {
   const [isUploadingSingle, setIsUploadingSingle] = useState(false);
   const [isUploadingMobile, setIsUploadingMobile] = useState(false);
   const [isUploadingPoster, setIsUploadingPoster] = useState(false);
+  const [uploadingMobileAssetId, setUploadingMobileAssetId] = useState<string | null>(null);
+  const [uploadingDesktopAssetId, setUploadingDesktopAssetId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [simulatedSlotIndex, setSimulatedSlotIndex] = useState<number | null>(null);
 
@@ -155,6 +158,89 @@ export const HeroCmsPage: React.FC = () => {
       toast.error(err.message || 'Failed to upload hero assets', 'UPLOAD ERROR');
     } finally {
       setIsUploadingMultiple(false);
+    }
+  };
+
+  // Upload or replace dedicated mobile portrait crop for an individual asset slot
+  const handleMobileAssetUpload = async (assetId: string, file: File | null) => {
+    if (!file) return;
+    try {
+      setUploadingMobileAssetId(assetId);
+      const res = await StorageService.uploadMedia({
+        file,
+        destinationPath: 'hero/mobile/',
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+        assets: prev.assets.map((a) =>
+          a.id === assetId
+            ? {
+                ...a,
+                mobileUrl: res.url,
+              }
+            : a
+        ),
+      }));
+
+      toast.success(
+        'Mobile portrait crop uploaded successfully and paired with this hero asset.',
+        'MOBILE CROP SAVED'
+      );
+    } catch (err: any) {
+      console.error('Mobile asset upload error:', err);
+      toast.error(err.message || 'Failed to upload mobile asset', 'UPLOAD ERROR');
+    } finally {
+      setUploadingMobileAssetId(null);
+    }
+  };
+
+  // Remove dedicated mobile crop from slot (reverts back to desktop fallback)
+  const handleRemoveMobileAsset = (assetId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      assets: prev.assets.map((a) =>
+        a.id === assetId
+          ? {
+              ...a,
+              mobileUrl: undefined,
+            }
+          : a
+      ),
+    }));
+    toast.info('Removed mobile crop. Slot will use desktop asset on mobile displays.', 'REMOVED');
+  };
+
+  // Replace desktop asset file for an existing slot
+  const handleDesktopAssetReplace = async (assetId: string, file: File | null) => {
+    if (!file) return;
+    try {
+      setUploadingDesktopAssetId(assetId);
+      const isVideo = file.type.startsWith('video/');
+      const res = await StorageService.uploadMedia({
+        file,
+        destinationPath: 'hero/',
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+        assets: prev.assets.map((a) =>
+          a.id === assetId
+            ? {
+                ...a,
+                url: res.url,
+                mediaType: isVideo ? 'video' : 'image',
+              }
+            : a
+        ),
+      }));
+
+      toast.success('Desktop asset updated.', 'UPDATED');
+    } catch (err: any) {
+      console.error('Desktop asset replace error:', err);
+      toast.error(err.message || 'Failed to replace desktop asset', 'UPLOAD ERROR');
+    } finally {
+      setUploadingDesktopAssetId(null);
     }
   };
 
@@ -529,7 +615,7 @@ export const HeroCmsPage: React.FC = () => {
                 return (
                   <div
                     key={asset.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                    className={`flex flex-col gap-3 p-3.5 rounded-xl border transition-all ${
                       isLiveNow || isSingleActive
                         ? 'border-neutral-900 bg-neutral-50/80 ring-1 ring-neutral-900'
                         : isSimulated
@@ -537,55 +623,37 @@ export const HeroCmsPage: React.FC = () => {
                         : 'border-neutral-200 bg-white hover:border-neutral-300'
                     }`}
                   >
-                    {/* Position and Handle */}
-                    <div className="flex flex-col items-center gap-1 text-neutral-400">
-                      <span className="text-[11px] font-mono font-bold text-neutral-700">
-                        #{idx + 1}
-                      </span>
-                      <div className="flex flex-col gap-0.5">
-                        <button
-                          type="button"
-                          disabled={idx === 0}
-                          onClick={() => handleMoveAsset(idx, idx - 1)}
-                          className="p-0.5 rounded hover:bg-neutral-200 text-neutral-600 disabled:opacity-30 cursor-pointer"
-                          title="Move up in rotation"
-                        >
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={idx === formData.assets.length - 1}
-                          onClick={() => handleMoveAsset(idx, idx + 1)}
-                          className="p-0.5 rounded hover:bg-neutral-200 text-neutral-600 disabled:opacity-30 cursor-pointer"
-                          title="Move down in rotation"
-                        >
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </button>
+                    {/* Top Row: Index, Title, Badges, and Action Buttons */}
+                    <div className="flex items-center gap-3">
+                      {/* Position and Handle */}
+                      <div className="flex items-center gap-1.5 text-neutral-400 shrink-0">
+                        <span className="text-[11px] font-mono font-bold text-neutral-700 w-5">
+                          #{idx + 1}
+                        </span>
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => handleMoveAsset(idx, idx - 1)}
+                            className="p-1 rounded hover:bg-neutral-200 text-neutral-600 disabled:opacity-30 cursor-pointer"
+                            title="Move up in rotation"
+                          >
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === formData.assets.length - 1}
+                            onClick={() => handleMoveAsset(idx, idx + 1)}
+                            className="p-1 rounded hover:bg-neutral-200 text-neutral-600 disabled:opacity-30 cursor-pointer"
+                            title="Move down in rotation"
+                          >
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Thumbnail */}
-                    <div className="relative w-16 h-12 rounded-lg bg-neutral-900 overflow-hidden shrink-0 border border-neutral-200">
-                      {asset.mediaType === 'video' || asset.url.endsWith('.mp4') ? (
-                        <>
-                          <video src={asset.url} className="w-full h-full object-cover" muted />
-                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                            <Video className="w-3.5 h-3.5 text-white" />
-                          </div>
-                        </>
-                      ) : asset.url ? (
-                        <img
-                          src={asset.url}
-                          alt={asset.title}
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : null}
-                    </div>
-
-                    {/* Info & Editable Title */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      {/* Info & Editable Title */}
+                      <div className="flex-1 min-w-0 flex flex-wrap items-center gap-2">
                         <input
                           type="text"
                           value={asset.title || `Asset #${idx + 1}`}
@@ -598,68 +666,232 @@ export const HeroCmsPage: React.FC = () => {
                               ),
                             }));
                           }}
-                          className="text-xs font-semibold text-neutral-900 truncate bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-neutral-900 focus:outline-none w-full"
+                          className="text-xs font-semibold text-neutral-900 bg-transparent border-b border-transparent hover:border-neutral-300 focus:border-neutral-900 focus:outline-none min-w-[120px] max-w-[200px]"
                           placeholder="Asset Title..."
                         />
+
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className={`text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded ${
+                              asset.mediaType === 'video'
+                                ? 'bg-purple-100 text-purple-700 font-semibold'
+                                : 'bg-blue-100 text-blue-700 font-semibold'
+                            }`}
+                          >
+                            {asset.mediaType === 'video' ? 'Video' : 'Image'}
+                          </span>
+
+                          {asset.mobileUrl ? (
+                            <span className="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold flex items-center gap-1">
+                              <Check className="w-2.5 h-2.5" />
+                              Mobile Crop Ready
+                            </span>
+                          ) : (
+                            <span className="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 font-mono">
+                              Desktop Fallback on Mobile
+                            </span>
+                          )}
+
+                          {isLiveNow && (
+                            <span className="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                              Live Now
+                            </span>
+                          )}
+
+                          {isSingleActive && formData.mode === 'single' && (
+                            <span className="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded bg-neutral-900 text-white font-bold">
+                              Active Background
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span
-                          className={`text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded ${
-                            asset.mediaType === 'video'
-                              ? 'bg-purple-100 text-purple-700 font-semibold'
-                              : 'bg-blue-100 text-blue-700 font-semibold'
+
+                      {/* Header Actions */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {formData.mode === 'single' && !isSingleActive && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetActiveAsset(asset)}
+                            className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-neutral-100 hover:bg-neutral-200 text-neutral-800 transition cursor-pointer"
+                            title="Set as the active background image/video"
+                          >
+                            Set Active
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSimulatedSlotIndex(simulatedSlotIndex === idx ? null : idx)
+                          }
+                          className={`p-1.5 rounded-md transition cursor-pointer ${
+                            simulatedSlotIndex === idx
+                              ? 'bg-neutral-950 text-white'
+                              : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'
                           }`}
+                          title="Preview this asset in right preview box"
                         >
-                          {asset.mediaType === 'video' ? 'Video' : 'Image'}
-                        </span>
-                        {isLiveNow && (
-                          <span className="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                            Live on Site Now
-                          </span>
-                        )}
-                        {isSingleActive && formData.mode === 'single' && (
-                          <span className="text-[9px] uppercase tracking-wider font-mono px-1.5 py-0.5 rounded bg-neutral-900 text-white font-bold">
-                            Active Background
-                          </span>
-                        )}
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAsset(asset.id)}
+                          className="p-1.5 rounded-md text-neutral-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
+                          title="Delete asset"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {formData.mode === 'single' && !isSingleActive && (
-                        <button
-                          type="button"
-                          onClick={() => handleSetActiveAsset(asset)}
-                          className="px-2.5 py-1 text-[11px] font-medium rounded-md bg-neutral-100 hover:bg-neutral-200 text-neutral-800 transition cursor-pointer"
-                          title="Set as the active background image/video"
-                        >
-                          Set Active
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSimulatedSlotIndex(simulatedSlotIndex === idx ? null : idx)
-                        }
-                        className={`p-1.5 rounded-md transition cursor-pointer ${
-                          simulatedSlotIndex === idx
-                            ? 'bg-neutral-950 text-white'
-                            : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'
-                        }`}
-                        title="Preview this asset in right preview box"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAsset(asset.id)}
-                        className="p-1.5 rounded-md text-neutral-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
-                        title="Delete asset"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    {/* Dual-Asset Slots: Desktop Version (16:9) and Mobile Version (9:16) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-neutral-100">
+                      {/* Desktop Slot */}
+                      <div className="flex items-center gap-3 bg-neutral-50 rounded-lg p-2.5 border border-neutral-200/80">
+                        <div className="relative w-24 aspect-video rounded-md bg-neutral-900 overflow-hidden shrink-0 border border-neutral-200 shadow-2xs">
+                          {asset.mediaType === 'video' || asset.url.endsWith('.mp4') ? (
+                            <>
+                              <video src={asset.url} className="w-full h-full object-cover" muted />
+                              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                <Video className="w-3.5 h-3.5 text-white" />
+                              </div>
+                            </>
+                          ) : asset.url ? (
+                            <img
+                              src={asset.url}
+                              alt={asset.title}
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : null}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 text-neutral-800">
+                            <Monitor className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
+                            <span className="text-[11px] font-semibold truncate">Desktop Version</span>
+                          </div>
+                          <p className="text-[10px] text-neutral-500 font-mono mt-0.5 truncate">
+                            Landscape (16:9 / Screen &ge; 768px)
+                          </p>
+                          <label className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium text-neutral-700 hover:text-neutral-950 bg-white hover:bg-neutral-100 border border-neutral-200 rounded px-2 py-0.5 cursor-pointer transition">
+                            <Upload className="w-2.5 h-2.5" />
+                            <span>
+                              {uploadingDesktopAssetId === asset.id ? 'Uploading...' : 'Replace Desktop'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*,video/*"
+                              className="sr-only"
+                              disabled={uploadingDesktopAssetId === asset.id}
+                              onChange={(e) =>
+                                handleDesktopAssetReplace(asset.id, e.target.files?.[0] || null)
+                              }
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Mobile Slot */}
+                      <div className="flex items-center gap-3 bg-neutral-50 rounded-lg p-2.5 border border-neutral-200/80">
+                        {asset.mobileUrl ? (
+                          <>
+                            <div className="relative w-12 aspect-[9/16] rounded-md bg-neutral-900 overflow-hidden shrink-0 border border-emerald-300 shadow-2xs">
+                              {asset.mobileUrl.endsWith('.mp4') || asset.mobileUrl.endsWith('.webm') ? (
+                                <video src={asset.mobileUrl} className="w-full h-full object-cover" muted />
+                              ) : (
+                                <img
+                                  src={asset.mobileUrl}
+                                  alt={`${asset.title} Mobile`}
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                              )}
+                              <span className="absolute bottom-0.5 right-0.5 p-0.5 bg-emerald-600 rounded-full text-white">
+                                <Check className="w-2 h-2" />
+                              </span>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 text-emerald-800 font-semibold text-[11px]">
+                                <Smartphone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span className="truncate">Dedicated Mobile Crop</span>
+                              </div>
+                              <p className="text-[10px] text-neutral-500 font-mono mt-0.5 truncate">
+                                Active on &lt; 768px &amp; Portrait
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <label className="inline-flex items-center gap-1 text-[10px] font-medium text-neutral-700 hover:text-neutral-950 bg-white hover:bg-neutral-100 border border-neutral-200 rounded px-2 py-0.5 cursor-pointer transition">
+                                  <Upload className="w-2.5 h-2.5" />
+                                  <span>
+                                    {uploadingMobileAssetId === asset.id ? 'Uploading...' : 'Replace'}
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept="image/*,video/*"
+                                    className="sr-only"
+                                    disabled={uploadingMobileAssetId === asset.id}
+                                    onChange={(e) =>
+                                      handleMobileAssetUpload(asset.id, e.target.files?.[0] || null)
+                                    }
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveMobileAsset(asset.id)}
+                                  className="inline-flex items-center gap-1 text-[10px] font-medium text-red-600 hover:text-red-700 bg-white hover:bg-red-50 border border-neutral-200 rounded px-2 py-0.5 cursor-pointer transition"
+                                  title="Remove dedicated mobile crop and use desktop fallback"
+                                >
+                                  <X className="w-2.5 h-2.5" />
+                                  <span>Remove</span>
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <label className="relative w-12 aspect-[9/16] rounded-md border-2 border-dashed border-neutral-300 hover:border-neutral-500 bg-white flex flex-col items-center justify-center shrink-0 cursor-pointer transition group">
+                              <Smartphone className="w-4 h-4 text-neutral-400 group-hover:text-neutral-700 transition" />
+                              <input
+                                type="file"
+                                accept="image/*,video/*"
+                                className="sr-only"
+                                disabled={uploadingMobileAssetId === asset.id}
+                                onChange={(e) =>
+                                  handleMobileAssetUpload(asset.id, e.target.files?.[0] || null)
+                                }
+                              />
+                            </label>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 text-neutral-700 font-medium text-[11px]">
+                                <Smartphone className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                                <span className="truncate">No Mobile Crop</span>
+                              </div>
+                              <p className="text-[10px] text-neutral-400 mt-0.5">
+                                Uses desktop version with focal centering
+                              </p>
+                              <label className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium text-neutral-900 bg-neutral-200/70 hover:bg-neutral-200 rounded px-2.5 py-1 cursor-pointer transition">
+                                <Upload className="w-2.5 h-2.5" />
+                                <span>
+                                  {uploadingMobileAssetId === asset.id
+                                    ? 'Uploading Mobile...'
+                                    : '+ Upload Mobile Crop'}
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*,video/*"
+                                  className="sr-only"
+                                  disabled={uploadingMobileAssetId === asset.id}
+                                  onChange={(e) =>
+                                    handleMobileAssetUpload(asset.id, e.target.files?.[0] || null)
+                                  }
+                                />
+                              </label>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -762,7 +994,7 @@ export const HeroCmsPage: React.FC = () => {
               </span>
             </div>
             <p className="text-xs text-neutral-500">
-              When horizontal assets fill vertical smartphones, adjust focal centering so heads, outfits, and shoes remain perfectly framed.
+              When horizontal assets fill vertical smartphones, adjust focal centering so subjects remain framed. Note: These scale and centering offsets apply to desktop assets when no dedicated mobile crop has been uploaded. Dedicated mobile crops display in natural 100% full frame.
             </p>
 
             <div className="space-y-4 pt-1">
@@ -934,6 +1166,19 @@ export const HeroCmsPage: React.FC = () => {
                 <span className="ml-1 text-[10px] text-neutral-400 font-mono">
                   ({activePreviewAsset.mediaType})
                 </span>
+                {previewMode === 'mobile' && (
+                  <span
+                    className={`ml-1.5 text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                      activePreviewAsset.mobileUrl
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}
+                  >
+                    {activePreviewAsset.mobileUrl
+                      ? 'Dedicated Mobile Crop'
+                      : 'Desktop Fallback'}
+                  </span>
+                )}
               </div>
 
               {formData.mode === 'rotation' && formData.assets.length > 1 && (
@@ -971,11 +1216,11 @@ export const HeroCmsPage: React.FC = () => {
                   playsInline
                   style={{
                     objectPosition:
-                      previewMode === 'mobile'
+                      previewMode === 'mobile' && !activePreviewAsset.mobileUrl
                         ? `${formData.mobileFocalX ?? 58}% ${formData.mobileFocalY ?? 48}%`
                         : 'center center',
                     transform:
-                      previewMode === 'mobile'
+                      previewMode === 'mobile' && !activePreviewAsset.mobileUrl
                         ? `scale(${formData.mobileScale ?? 0.88})`
                         : 'none',
                     transformOrigin: `${formData.mobileFocalX ?? 58}% ${formData.mobileFocalY ?? 48}%`,
@@ -988,11 +1233,11 @@ export const HeroCmsPage: React.FC = () => {
                   alt="Hero Preview"
                   style={{
                     objectPosition:
-                      previewMode === 'mobile'
+                      previewMode === 'mobile' && !activePreviewAsset.mobileUrl
                         ? `${formData.mobileFocalX ?? 58}% ${formData.mobileFocalY ?? 48}%`
                         : 'center center',
                     transform:
-                      previewMode === 'mobile'
+                      previewMode === 'mobile' && !activePreviewAsset.mobileUrl
                         ? `scale(${formData.mobileScale ?? 0.88})`
                         : 'none',
                     transformOrigin: `${formData.mobileFocalX ?? 58}% ${formData.mobileFocalY ?? 48}%`,
