@@ -45,6 +45,7 @@ import { useConfirm, useToast } from '../../context/AdminUIContext';
 import { AdminTab } from '../../components/layouts/AdminLayout';
 import { StorageOptimizerPanel } from '../../components/admin/StorageOptimizerPanel';
 import { authFetch } from '../../lib/authFetch';
+import { useAuth } from '../../features/auth/hooks/useAuth';
 
 interface AdminDashboardProps {
   onNavigateTab: (tab: AdminTab) => void;
@@ -56,6 +57,7 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onNavigateTab,
 }) => {
+  const { isAdmin } = useAuth();
   const toast = useToast();
   const { confirm } = useConfirm();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
@@ -163,8 +165,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }, []);
 
   React.useEffect(() => {
-    fetchEmailStatus();
-  }, [fetchEmailStatus]);
+    if (isAdmin) {
+      fetchEmailStatus();
+    }
+  }, [isAdmin, fetchEmailStatus]);
 
   const handleTestEmailDispatch = async () => {
     setTestingEmail(true);
@@ -482,8 +486,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       </div>
 
-      {/* Supabase Storage Optimization Panel */}
-      <StorageOptimizerPanel />
+      {/* Supabase Storage Optimization Panel - Only visible to admin */}
+      {isAdmin && <StorageOptimizerPanel />}
 
       {/* Studio Client Inquiries & Briefs */}
       <div className="bg-white border border-neutral-200 rounded-xl p-5 sm:p-6 shadow-xs space-y-5">
@@ -560,175 +564,177 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
 
-        {/* Email Dispatcher Status & Live Diagnostics Card */}
-        <div className="p-4 bg-neutral-50/80 border border-neutral-200 rounded-lg space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-semibold uppercase tracking-wider text-neutral-900">
-                  Email Dispatcher
-                </span>
-                <span className="text-[11px] font-mono text-neutral-600 bg-white border border-neutral-200 px-2 py-0.5 rounded">
-                  to: {emailStatus?.destination || 'studio@gideonboadi.com'}
-                </span>
-                {emailStatus?.resendConfigured ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                    Resend Active
+        {/* Email Dispatcher Status & Live Diagnostics Card - Visible only to admin */}
+        {isAdmin && (
+          <div className="p-4 bg-neutral-50/80 border border-neutral-200 rounded-lg space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-900">
+                    Email Dispatcher
                   </span>
-                ) : emailStatus?.smtpConfigured ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                    SMTP Connected ({emailStatus.smtpHost})
+                  <span className="text-[11px] font-mono text-neutral-600 bg-white border border-neutral-200 px-2 py-0.5 rounded">
+                    to: {emailStatus?.destination || 'studio@gideonboadi.com'}
                   </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
-                    <AlertCircle className="w-3 h-3 text-amber-600" />
-                    Stored to Studio DB (Awaiting .env credentials)
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-neutral-500">
-                All inquiries are permanently saved here. Automated email delivery requires SMTP or Resend credentials in <code className="font-mono text-neutral-700 bg-neutral-200/60 px-1 py-0.5 rounded">.env</code>.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowConfigGuide(!showConfigGuide)}
-                className="px-2.5 py-1.5 text-xs text-neutral-700 hover:text-neutral-950 border border-neutral-300 hover:border-neutral-400 bg-white rounded transition flex items-center gap-1.5 cursor-pointer font-medium"
-              >
-                <Key className="w-3.5 h-3.5 text-neutral-500" />
-                <span>{showConfigGuide ? 'Hide Secrets' : 'View Secrets Setup'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleTestEmailDispatch}
-                disabled={testingEmail}
-                className="px-3 py-1.5 text-xs bg-neutral-950 hover:bg-neutral-800 disabled:bg-neutral-400 text-white rounded transition flex items-center gap-1.5 cursor-pointer font-medium shadow-xs"
-              >
-                {testingEmail ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Verifying...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Send Test Email</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Test Dispatch Result Feedback */}
-          {testResult && (
-            <div
-              className={`p-3 text-xs rounded border transition-all ${
-                testResult.success
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-                  : 'bg-rose-50 border-rose-300 text-rose-900'
-              }`}
-            >
-              <div className="flex items-start gap-2">
-                {testResult.success ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1 space-y-1">
-                  <p className="font-medium">
-                    {testResult.message || testResult.error}
-                  </p>
-                  {testResult.hint && (
-                    <p className="text-[11px] opacity-90">{testResult.hint}</p>
+                  {emailStatus?.resendConfigured ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      Resend Active
+                    </span>
+                  ) : emailStatus?.smtpConfigured ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      SMTP Connected ({emailStatus.smtpHost})
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                      <AlertCircle className="w-3 h-3 text-amber-600" />
+                      Stored to Studio DB (Awaiting .env credentials)
+                    </span>
                   )}
                 </div>
+                <p className="text-[11px] text-neutral-500">
+                  All inquiries are permanently saved here. Automated email delivery requires SMTP or Resend credentials in <code className="font-mono text-neutral-700 bg-neutral-200/60 px-1 py-0.5 rounded">.env</code>.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowConfigGuide(!showConfigGuide)}
+                  className="px-2.5 py-1.5 text-xs text-neutral-700 hover:text-neutral-950 border border-neutral-300 hover:border-neutral-400 bg-white rounded transition flex items-center gap-1.5 cursor-pointer font-medium"
+                >
+                  <Key className="w-3.5 h-3.5 text-neutral-500" />
+                  <span>{showConfigGuide ? 'Hide Secrets' : 'View Secrets Setup'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleTestEmailDispatch}
+                  disabled={testingEmail}
+                  className="px-3 py-1.5 text-xs bg-neutral-950 hover:bg-neutral-800 disabled:bg-neutral-400 text-white rounded transition flex items-center gap-1.5 cursor-pointer font-medium shadow-xs"
+                >
+                  {testingEmail ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send Test Email</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
-          )}
 
-          {/* Collapsible Secrets & Configuration Reference */}
-          {showConfigGuide && (
-            <div className="mt-3 p-4 bg-white border border-neutral-200 rounded-lg text-xs space-y-4 font-sans shadow-xs">
-              <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
-                <div>
-                  <span className="font-semibold text-neutral-900 uppercase tracking-wider text-[11px] block">
-                    How & Where to Fix Email Dispatch Across Environments
-                  </span>
-                  <span className="text-[11px] text-neutral-500">
-                    Follow these steps for Vercel, Google AI Studio, and Localhost
-                  </span>
-                </div>
-                <span className="text-[10px] text-neutral-500 font-mono">Target: studio@gideonboadi.com</span>
-              </div>
-
-              {/* Environments Guide */}
-              <div className="p-3 bg-neutral-900 text-neutral-100 rounded-lg space-y-2 text-[11px]">
-                <div className="font-semibold text-amber-300 uppercase tracking-wider text-[10px]">
-                  Where to configure variables:
-                </div>
-                <ul className="space-y-1.5 list-disc list-inside text-neutral-300">
-                  <li>
-                    <strong className="text-white">In Vercel (Production):</strong> Go to your{' '}
-                    <span className="text-neutral-200 font-mono">Vercel Project &rarr; Settings &rarr; Environment Variables</span>, add the variables below, and click <strong className="text-white">Redeploy</strong>.
-                  </li>
-                  <li>
-                    <strong className="text-white">In Google AI Studio &amp; Localhost:</strong> Update the{' '}
-                    <code className="text-amber-200 font-mono bg-neutral-800 px-1 py-0.5 rounded">.env</code> file in the project root.
-                  </li>
-                </ul>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Option A: Resend API */}
-                <div className="space-y-2 p-3.5 bg-emerald-50/50 border border-emerald-200/80 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-emerald-950 block text-[12px]">Option A: Resend (Recommended for Vercel)</span>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-mono px-1.5 py-0.5 rounded font-medium">100% Free</span>
+            {/* Test Dispatch Result Feedback */}
+            {testResult && (
+              <div
+                className={`p-3 text-xs rounded border transition-all ${
+                  testResult.success
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                    : 'bg-rose-50 border-rose-300 text-rose-900'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  {testResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1 space-y-1">
+                    <p className="font-medium">
+                      {testResult.message || testResult.error}
+                    </p>
+                    {testResult.hint && (
+                      <p className="text-[11px] opacity-90">{testResult.hint}</p>
+                    )}
                   </div>
-                  <p className="text-[11px] text-neutral-600 leading-relaxed">
-                    Fastest setup. Works natively in Vercel serverless without SMTP timeouts or Gmail 2FA blocks:
-                  </p>
-                  <ol className="text-[11px] text-neutral-600 space-y-1 list-decimal list-inside">
-                    <li>Sign up free at <strong>resend.com</strong></li>
-                    <li>Copy your API key (starts with <code className="bg-neutral-200 px-1 py-0.5 rounded font-mono">re_</code>)</li>
-                    <li>Add these variables:</li>
-                  </ol>
-                  <pre className="p-2.5 bg-neutral-900 text-neutral-100 font-mono text-[10px] rounded overflow-x-auto">
+                </div>
+              </div>
+            )}
+
+            {/* Collapsible Secrets & Configuration Reference */}
+            {showConfigGuide && (
+              <div className="mt-3 p-4 bg-white border border-neutral-200 rounded-lg text-xs space-y-4 font-sans shadow-xs">
+                <div className="flex items-center justify-between pb-2 border-b border-neutral-100">
+                  <div>
+                    <span className="font-semibold text-neutral-900 uppercase tracking-wider text-[11px] block">
+                      How & Where to Fix Email Dispatch Across Environments
+                    </span>
+                    <span className="text-[11px] text-neutral-500">
+                      Follow these steps for Vercel, Google AI Studio, and Localhost
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-neutral-500 font-mono">Target: studio@gideonboadi.com</span>
+                </div>
+
+                {/* Environments Guide */}
+                <div className="p-3 bg-neutral-900 text-neutral-100 rounded-lg space-y-2 text-[11px]">
+                  <div className="font-semibold text-amber-300 uppercase tracking-wider text-[10px]">
+                    Where to configure variables:
+                  </div>
+                  <ul className="space-y-1.5 list-disc list-inside text-neutral-300">
+                    <li>
+                      <strong className="text-white">In Vercel (Production):</strong> Go to your{' '}
+                      <span className="text-neutral-200 font-mono">Vercel Project &rarr; Settings &rarr; Environment Variables</span>, add the variables below, and click <strong className="text-white">Redeploy</strong>.
+                    </li>
+                    <li>
+                      <strong className="text-white">In Google AI Studio &amp; Localhost:</strong> Update the{' '}
+                      <code className="text-amber-200 font-mono bg-neutral-800 px-1 py-0.5 rounded">.env</code> file in the project root.
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Option A: Resend API */}
+                  <div className="space-y-2 p-3.5 bg-emerald-50/50 border border-emerald-200/80 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-emerald-950 block text-[12px]">Option A: Resend (Recommended for Vercel)</span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-mono px-1.5 py-0.5 rounded font-medium">100% Free</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-600 leading-relaxed">
+                      Fastest setup. Works natively in Vercel serverless without SMTP timeouts or Gmail 2FA blocks:
+                    </p>
+                    <ol className="text-[11px] text-neutral-600 space-y-1 list-decimal list-inside">
+                      <li>Sign up free at <strong>resend.com</strong></li>
+                      <li>Copy your API key (starts with <code className="bg-neutral-200 px-1 py-0.5 rounded font-mono">re_</code>)</li>
+                      <li>Add these variables:</li>
+                    </ol>
+                    <pre className="p-2.5 bg-neutral-900 text-neutral-100 font-mono text-[10px] rounded overflow-x-auto">
 {`RESEND_API_KEY=re_your_api_key_here
 RESEND_FROM=Deon Studios <onboarding@resend.dev>
 CONTACT_DESTINATION_EMAIL=studio@gideonboadi.com`}
-                  </pre>
-                </div>
+                    </pre>
+                  </div>
 
-                {/* Option B: Gmail SMTP */}
-                <div className="space-y-2 p-3.5 bg-neutral-50 border border-neutral-200 rounded-lg">
-                  <span className="font-semibold text-neutral-900 block text-[12px]">Option B: Gmail / Google Workspace SMTP</span>
-                  <p className="text-[11px] text-neutral-600 leading-relaxed">
-                    <strong className="text-rose-600">Important:</strong> Google blocks normal account passwords (535 Bad Credentials). You MUST use a 16-character App Password:
-                  </p>
-                  <ol className="text-[11px] text-neutral-600 space-y-1 list-decimal list-inside">
-                    <li>Enable 2-Step Verification on your Google account</li>
-                    <li>Go to: <strong>myaccount.google.com/apppasswords</strong></li>
-                    <li>Create an app named &ldquo;Deon Studios&rdquo; &amp; copy the 16-letter code</li>
-                  </ol>
-                  <pre className="p-2.5 bg-neutral-900 text-neutral-100 font-mono text-[10px] rounded overflow-x-auto">
+                  {/* Option B: Gmail SMTP */}
+                  <div className="space-y-2 p-3.5 bg-neutral-50 border border-neutral-200 rounded-lg">
+                    <span className="font-semibold text-neutral-900 block text-[12px]">Option B: Gmail / Google Workspace SMTP</span>
+                    <p className="text-[11px] text-neutral-600 leading-relaxed">
+                      <strong className="text-rose-600">Important:</strong> Google blocks normal account passwords (535 Bad Credentials). You MUST use a 16-character App Password:
+                    </p>
+                    <ol className="text-[11px] text-neutral-600 space-y-1 list-decimal list-inside">
+                      <li>Enable 2-Step Verification on your Google account</li>
+                      <li>Go to: <strong>myaccount.google.com/apppasswords</strong></li>
+                      <li>Create an app named &ldquo;Deon Studios&rdquo; &amp; copy the 16-letter code</li>
+                    </ol>
+                    <pre className="p-2.5 bg-neutral-900 text-neutral-100 font-mono text-[10px] rounded overflow-x-auto">
 {`SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=studio@gideonboadi.com (or your Google email)
 SMTP_PASS=your_16_letter_app_password
 SMTP_FROM="Deon Studios" <studio@gideonboadi.com>
 CONTACT_DESTINATION_EMAIL=studio@gideonboadi.com`}
-                  </pre>
+                    </pre>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {inquiriesLoading ? (
           <div className="py-12 text-center text-xs text-neutral-400 font-mono flex items-center justify-center gap-2">
