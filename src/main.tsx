@@ -37,7 +37,7 @@ createRoot(document.getElementById('root')!).render(
         persistOptions={{
           persister,
           maxAge: 1000 * 60 * 60 * 24, // 24 hours
-          buster: 'deon-studios-cache-v1',
+          buster: 'deon-studios-cache-v2',
         }}
       >
         <AdminUIProvider>

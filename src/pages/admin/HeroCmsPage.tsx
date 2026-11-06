@@ -311,6 +311,7 @@ export const HeroCmsPage: React.FC = () => {
         ...formData,
         mediaUrl: primary.url,
         mediaType: primary.mediaType,
+        mobileMediaUrl: primary.mobileUrl || formData.mobileMediaUrl,
       };
 
       await updateMutation.mutateAsync(payload);

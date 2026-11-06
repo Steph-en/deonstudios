@@ -16,15 +16,23 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [hasVideoError, setHasVideoError] = useState(false);
 
-  // Responsive display detection (portrait / mobile vs landscape / desktop)
+  // Responsive display detection (portrait / mobile / tablet vs landscape / desktop)
   const [isMobileOrPortrait, setIsMobileOrPortrait] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
-    return window.innerWidth < 768 || window.innerHeight > window.innerWidth;
+    return (
+      window.innerWidth <= 768 ||
+      window.matchMedia('(orientation: portrait)').matches ||
+      window.matchMedia('(max-width: 768px)').matches ||
+      window.innerHeight > window.innerWidth
+    );
   });
 
   useEffect(() => {
     const checkResponsiveMedia = () => {
-      const isNarrow = window.innerWidth < 768;
+      if (typeof window === 'undefined') return;
+      const isNarrow =
+        window.innerWidth <= 768 ||
+        window.matchMedia('(max-width: 768px)').matches;
       const isPortrait =
         window.matchMedia('(orientation: portrait)').matches ||
         window.innerHeight > window.innerWidth;
@@ -33,10 +41,30 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
 
     checkResponsiveMedia();
 
+    const portraitQuery = window.matchMedia('(orientation: portrait)');
+    const narrowQuery = window.matchMedia('(max-width: 768px)');
+
+    const handleMediaChange = () => checkResponsiveMedia();
+
+    if (portraitQuery.addEventListener) {
+      portraitQuery.addEventListener('change', handleMediaChange);
+      narrowQuery.addEventListener('change', handleMediaChange);
+    } else {
+      portraitQuery.addListener(handleMediaChange);
+      narrowQuery.addListener(handleMediaChange);
+    }
+
     window.addEventListener('resize', checkResponsiveMedia);
     window.addEventListener('orientationchange', checkResponsiveMedia);
 
     return () => {
+      if (portraitQuery.removeEventListener) {
+        portraitQuery.removeEventListener('change', handleMediaChange);
+        narrowQuery.removeEventListener('change', handleMediaChange);
+      } else {
+        portraitQuery.removeListener(handleMediaChange);
+        narrowQuery.removeListener(handleMediaChange);
+      }
       window.removeEventListener('resize', checkResponsiveMedia);
       window.removeEventListener('orientationchange', checkResponsiveMedia);
     };
@@ -215,7 +243,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
         {isVideoFormat && activeMediaUrl ? (
           <video
             ref={videoRef}
-            key={activeMediaUrl}
+            key={`${activeAsset?.id}-${isMobileOrPortrait ? 'mobile' : 'desktop'}`}
             src={activeMediaUrl}
             autoPlay
             muted
@@ -233,18 +261,26 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({ onExploreClick }) => {
               videoLoaded && !hasVideoError ? 'opacity-100' : 'opacity-0'
             }`}
           />
-        ) : activeMediaUrl ? (
-          /* Pure Image Mode — clean, centered, no gradient bleed */
-          <img
-            key={activeMediaUrl}
-            src={activeMediaUrl}
-            alt="Deon Studios Editorial Cover"
-            className="absolute inset-0 w-full h-full min-h-[100dvh] object-cover transition-opacity duration-500 opacity-100"
-            style={mediaStyle}
-            loading="eager"
-            decoding="async"
-            referrerPolicy="no-referrer"
-          />
+        ) : activeAsset?.url ? (
+          /* Pure Image Mode — HTML5 Picture with responsive source + img */
+          <picture className="absolute inset-0 w-full h-full min-h-[100dvh] block">
+            {activeAsset.mobileUrl && (
+              <source
+                media="(max-width: 768px), (orientation: portrait)"
+                srcSet={activeAsset.mobileUrl}
+              />
+            )}
+            <img
+              key={`${activeAsset.id}-${isMobileOrPortrait ? 'mobile' : 'desktop'}`}
+              src={activeMediaUrl || activeAsset.url}
+              alt="Deon Studios Editorial Cover"
+              className="w-full h-full min-h-[100dvh] object-cover transition-opacity duration-500 opacity-100"
+              style={mediaStyle}
+              loading="eager"
+              decoding="async"
+              referrerPolicy="no-referrer"
+            />
+          </picture>
         ) : null}
 
         {/* Ambient Darkened Overlay */}
