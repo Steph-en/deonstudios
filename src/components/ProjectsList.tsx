@@ -1000,7 +1000,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
           - Right: Underlined interactive toggle ("View All" / "Show Less")
         */}
         <div className="flex items-baseline justify-between pb-6 md:pb-6 border-b border-neutral-300 mb-8 sm:mb-12 md:mb-16">
-          <h2 className="font-display text-[28px] sm:text-[36px] md:text-[42px] font-normal tracking-tight uppercase text-neutral-950">
+          <h2 className="font-display text-[32px] sm:text-[40px] md:text-[48px] font-normal tracking-tight uppercase text-neutral-950">
             Projects
           </h2>
 
