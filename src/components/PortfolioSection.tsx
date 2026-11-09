@@ -142,7 +142,7 @@ export const PortfolioSection: React.FC<PortfolioSectionProps> = ({ shots, theme
         {/* Section Header */}
         <div className="flex items-baseline justify-between gap-4 pb-6 md:pb-8 border-b border-neutral-300 mb-6 sm:mb-8 md:mb-10">
           <div className="flex items-baseline gap-2 sm:gap-4">
-            <h2 className="font-display text-[16px] sm:text-[20px] md:text-[26px] font-normal tracking-tight uppercase text-neutral-950">
+            <h2 className="font-display text-[28px] sm:text-[36px] md:text-[42px] font-normal tracking-tight uppercase text-neutral-950">
               Portfolio
             </h2>
           </div>

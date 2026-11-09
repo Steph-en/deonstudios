@@ -510,7 +510,7 @@ export const ContactView: React.FC = () => {
                     name="phone"
                     type="tel"
                     autoComplete="tel"
-                    placeholder="e.g. +233 20 866 7252"
+                    placeholder="e.g. +233 24 XXXXXXX"
                     value={formData.phone}
                     onChange={(e) => handleChange('phone', e.target.value)}
                     className="w-full text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none font-light py-1"
